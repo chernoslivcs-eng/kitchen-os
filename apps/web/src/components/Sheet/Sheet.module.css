@@ -65,5 +65,9 @@
   cursor: pointer;
 }
 .close:hover { background: var(--line); border-color: var(--line); color: var(--ink); }
+/* Видимий заголовок шапки (рішення власника 20.09, Р183 живий стенд: без
+   нього шторка на <600 лишалась без жодного видимого імені) — той самий
+   стиль, що `.rail-kicker-title` в ArtifactPanel (15/600, без знака). */
+.title { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tab { margin-left: auto; cursor: default; }
 .content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 14px; }

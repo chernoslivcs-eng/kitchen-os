@@ -6,9 +6,9 @@ import { MemoryRouter } from 'react-router-dom';
 import { PeriodSubscriptions, rowSub, nextWindows, SUBSCRIPTIONS_COPY } from './PeriodSubscriptions';
 import type { OccasionItem, SubscriptionRow } from '../../api';
 
-// PLAN §7: підписка на традицію як «увімкнути набір» + вимикання окремих;
-// заглушити / повернути. Перевіряється на межі API: що саме летить у PUT.
-// У проді одна подія — цей сценарій живе лише тут і на засіві.
+// Календар v3 (spec 18.09, К7): каталог — пакети (рівень 1) → вміст пакета
+// (рівень 2), не чіпи+рядки на одному екрані. Контракт API той самий —
+// перевіряється на межі: що саме летить у PUT.
 
 const catholic: OccasionItem[] = [
   { occasion_id: 'xmas', title: 'Різдво', type: 'tradition', tradition: 'catholic', from: '2026-12-25', to: '2026-12-25', enabled: false, what: 'святкова вечеря', strict: false },
@@ -55,7 +55,7 @@ describe('PeriodSubscriptions', () => {
   beforeEach(() => {
     puts = [];
     subs = [];
-    rowsBySet = { catholic, orthodox: [], seasons };
+    rowsBySet = { catholic, seasons, orthodox: [], islamic: [], jewish: [], secular: [] };
     vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
       const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { 'content-type': 'application/json' } });
       if (init?.method === 'PUT') { const body = JSON.parse(init.body as string); puts.push(body); return json({ written: body, subscriptions: body }); }
@@ -72,28 +72,87 @@ describe('PeriodSubscriptions', () => {
     host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
     await act(async () => { root!.render(<MemoryRouter>{el}</MemoryRouter>); });
     await act(async () => {}); // другий тік — довідник дочитався
+    await act(async () => {});
   }
-  const click = async (el: Element | null) => act(async () => { (el as HTMLElement).click(); });
+  const click = async (el: Element | null) => { expect(el).not.toBeNull(); await act(async () => { (el as HTMLElement).click(); }); await act(async () => {}); };
   const $ = (sel: string) => host!.querySelector(sel);
   const switchOf = (id: string) => $(`[data-occasion="${id}"] [role="switch"]`) as HTMLButtonElement;
 
-  it('«увімкнути набір» — PUT усіма рядками традиції enabled:true, чіп стає увімкненим', async () => {
-    const onDone = vi.fn();
-    await mount(<PeriodSubscriptions initialSet="catholic" onDone={onDone} />);
-    expect($('[role="tab"][aria-selected="true"]')!.textContent).toBe('Католицькі');
-    expect($('[role="tab"][data-on]')).toBeNull();
-    expect($('[data-set-toggle]')!.textContent).toBe(SUBSCRIPTIONS_COPY.setOn);
-    // Не підключена традиція — рядки не «заглушені», а з датами.
-    expect($('[data-occasion="xmas"]')!.textContent).not.toContain(SUBSCRIPTIONS_COPY.muted);
-    await click($('[data-set-toggle="on"]'));
-    expect(puts).toEqual([[{ occasion_id: 'xmas', enabled: true }, { occasion_id: 'lent', enabled: true }]]);
-    expect($('[role="tab"][data-on]')!.textContent).toBe('Католицькі');
-    expect($('[data-set-toggle]')!.textContent).toBe(SUBSCRIPTIONS_COPY.setOff);
-    expect(switchOf('lent').getAttribute('aria-checked')).toBe('true');
-    expect(onDone).toHaveBeenCalledWith('subscribe');
+  // «Своя подія» переїхала в шапку календаря (рішення власника 19.09) — тут
+  // її вже нема, лише пакети.
+  it('без initialSet — рівень 1, шість пакетів з лічильниками', async () => {
+    await mount(<PeriodSubscriptions />);
+    expect($('[data-catalog-level]')!.getAttribute('data-catalog-level')).toBe('packages');
+    expect($('[data-package="catholic"]')!.textContent).toContain('2 події');
+    expect($('[data-package="seasons"]')!.textContent).toContain('2 вікна');
   });
 
-  it('вимкнути окреме — PUT одним рядком; рядок лишається як «заглушено · повернути»; повернути — той самий перемикач', async () => {
+  // Живий стенд 20.09: «Каталог подій» дублювався — той самий текст уже в
+  // шапці ArtifactPanel (label з Calendar.tsx), і ще раз власним <h2> тут.
+  // Компонент більше не малює заголовок сам — лишає це шапці панелі.
+  it('немає власного заголовка «Каталог подій» (його несе шапка панелі, не цей компонент)', async () => {
+    await mount(<PeriodSubscriptions />);
+    expect(host!.textContent).not.toContain('Каталог подій');
+    expect(host!.querySelector('h2')).toBeNull();
+    // Пояснення лишається першим рядком змісту.
+    expect(host!.textContent?.trim().startsWith('Підпишись на пакет')).toBe(true);
+  });
+
+  it('клік по рядку пакета — переходить у вміст (рівень 2) з кнопкою «назад»', async () => {
+    await mount(<PeriodSubscriptions />);
+    await click($('[data-package="catholic"] button'));
+    expect($('[data-catalog-level]')!.getAttribute('data-catalog-level')).toBe('items');
+    expect(host!.textContent).toContain('Католицькі свята');
+    expect($('[data-occasion="xmas"]')).not.toBeNull();
+    await click($('[aria-label="Назад до пакетів"]'));
+    expect($('[data-catalog-level]')!.getAttribute('data-catalog-level')).toBe('packages');
+  });
+
+  it('initialSet="catholic" — одразу рівень 2 (вхід із конкретного пакета)', async () => {
+    await mount(<PeriodSubscriptions initialSet="catholic" />);
+    expect($('[data-catalog-level]')!.getAttribute('data-catalog-level')).toBe('items');
+    expect(host!.textContent).toContain('Католицькі свята');
+  });
+
+  // Рішення власника 20.09: кнопку «Твій»/«Увімкнути» прибрано з рядка
+  // пакета — рядок ЛИШЕ веде всередину (рівень 2, де тепер обидва
+  // «Увімкнути всі»/«Вимкнути всі» завжди видимі). Підпис під назвою несе
+  // статус: увімкнено — «Відслідковується · N подій[· M вимкнено]»;
+  // вимкнено — сама кількість, без слова статусу.
+  it('рядок пакета — сама кнопка (без окремої кнопки «Твій»/«Увімкнути»), статус-підпис у трьох станах', async () => {
+    // offCount() рахує з `subs` (відхилення від дефолту), не з per-item
+    // enabled у фікстурі — явний рядок відхилення на ramson, щоб «N вимкнено»
+    // справді мала що показати.
+    subs = [{ occasion_id: 'ramson', enabled: false, updated_at: '', title: 'Черемша', type: 'season', tradition: null }];
+    await mount(<PeriodSubscriptions />);
+    const catholicPkg = $('[data-package="catholic"]')!;
+    // Католицькі: xmas/lent обидва enabled:false — весь пакет вимкнений.
+    expect(catholicPkg.querySelectorAll('button').length).toBe(1);
+    expect(catholicPkg.textContent).toContain('2 події');
+    expect(catholicPkg.textContent).not.toContain(SUBSCRIPTIONS_COPY.mine);
+
+    // Сезони: tomato on, ramson off — частково увімкнено → статус є, і «1 вимкнено».
+    const seasonsPkg = $('[data-package="seasons"]')!;
+    expect(seasonsPkg.textContent).toContain(SUBSCRIPTIONS_COPY.mine);
+    expect(seasonsPkg.textContent).toContain('2 вікна');
+    expect(seasonsPkg.textContent).toContain('1 вимкнено');
+  });
+
+  it('усі підписки пакета увімкнені — статус є, «N вимкнено» нема', async () => {
+    rowsBySet.seasons = seasons.map((r) => ({ ...r, enabled: true }));
+    await mount(<PeriodSubscriptions />);
+    const seasonsPkg = $('[data-package="seasons"]')!;
+    expect(seasonsPkg.textContent).toContain(SUBSCRIPTIONS_COPY.mine);
+    expect(seasonsPkg.textContent).not.toContain('вимкнено');
+  });
+
+  it('тап по рядку пакета відкриває рівень 2', async () => {
+    await mount(<PeriodSubscriptions />);
+    await click($('[data-package="catholic"] button'));
+    expect($('[data-catalog-level]')!.getAttribute('data-catalog-level')).toBe('items');
+  });
+
+  it('вимкнути окреме в рівні 2 — PUT одним рядком; рядок лишається як «заглушено · повернути»; повернути — той самий перемикач', async () => {
     rowsBySet.catholic = catholic.map((r) => ({ ...r, enabled: true }));
     subs = [{ occasion_id: 'xmas', enabled: true, updated_at: '', title: 'Різдво', type: 'tradition', tradition: 'catholic' }];
     await mount(<PeriodSubscriptions initialSet="catholic" />);
@@ -101,35 +160,77 @@ describe('PeriodSubscriptions', () => {
     expect(puts).toEqual([[{ occasion_id: 'xmas', enabled: false }]]);
     expect($('[data-occasion="xmas"]')!.textContent).toContain(SUBSCRIPTIONS_COPY.muted);
     expect($('[data-occasion="xmas"]')!.hasAttribute('data-enabled')).toBe(false);
-    // Набір ще увімкнений — піст лишився.
-    expect($('[data-set-toggle]')!.textContent).toBe(SUBSCRIPTIONS_COPY.setOff);
     await click(switchOf('xmas'));
     expect(puts[1]).toEqual([{ occasion_id: 'xmas', enabled: true }]);
     expect($('[data-occasion="xmas"]')!.textContent).toContain('25 груд');
   });
 
-  it('«вимкнути набір» — усі рядки enabled:false; сезони живуть у тій самій картці', async () => {
+  // Рішення власника 20.09: обидві дії («Увімкнути всі»/«Вимкнути всі»)
+  // завжди видимі зверху списку разом, не одна за станом.
+  it('«Вимкнути всі» (рівень 2) — усі рядки enabled:false', async () => {
     rowsBySet.catholic = catholic.map((r) => ({ ...r, enabled: true }));
     await mount(<PeriodSubscriptions initialSet="catholic" />);
+    expect($('[data-set-toggle="on"]')).not.toBeNull();
+    expect($('[data-set-toggle="off"]')).not.toBeNull();
     await click($('[data-set-toggle="off"]'));
     expect(puts).toEqual([[{ occasion_id: 'xmas', enabled: false }, { occasion_id: 'lent', enabled: false }]]);
-    expect($('[role="tab"][data-on]')).toBeNull();
-    expect($('[data-occasion="ramson"]')!.textContent).toContain(SUBSCRIPTIONS_COPY.muted);
-    await click(switchOf('ramson'));
-    expect(puts[1]).toEqual([{ occasion_id: 'ramson', enabled: true }]);
+    expect($('[data-occasion="ramson"]')).toBeNull(); // це не сезони — інший пакет
   });
 
-  it('відкрили «приховані» — показує першу увімкнену традицію, не православні за замовчуванням', async () => {
-    subs = [{ occasion_id: 'xmas', enabled: true, updated_at: '', title: 'Різдво', type: 'tradition', tradition: 'catholic' }];
-    await mount(<PeriodSubscriptions initialSet="seasons" />);
-    expect($('[role="tab"][aria-selected="true"]')!.textContent).toContain('Католицькі');
+  it('«Увімкнути всі» (рівень 2) — усі рядки enabled:true', async () => {
+    await mount(<PeriodSubscriptions initialSet="catholic" />);
+    await click($('[data-set-toggle="on"]'));
+    expect(puts).toEqual([[{ occasion_id: 'xmas', enabled: true }, { occasion_id: 'lent', enabled: true }]]);
   });
 
   it('PUT упав — помилка, стан не міняється', async () => {
+    rowsBySet.catholic = catholic.map((r) => ({ ...r, enabled: true }));
     await mount(<PeriodSubscriptions initialSet="catholic" />);
     (fetch as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(async () => new Response('{}', { status: 500 }));
-    await click($('[data-set-toggle="on"]'));
+    await click($('[data-set-toggle="off"]'));
     expect(host!.textContent).toContain(SUBSCRIPTIONS_COPY.err);
-    expect($('[role="tab"][data-on]')).toBeNull();
+  });
+
+  // Моушн-пас 20.09: перехід рівень 1 ↔ рівень 2 — «зміна екрана»
+  // (`screen-view`, tokens.css); рядки рівня 2 вʼїжджають зі стагером
+  // (`--i`, стеля 8); «Увімкнути всі»/«Вимкнути всі» флешить лише рядки,
+  // що СПРАВДІ змінились цим викликом.
+  describe('моушн 20.09', () => {
+    it('рівень 1 і рівень 2 — обидва несуть `screen-view` (перехід як зміна екрана)', async () => {
+      await mount(<PeriodSubscriptions />);
+      expect($('[data-catalog-level="packages"]')!.className).toContain('screen-view');
+      await click($('[data-package="catholic"] button'));
+      expect($('[data-catalog-level="items"]')!.className).toContain('screen-view');
+    });
+
+    it('рядки рівня 2 мають `row-in` і зростаючий `--i` (стеля 8) для стагера', async () => {
+      rowsBySet.catholic = [...catholic, ...Array.from({ length: 8 }, (_, i) => ({ ...catholic[0]!, occasion_id: `extra${i}` }))];
+      await mount(<PeriodSubscriptions initialSet="catholic" />);
+      const rows = [...host!.querySelectorAll('[data-occasion]')] as HTMLElement[];
+      expect(rows.length).toBe(10);
+      rows.forEach((r) => expect(r.className).toMatch(/row-in/));
+      expect(rows[0]!.style.getPropertyValue('--i')).toBe('0');
+      expect(rows[1]!.style.getPropertyValue('--i')).toBe('1');
+      // Стеля 8 — 10-й рядок (idx 9) капується на 8, не росте без кінця.
+      expect(rows[9]!.style.getPropertyValue('--i')).toBe('8');
+    });
+
+    it('«Вимкнути всі» — флеш лише на рядках, що СПРАВДІ вимкнулись цим викликом', async () => {
+      // xmas уже enabled:false (не зміниться), lent enabled:true (зміниться).
+      rowsBySet.catholic = [catholic[0]!, { ...catholic[1]!, enabled: true }];
+      await mount(<PeriodSubscriptions initialSet="catholic" />);
+      await click($('[data-set-toggle="off"]'));
+      expect($('[data-occasion="xmas"]')!.className).not.toMatch(/row-flash/);
+      expect($('[data-occasion="lent"]')!.className).toMatch(/row-flash/);
+    });
+
+    it('PUT «Увімкнути всі» впав — флешу нема (лише на успіху)', async () => {
+      rowsBySet.catholic = catholic.map((r) => ({ ...r, enabled: false }));
+      await mount(<PeriodSubscriptions initialSet="catholic" />);
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(async () => new Response('{}', { status: 500 }));
+      await click($('[data-set-toggle="on"]'));
+      expect($('[data-occasion="xmas"]')!.className).not.toMatch(/row-flash/);
+      expect($('[data-occasion="lent"]')!.className).not.toMatch(/row-flash/);
+    });
   });
 });

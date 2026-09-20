@@ -29,6 +29,13 @@ import { Icon } from '../Icon/Icon';
 interface Props {
   onClose: () => void;
   ariaLabel: string;
+  /** Видимий заголовок у шапці шторки (стиль ArtifactPanel `.rail-kicker-title`
+   *  15/600, без знака) — лише коли вміст сам не малює власну шапку (рішення
+   *  власника 20.09: живий стенд Р183 показав, що без нього шторка на <600
+   *  лишається без жодного видимого імені). Заданий title — і aria-label
+   *  діалогу (`ariaLabel` лишається пропом для сумісності, `title` має
+   *  пріоритет, якщо переданий). Без title — поведінка не змінюється. */
+  title?: string;
   /** Рід артефакта — знак у вкладці шапки, як у панелі. Без нього — лише «закрити». */
   kind?: ArtifactKey;
   children: ReactNode;
@@ -37,7 +44,7 @@ interface Props {
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 const EXIT_MS = 250;
 
-export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
+export function Sheet({ onClose, ariaLabel, title, kind, children }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   // Етап 6a: поки шторка відкрита, нижній бар (<768) ховається (HANDOFF).
   // №21: через лічильник — інша шторка поруч клас не зніме.
@@ -110,7 +117,7 @@ export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
         onFocusCapture={keepFieldInView}
         role="dialog"
         aria-modal="true"
-        aria-label={ariaLabel}
+        aria-label={title ?? ariaLabel}
         className={`${styles.panel} ${closing && !drag.leaving ? styles['panel-out'] : ''}`}
         style={closing && !drag.leaving ? undefined : drag.panelStyle}
         data-sheet
@@ -120,6 +127,7 @@ export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
         </div>
         <div className={`${panel['rail-tabs']} ${styles.head}`} {...drag.handleProps} data-sheet-head>
           <button type="button" className={styles.close} data-tap onClick={close} title="Закрити" aria-label="Закрити"><PanelIcon /></button>
+          {title && <span className={styles.title}>{title}</span>}
           {kind && (
             <span className={`${panel['rail-tab']} ${panel['rail-tab-on']} ${styles.tab}`} aria-hidden>
               <span className={panel['rail-tab-glyph']}><Icon name={ARTIFACT_ICON[kind]} size={16} inherit decorative /></span>

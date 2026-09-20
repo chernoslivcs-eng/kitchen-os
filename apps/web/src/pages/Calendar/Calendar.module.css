@@ -1,17 +1,8 @@
-/* Календар — за Screens D3a («Календар · 1440») і D3b («Календар · 390»).
-
-   Числа з кадрів. 1440: main 24 24 0 32, gap 14; чіпи легенди 30 · 0 11 ·
-   знак 12 · 12/500; картка тижня card r14 sh, підпис 12 dim (діапазон muted
-   500) 12 16 0; смуги 20 r6 · 0 8 · 11/500, ряди gap 3, 8 8 0; дні 7 колонок
-   gap 3, 6 8 8; клітинка ≥120 r10 · 8 8 6 · gap 6; dow 12 dim (вихідні
-   бурштин), число 15/600; подія 12/1.35 зі знаком 11; сьогодні — bg + кільце
-   1.5 чорнилом, «Що на вечерю?» 12/500 шавлією внизу.
-   390: h1 26 (роль); пігулка 36 card; коло 36 чорнилом; чіпи 28 · 0 10 ·
-   знак 11; липкий підрядок 6 16 4 — «Вересень» 13/600, решта 12 dim; рядок
-   дня 44 порожній / 64 з вмістом, margin 0 8; жолоб 14 + 8 зліва, риски
-   3 px з кроком 5, край 14 і r2; дата 44: dow 11, число 17/600; вміст gap 5,
-   12 12 10 4, лінія line2; чіп краю 22 · 0 8 · 11/500 зі знаком 10; подія
-   14/1.35 зі знаком 13; сьогодні — card r12 з тінню, без лінії. */
+/* Календар v3 — приведення до каркасу Комори (рішення власника 19.09, після
+   К9 «мінімум»): шапка/zone-card/section-label/ROW ANATOMY 1:1 з
+   Pantry.module.css, значення — свої (Календар лишається собою, змінився
+   лише словник). Один стовпчик завжди (рішення власника 20.09, той самий
+   принцип, що «Список»): «Сьогодні», далі місяці підряд, картка до 720px. */
 
 .screen {
   height: 100dvh;
@@ -20,280 +11,275 @@
   flex-direction: column;
   overflow: hidden;
 }
-/* fix/ios-list-scroll: екран = вʼюпорт (мінус клавіатура), бар резервує низ .list. */
 .screen { height: calc(100dvh - var(--kb, 0px)); }
+
+/* ── Шапка (Pantry «Комора»): лічильник 13 dim · розпірка · «Каталог» 38
+   card+тінь (як «Фільтр») · «+ Своя подія» 36 чорнилом (як «Додати»); на
+   390 — знаки колом 40/42. ── */
+/* min-width:0 — інакше nowrap-текст лічильника не стискається зовсім
+   (min-width:auto флекс-елемента = повна ширина вмісту при nowrap) і на
+   вузьких вʼюпортах забирає весь дефіцит у кнопок праворуч. */
+.meta { flex: 1 1 auto; min-width: 0; font-family: var(--font-body); font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.head-gap { flex: 1; }
+.head-icon {
+  position: relative; flex: none;
+  width: 38px; height: 38px; border: 0; border-radius: 10px;
+  background: var(--card); color: var(--muted); box-shadow: var(--sh-a), var(--sh-b);
+  display: grid; place-items: center; cursor: pointer;
+}
+/* flex:none — без нього флекс-алгоритм стискає кнопку нижче заданої
+   ширини (min-width:auto для флекс-елемента дозволяє це), і на 390 «+
+   Своя подія» рендерилась шириною 0 (знайдено живою перевіркою). */
+.head-add {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  height: 36px; padding: 0 14px;
+  border: 0; border-radius: 10px;
+  background: var(--ink); color: var(--bg);
+  font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.head-add:hover { filter: brightness(0.96); }
 @media (max-width: 767px) {
-  .list::after { height: calc(24px + 64px + env(safe-area-inset-bottom, 0px)); }
+  .head-icon { width: 40px; height: 40px; border-radius: 50%; }
+  .head-add { width: 42px; height: 42px; padding: 0; justify-content: center; border-radius: 50%; }
+  .head-add-text { display: none; }
 }
 
-/* ── Шапка: підрядок місяця · «Сьогодні» · «Подія» ─────────────────────── */
-.sub { display: none; font-size: 14px; color: var(--muted); white-space: nowrap; }
-@media (min-width: 1024px) { .sub { display: inline; } }
-.head-gap { flex: 1; }
-.today-pill {
-  display: inline-flex; align-items: center;
-  height: 36px; padding: 0 12px;
-  border: 0; border-radius: var(--r-pill);
-  background: var(--card);
-  box-shadow: var(--sh-a), var(--sh-b);
-  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink);
-  cursor: pointer; white-space: nowrap;
+/* ── Тіло (Pantry «Комора»): поля 22/16, без стелі й центрування. ───────── */
+.body {
+  flex: 1; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 0 22px 0;
+  display: flex; flex-direction: column; gap: 14px;
 }
-/* №26: «Підписки» — пілюля 36 на card зі знаком (390 — лише знак, коло 36). */
-.subs-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  width: 36px; height: 36px; padding: 0;
-  border: 0; border-radius: 50%;
-  background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--ink);
-  font-family: var(--font-body); font-size: 13px; font-weight: 500;
-  cursor: pointer; white-space: nowrap;
+@media (max-width: 767px) { .body { padding: 0 16px 0; gap: 12px; } }
+/* fix/ios-scroll-end-padding: iOS WebKit не рахує кінцевий padding скрол-
+   контейнера у scrollable overflow — резерв під нижній таббар і низ скролера
+   робить спейсер ::after, не padding-bottom. */
+.body::after { content: ''; display: block; flex: none; height: 24px; }
+@media (max-width: 767px) { .body::after { height: calc(24px + 64px + env(safe-area-inset-bottom, 0px)); } }
+
+/* ── Один стовпчик, завжди (рішення власника 20.09: двоколонка на 1440 з
+   відкритою панеллю різала текст навіть після контейнерного порогу
+   Р186 — власник обрав простіше: календар ніколи не ділиться на
+   колонки, той самий принцип, що «Список» — `Shopping.module.css`
+   `.card`: `width:100%; max-width:720px;`, без `margin:auto`, тож
+   картка лишається по лівому краю, а не центрується, коли вільного
+   місця більше за 720). «Сьогодні» → місяці підряд, той самий gap 14
+   (Комора), що й раніше між колонками. Р186 (`@container cal-layout` на
+   `.body`) стала непотрібною — прибрана разом з контейнером; `@container
+   cal-card` на `.zone-card` ЛИШАЄТЬСЯ (вузький рядок при звуженій картці
+   — відкрита панель, 390 — усе ще потрібен незалежно від колонок). ── */
+.layout { display: flex; flex-direction: column; gap: 14px; max-width: 720px; }
+.col-today, .col-ahead { display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Картка (Pantry «zone-card»): та сама форма для «Сьогодні» й для
+   «Далі» (рішення власника 20.09: ОДНА картка на всі місяці, не по
+   картці на місяць — місяці всередині позначені роздільником, не
+   окремими zone-card). container-type — не косметика: рядок усередині
+   вирішує «широкий/вузький» варіант за шириною КАРТКИ, не вʼюпорту
+   (живий стенд 20.09 — з відкритою панеллю праворуч на 1440 картка
+   вужча за вʼюпорт, і в'юпортний @media <768 не встигав спрацювати,
+   назви падали до однієї літери). ── */
+.zone-card {
+  background: var(--card); border-radius: 14px; overflow: hidden; padding: 0 18px 4px; box-shadow: var(--sh-a), var(--sh-b);
+  container-type: inline-size; container-name: cal-card;
 }
-.subs-btn > [data-icon] { color: var(--muted); }
-.subs-text { display: none; }
-@media (min-width: 768px) {
-  .subs-btn { width: auto; padding: 0 12px 0 10px; border-radius: var(--r-pill); }
-  .subs-text { display: inline; }
-}
-.add {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  width: 36px; height: 36px; padding: 0;
-  border: 0; border-radius: 50%;
+.section-label {
+  display: flex; align-items: center; gap: 10px;
+  height: 44px; margin: 0 -18px 8px; padding: 0 18px;
   background: var(--ink); color: var(--bg);
+}
+.section-name { font-size: 14px; font-weight: 600; }
+/* Живий стенд 20.09: табличні цифри лишаються лише там, де вони справді
+   вирівнюються по стовпчику (дата, період) — тут одна цифра й пропорційні
+   рівно так само не шкодять, для однорідності. */
+.section-count { font-size: 12px; font-weight: 400; opacity: .7; }
+@media (max-width: 767px) {
+  .zone-card { padding: 0 16px 4px; }
+  .section-label { margin: 0 -16px 8px; padding: 0 16px; }
+}
+
+/* Роздільник місяця всередині картки «Далі» (рішення власника 20.09):
+   mono-kicker 10/600 uppercase muted, 32 у висоту, БЕЗ темного фону
+   (на відміну від `.section-label` — той несе назву й лічильник самої
+   картки, цей лише ділить рядки на місяці всередині неї). Перед
+   ПЕРШИМ місяцем теж є — однорідність (не «поточний місяць без
+   підпису, наступні з підписом»). */
+.month-sep {
+  display: flex; align-items: center;
+  height: 32px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+}
+
+/* ── «Сьогодні»: «20 вересня» крупно (токен display, як h1 Комори) + «нд»
+   dim поруч на базовій лінії — короткий день тижня, той самий підпис, що
+   в .dcol «23 ср». Раніше дата дублювалась («20» окремо + «неділя · 20
+   вересня» підрядком) — живий стенд 20.09. ── */
+.today-date { display: flex; align-items: baseline; gap: 8px; padding: 2px 0 8px; }
+.today-num { font-family: var(--font-display); font-size: 40px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: var(--ink); }
+.today-sub { font-size: 13px; color: var(--muted); }
+@media (max-width: 767px) {
+  /* «якщо не влазить — 32px» (постановка): місяці на кшталт «листопада» з
+     днем тижня поруч не завжди влазять у 40px на 390 — просте фіксоване
+     зменшення на мобільному, без вимірювання рендеру. */
+  .today-num { font-size: 32px; }
+}
+
+/* ── Рядок (Components «ROW ANATOMY», Pantry «.row», уточнення живого
+   стенду 20.09): подія · період · дні — знак 16 · назва(+мета) · період
+   (тривалі, фіксована колонка, muted, tabular) · дні (тривалі — ink;
+   інакше те, що раніше було «право»: «6 осіб»/«кінець»/нічого), усі по
+   центру блока. Рядок 2 (лише коли є period і/або meta) — опис dim,
+   ОКРЕМИМ рядком під назвою (як `.meta-line` у партіях Комори): широка
+   картка — у нього йде лише meta (правило, без дати — дата вже в колонці
+   «період»); вузька (< 520px, `@container cal-card`, не вʼюпорт — див.
+   `.zone-card`) — колонка «період» не вміщується, вона йде ПЕРШОЮ в мету
+   («30.09 – 30.10 · калорійніше»), і сама колонка ховається. Висота рядка
+   48/56 — за `data-meta-wide`/`-mobile` (кожен каже «на СВОЄМУ порозі
+   ширини буде другий рядок», а не «зараз є мета» — інакше 56 не збігався
+   б із тим, яка з двох мета-версій справді видима). Волосина знизу (крім
+   останнього), підсвітка наведення на 8 px ширша за текст. Один вигляд
+   для «Сьогодні» й «Далі» — «Далі» додає ще ліву колонку дати. ── */
+/* `.row` — `<button>`, не `<div>` (на відміну від Pantry): форми-контроли
+   розв'язують `width:auto` у себе (shrink-to-fit по вмісту), а не за
+   звичайною блоковою формулою «заповнити контейнер під відʼємні поля» —
+   живий стенд 20.09 показав це напряму: без `width` рядок «Далі» лишався
+   вузьким під власний вміст (374px замість ~650), а не розтягувався.
+   Явний приріст на 16px (та сама механіка, що в `.pkg-body` каталогу)
+   працює для кнопки так само надійно, як і для блокового боксу. Раніше з
+   `width:100%` рядок був вужчим на 16px і зсунутим ліворуч — відсоток
+   рахувався від контейнера БЕЗ урахування відʼємних `margin`. */
+.row {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  min-height: 48px;
+  padding: 4px 8px; margin: 0 -8px; width: calc(100% + 16px);
+  border-radius: 10px;
+  border: 0; background: transparent;
+  text-align: left; cursor: pointer; font-family: var(--font-body);
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.row-tall { min-height: 56px; }
+@container cal-card (min-width: 520px) { .row[data-meta-wide] { min-height: 56px; } }
+@container cal-card (max-width: 519px) { .row[data-meta-mobile] { min-height: 56px; } }
+.row::after {
+  content: ''; position: absolute; left: 8px; right: 8px; bottom: 0;
+  height: 1px; background: var(--line);
+}
+.row:last-child::after { display: none; }
+@media (hover: hover) { .row:hover { background: var(--bg); } }
+.row:focus-visible { outline: 2px solid var(--sage); outline-offset: -2px; }
+.row-empty { color: var(--muted); cursor: default; }
+@media (hover: hover) { .row-empty:hover { background: transparent; } }
+
+/* Колонка «назва + мета»: рядок 1 — сама назва (право й період — свої
+   колонки поруч, не тут); рядок 2 (мета) — лише коли є що сказати, у двох
+   версіях (wide/m), поріг ширини картки вирішує, яка видима.
+
+   Живий стенд 20.09 (довга мета «Йом Кіпур», ~300 символів): `min-width:
+   auto` на `.content` (стан після Р181) бере МІНІМАЛЬНИЙ КОНТЕНТ
+   найширшої дитини як «внутрішній» розмір `.content` для флекс-розрахунку
+   `.row` — а `min-width` ДИТИНИ (нижче, на `.rmeta`) на це не впливає:
+   мінімальний контент рахується з природної ширини тексту (`white-space:
+   nowrap` → min-content == max-content == вся нерозгорнута ширина),
+   `min-width` лише обмежує, наскільки дитина сама може стиснутись
+   УСЕРЕДИНІ вже виділеного місця — це РІЗНІ розрахунки (перевірено
+   `getComputedStyle` напряму: `.rmeta{min-width:0}` саме по собі не
+   зменшило `.content`'s computed width ні на піксель, воно лишалось
+   ~1920px — повна ширина тексту). Тому `.content` тепер має ЯВНИЙ
+   `min-width: 8em` (те саме число, що підлога `.name` нижче, свідомо
+   продубльоване) — явне число замість `auto` виключає мінімальний
+   контент дітей із розрахунку взагалі, і `.row` вільно стискає `.content`
+   аж до 8em, коли місця не вистачає (Р181-кейс і 20.09-кейс — одним
+   правилом, не два конкуруючі). */
+.content { flex: 1 1 auto; min-width: 8em; display: flex; flex-direction: column; gap: 2px; }
+.line1 { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+/* Назва ніколи не вужча за 8em (живий стенд 20.09: з відкритою панеллю
+   картка вужчала, і назви падали до однієї літери — «Б…», «С», «Н»).
+   Ellipsis — лише понад цю підлогу. */
+.name { flex: 1; min-width: 8em; font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* `min-width:0` тут — щоб `.rmeta` саму могло стиснутись до фактично
+   виділеної `.content` ширини (замість переповнювати її своїм природним
+   мінімальним контентом) і показати ellipsis, а не втекти за край. */
+.rmeta { display: block; width: 100%; min-width: 0; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rmeta-m { display: none; }
+@container cal-card (max-width: 519px) { .rmeta-wide { display: none; } .rmeta-m { display: block; } }
+/* Право («дні»): тривалі — ink (число, що справді щось рахує), інакше —
+   muted, як і раніше («6 осіб»/«кінець»/рід за kind). Без tabular-nums —
+   цифри всередині рядка тексту («6-й день з 21») інакше «розсипались»
+   проміжками; табличні лишились тільки там, де цифри вирівнюються по
+   стовпчику (.dcol, .period). */
+.rval { flex: none; font-size: 13px; color: var(--muted); }
+.rval-days { color: var(--ink); }
+/* Моушн-пас 20.09: один знак (sys.next, ChevronRight), не заміна на інший
+   («sys.opened») — той самий кут, що ChevronUp (-90°), анімовано.
+   Прецеденту рухомого шеврона в застосунку нема — токени стандартні. */
+.chev { display: inline-flex; color: var(--dim); flex: none; transition: transform var(--dur-fast) var(--ease-standard); }
+.chev-open { transform: rotate(-90deg); }
+
+/* Колонка «період»: «30.09 – 30.10», фіксована ширина — щоб «дні» справа
+   стояли в одну лінію в усіх рядках картки, одноденні чи ні. Порожня для
+   одноденних (без рисок — просто пробіл), не зникає, аби не зсунути
+   сусідні рядки. Ховається, коли картка вужча за 520px (не вʼюпорт —
+   з відкритою панеллю праворуч картка звужується й на 1440) — не
+   вміщається, переїжджає в мету. */
+.period { flex: none; width: 110px; text-align: right; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+@container cal-card (max-width: 519px) { .period { display: none; } }
+
+/* «Далі»: ліва колонка дати — «23 ср», tabular. */
+.dcol { flex: none; width: 44px; font-size: 13px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.dcol s { text-decoration: none; font-weight: 400; color: var(--dim); font-size: 11px; margin-left: 3px; }
+
+/* Сезон розкритий — підрядки 40, без знака, з відступом і датою кінця праворуч. */
+.subrow {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 40px; padding: 4px 8px 4px 34px; margin: 0 -8px; width: calc(100% + 16px);
+  border: 0; background: transparent;
+  text-align: left; cursor: pointer; font-family: var(--font-body);
+}
+@media (hover: hover) { .subrow:hover { background: var(--bg); } }
+.subrow .name, .subrow .rval { color: var(--muted); }
+/* Розкриття «Сезон» (постановка 20.09): підрядки вʼїжджають зі ступінчастим
+   запізненням 20ms на рядок, стеля 8 (той самий `--i`, що передає JSX,
+   капований там-таки Math.min(i,8)) — згортання без рядка-виходу, миттєво
+   (у застосунку нема прецеденту анімованого згортання диз-клоужа). */
+.subrow-in { --i: 0; animation: cal-in var(--dur-base, 250ms) var(--ease-enter, ease) both; animation-delay: calc(var(--i) * 20ms); }
+
+/* ── Порожній стан (К9, стиль — як Комора: .empty дашд, r-xl). ──────────── */
+.empty {
+  border: 1px dashed var(--line2);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.empty p { margin: 0; max-width: 48ch; }
+.empty-btns { display: flex; gap: 8px; margin-top: 12px; }
+
+/* CTA-пара порожнього стану: повний вигляд з підписом (як «Додати, що є
+   вдома» в Коморі) — шапка несе дію завжди компактно, тут вона названа
+   словами. */
+.catalog-btn, .add {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 36px; padding: 0 14px; border-radius: 10px;
   font-family: var(--font-body); font-size: 13px; font-weight: 600;
   cursor: pointer; white-space: nowrap;
 }
-.add-text { display: none; }
-@media (min-width: 1024px) {
-  .add { width: auto; padding: 0 14px; border-radius: 10px; }
-  .add-text { display: inline; }
-}
+.catalog-btn { border: 1px solid var(--line2); background: transparent; color: var(--ink); }
+.add { border: 0; background: var(--ink); color: var(--bg); }
 
-/* ── Легенда «що триває зараз» ──────────────────────────────────────────── */
-.legend {
-  display: flex; gap: 6px;
-  flex: none;
-  padding: 4px 16px 10px;
-  overflow-x: auto; scrollbar-width: none;
-}
-.legend::-webkit-scrollbar { display: none; }
-@media (min-width: 1024px) {
-  .legend { flex-wrap: wrap; overflow: visible; padding: 0 24px 14px 32px; }
-}
-.chip {
-  display: inline-flex; align-items: center; gap: 5px;
-  flex: none;
-  height: 28px; padding: 0 10px;
-  border: 0; border-radius: var(--r-pill);
-  background: var(--t-bg); color: var(--t);
-  font-family: var(--font-body); font-size: 12px; font-weight: 500;
-  cursor: pointer; white-space: nowrap;
-}
-.chip:hover { background: color-mix(in srgb, var(--t) 18%, var(--t-bg)); }
-@media (min-width: 1024px) { .chip { height: 30px; padding: 0 11px; gap: 6px; } }
-
-/* Роди → тон. Ті самі пари, що в сайдбарі й на рисках. */
-.t-own       { --t: var(--sage);  --t-bg: var(--sage-bg); }
-.t-season    { --t: var(--amber); --t-bg: var(--amber-bg); }
-.t-restrict  { --t: var(--plum);  --t-bg: var(--plum-bg); }
-.t-tradition { --t: var(--plum);  --t-bg: var(--plum-bg); }
-.t-grey      { --t: var(--muted); --t-bg: var(--line); }
-
-/* ── Стрічка: єдина зона скролу ─────────────────────────────────────────── */
-.list {
-  flex: 1; min-height: 0;
-  overflow-y: auto; overscroll-behavior: contain; overflow-x: hidden; overflow-anchor: none;
-  scroll-padding-top: 34px; /* 0912 D (№5): день не ховається під липкий місяць */
-  padding: 0 8px 0;
-}
-/* fix/ios-scroll-end-padding (13.09): iOS WebKit не рахує кінцевий padding скрол-контейнера у scrollable overflow — остання картка лишалась під баром, а гортати не було куди. Резерв під бар і низ скролера — реальний вміст: спейсер ::after, не padding-bottom. */
-.list::after { content: ''; display: block; height: 24px; }
-
-/* ── 1440: картка тижня ─────────────────────────────────────────────────── */
-.week {
-  flex: none;
-  background: var(--card);
-  border-radius: 14px;
-  box-shadow: var(--sh-a), var(--sh-b);
-  overflow: hidden;
-}
-.week-cap {
-  display: flex; align-items: baseline; gap: 8px;
-  padding: 12px 16px 0;
-  font-size: 12px; color: var(--muted);
-}
-.week-range { font-weight: 500; color: var(--muted); }
-.bars { display: flex; flex-direction: column; gap: 3px; padding: 8px 8px 0; }
-.bar-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
-.bar {
-  display: flex; align-items: center;
-  min-width: 0; height: 20px; padding: 0 8px;
-  border: 0; border-radius: 6px;
-  background: var(--t-bg); color: var(--t);
-  font-family: var(--font-body); font-size: 11px; font-weight: 500;
-  text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  cursor: pointer;
-}
-.bar-open-l { border-top-left-radius: 0; border-bottom-left-radius: 0; }
-.bar-open-r { border-top-right-radius: 0; border-bottom-right-radius: 0; }
-/* «≈» — дати рахуються: пунктирна нижня межа смуги (Р29, той самий канал, що риска). */
-.bar-approx { background-image: repeating-linear-gradient(to right, var(--t) 0 6px, transparent 6px 10px); background-size: 100% 1.5px; background-repeat: no-repeat; background-position: 0 100%; }
-.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; padding: 6px 8px 8px; }
-.cell {
-  min-height: 120px; min-width: 0;
-  border-radius: 10px;
-  padding: 8px 8px 6px;
-  display: flex; flex-direction: column; gap: 6px;
-  cursor: cell;
-  transition: background var(--dur-fast, 150ms) var(--ease-standard, ease);
-}
-.cell .dn { display: flex; align-items: baseline; gap: 4px; font-size: 12px; }
-.cell .dow { color: var(--muted); }
-.cell .num { font-weight: 600; font-size: 15px; color: var(--ink); }
-.cell.we .dow, .cell.we .num { color: var(--amber); }
-.cell.today { background: var(--bg); box-shadow: 0 0 0 1.5px var(--ink) inset; }
-.cell.today .num { color: var(--ink); }
-.ev {
-  display: flex; align-items: flex-start; gap: 4px;
-  min-width: 0; padding: 0; border: 0; background: transparent;
-  text-align: left; cursor: pointer;
-  font-family: var(--font-body); font-size: 12px; line-height: 1.35; font-weight: 400;
-  color: var(--ink);
-}
-.ev [data-icon] { flex: none; margin-top: 2px; }
-.ev-text { min-width: 0; overflow-wrap: anywhere; }
-.cell .ask { margin-top: auto; }
-
-/* Тон точкової: рід кольором; приготоване — muted із галочкою. */
-.ev-ink { color: var(--ink); }
-.ev-muted { color: var(--muted); }
-.ev-sage { color: var(--sage); font-weight: 500; }
-.ev-amber { color: var(--amber); }
-.ev-plum { color: var(--plum); font-weight: 500; }
-.ev-done { color: var(--muted); font-weight: 400; }
-.ev:hover .ev-text { text-decoration: underline; }
-
-.more {
-  padding: 0; border: 0; background: transparent;
-  text-align: left; cursor: pointer;
-  font-family: var(--font-body); font-size: 12px; color: var(--muted);
-}
-/* Головна дія календаря — не «+», а вхід у розмову. */
-.ask {
-  display: inline-flex; align-items: center; gap: 4px;
-  align-self: flex-start;
-  padding: 0; border: 0; background: transparent;
-  cursor: pointer;
-  font-family: var(--font-body); font-size: 12px; font-weight: 500; color: var(--sage);
-}
-
-/* Вибір днів під нову подію: тон акценту без рамки. Поки тягнуть — текст не
-   виділяється. */
-.selecting { user-select: none; }
-.cell.sel { background: var(--sage-bg); }
-.cell.sel .num { color: var(--sage); }
-
-/* ── 390: липкий підрядок і рядки днів ──────────────────────────────────── */
-.monthbar {
-  position: sticky; top: 0; z-index: 2;
-  display: flex; align-items: baseline; gap: 8px;
-  padding: 6px 8px 4px;
-  background: var(--bg);
-  font-size: 12px; color: var(--muted);
-}
-.month { font-weight: 600; font-size: 13px; color: var(--ink); }
-
-.day {
-  scroll-margin-top: 34px; /* 0912 D (№5) */
-  display: flex;
-  min-height: 64px;
-  margin: 0 8px;
-  cursor: cell;
-}
-.day.quiet { min-height: 44px; }
-.gutter {
-  width: 14px; flex: none;
-  position: relative;
-  margin-left: 8px;
-  z-index: 1;
-}
-.rail {
-  position: absolute;
-  top: 0; bottom: 0;
-  width: 3px;
-  background: var(--t);
-}
-.rail-start { top: 14px; border-radius: 2px 2px 0 0; }
-.rail-end   { bottom: 14px; border-radius: 0 0 2px 2px; }
-.rail-start.rail-end { border-radius: 2px; }
-/* «≈» — дати рахуються (PLAN §7): риска пунктиром, штрих 6 / пробіл 4. */
-.rail-approx { background: repeating-linear-gradient(to bottom, var(--t) 0 6px, transparent 6px 10px); }
-.dot {
-  position: absolute;
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: var(--t);
-  margin-left: -1px;
-}
-/* Суворо — заливка крапки; мʼяко — контур (Components · легенда календаря). */
-.dot-soft { background: var(--bg); box-shadow: inset 0 0 0 1.5px var(--t); }
-.dot-start { top: 11px; }
-.dot-end   { bottom: 11px; }
-
-.day-inner {
-  flex: 1; min-width: 0;
-  display: flex;
-  margin-left: 6px;
-  transition: background var(--dur-fast, 150ms) var(--ease-standard, ease);
-}
-.day .dn {
-  width: 44px; flex: none;
-  display: flex; flex-direction: column; align-items: center;
-  padding-top: 12px; line-height: 1.1;
-}
-.day .dow { font-size: 12px; color: var(--muted); } /* 0912 D (№9): 11 → 12 */
-.day .num { font-size: 17px; font-weight: 600; color: var(--ink); }
-.day.we .dow { color: var(--amber); }
-.day.we:not(.today) .num { color: var(--amber); }
-.content {
-  flex: 1; min-width: 0;
-  display: flex; flex-direction: column; gap: 5px;
-  padding: 12px 12px 10px 4px;
-  border-bottom: 1px solid var(--line2);
-}
-.day.today .day-inner { background: var(--card); border-radius: 12px; box-shadow: var(--sh-a), var(--sh-b); }
-.day.today .content { border-bottom-color: transparent; }
-.day.sel .day-inner { background: var(--sage-bg); }
-.day.sel .num { color: var(--sage); }
-.ev-m {
-  display: flex; align-items: flex-start; gap: 6px;
-  min-width: 0; padding: 0; border: 0; background: transparent;
-  text-align: left; cursor: pointer;
-  font-family: var(--font-body); font-size: 14px; line-height: 1.35; font-weight: 400;
-  color: var(--ink);
-}
-.ev-m [data-icon] { flex: none; margin-top: 3px; }
-.ev-m:hover .ev-text { text-decoration: underline; }
-.day .ask { font-size: 14px; padding-top: 2px; gap: 5px; }
-.day .more { font-size: 12px; }
-/* Підпис краю тривалої (D3b): пігулка 22 тоном роду на його тлі, знак роду,
-   11/500 звичайним регістром. */
-.tag {
-  display: inline-flex; align-items: center; gap: 4px;
-  max-width: 100%;
-  height: 22px; padding: 0 8px;
-  border: 0; border-radius: var(--r-pill);
-  background: var(--t-bg); color: var(--t);
-  text-align: left; cursor: pointer;
-  font-family: var(--font-body); font-size: 12px; font-weight: 500; /* 0912 D (№9): 11 → 12 */
-  white-space: nowrap; /* 0912 C: overflow — на .tag-text, інакше хіт-зона ::before обрізається */
-  align-self: flex-start;
-}
-.tag-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-
-/* Моушн-чекліст: подія, що зʼявилась після «Записати»/правки, чіп у легенді
-   й смуга входять через base/enter. Прибрана — гасне й осідає (exit);
-   правлена — флеш тінтом. */
-.ev, .ev-m, .tag, .chip, .bar { animation: cal-in var(--dur-base, 250ms) var(--ease-enter, ease) both; }
+/* Моушн-чекліст: рядок, що зʼявився після дії, входить через base/enter;
+   прибраний — гасне й осідає (exit); правлений — флеш тінтом. Еталон —
+   Комора (Pantry.tsx `freshIds`/`snapshotReady`): ПЕРШЕ завантаження
+   списку — без входів, «список просто зʼявляється»; `cal-in` на
+   `.row-fresh` грає лише коли `motionId` рядка щойно з'явився в наступному
+   знімку (Calendar.tsx, ефект після `strict`/`soft`/`todayEvents`/`ahead`),
+   не при першому рендері — тому анімація не на базовому `.row` (раніше
+   грала на кожному першому рендері картки, не збігалось з Коморою). */
+.row-fresh { animation: cal-in var(--dur-base, 250ms) var(--ease-enter, ease) both; }
 @keyframes cal-in {
   from { opacity: 0; transform: translateY(2px); }
   to { opacity: 1; transform: none; }
@@ -302,142 +288,3 @@
 @keyframes ev-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(4px); } }
 .ev-flash { animation: ev-flash var(--dur-flash) var(--ease-standard, ease) both !important; border-radius: 6px; }
 @keyframes ev-flash { from { background: color-mix(in srgb, var(--sage) 18%, transparent); } to { background: transparent; } }
-
-/* П2 (2e): підвал календаря — приховані сезони і свята традицій. */
-.foot {
-  margin: 18px 8px 30px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line2);
-  display: flex; flex-direction: column; gap: 8px;
-  font-size: 13px;
-  color: var(--muted);
-}
-.foot-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
-.foot-label { width: 72px; flex: none; font-size: 12px; font-weight: 500; color: var(--muted); }
-.foot-value { color: var(--muted); }
-.foot-link { border: 0; background: none; padding: 0; font: inherit; font-weight: 500; color: var(--ink); cursor: pointer; }
-.foot-link:hover { text-decoration: underline; }
-
-/* ── №25 (рішення власника): 1440 за Redesign «v3 · Календар · сітка» (6c) ──
-   main 28 24 24 32: шапка — h1 32/700 −.03em «Вересень 2026» (рік dim 500) ·
-   ‹ › 36 card · «Сьогодні» 36 card · розпірка · сегмент «Місяць · Тиждень ·
-   Список» 36 card (активний 30 чорнилом) · «Подія» 36 чорнилом; рядок чіпів
-   тривалого 30 (плум/бурштин/шавлія-bg, знак 12, 12/500) · легенда 12 dim;
-   сітка card r20 sh: рядок днів тижня 12/500 dim · 12 16 8 · волосина;
-   тиждень 8 16 0 з волосиною: смуги 5 r3 (gap 3 8), клітинки gap 8 · число
-   14 muted (чужий місяць faint), сьогодні — bg r12 (−6) + коло 26 чорнилом,
-   події 12 зі знаком 11; права колонка 340: сьогодні (card r20 20: «Четвер,
-   10» 16/600 · «сьогодні» 13 dim; рядок події sage-bg r12 12 14; готуємо bg
-   r12; кнопка 44 r12 чорнилом), «Цього тижня» (рядки 44 · дов 32 · знак 14
-   · 14 · нотатка 12), «Триває» (крапка 8 · 14 · 12 dim; рядок підписок 13
-   muted). Нижче 1024 — стрічка D3b без змін. */
-.c6-head { display: flex; align-items: center; gap: 12px; padding: 28px 24px 16px 32px; }
-.c6-h1 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 32px; letter-spacing: -0.03em; line-height: 1; color: var(--ink); }
-.c6-year { color: var(--muted); font-weight: 500; }
-.c6-nav { display: flex; gap: 2px; margin-left: 8px; }
-.c6-nav button {
-  width: 36px; height: 36px; border: 0; border-radius: var(--r-pill);
-  background: var(--card); color: var(--muted); box-shadow: var(--sh-a), var(--sh-b);
-  display: grid; place-items: center; cursor: pointer;
-}
-.c6-nav button:hover { color: var(--ink); }
-.c6-seg { display: flex; height: 36px; padding: 3px; gap: 2px; border-radius: var(--r-pill); background: var(--card); box-shadow: var(--sh-a), var(--sh-b); }
-.c6-seg button {
-  height: 30px; padding: 0 12px; border: 0; border-radius: var(--r-pill);
-  background: transparent; color: var(--muted);
-  font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer;
-}
-.c6-seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
-.c6-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 24px 14px 32px; }
-.c6-chips .chip { height: 30px; }
-.c6-legend { margin-left: auto; display: inline-flex; align-items: center; gap: 14px; font-size: 12px; color: var(--muted); white-space: nowrap; }
-.c6-legend span { display: inline-flex; align-items: center; gap: 5px; }
-.c6-body { flex: 1; min-height: 0; display: flex; gap: 20px; padding: 0 24px 24px 32px; }
-.c6-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-.c6-main.c6-scroll { overflow-y: auto; }
-.mcard {
-  flex: 1; min-height: 0;
-  background: var(--card); border-radius: 20px;
-  box-shadow: var(--sh-a), var(--sh-b);
-  display: flex; flex-direction: column; overflow: hidden;
-}
-.mdow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); padding: 12px 16px 8px; border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 500; color: var(--muted); }
-.mweek { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 8px 16px 0; border-bottom: 1px solid var(--line); }
-.mweek-last { border-bottom: 0; padding-bottom: 8px; }
-.mbars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px 8px; }
-.mbar { height: 5px; border: 0; border-radius: 3px; padding: 0; background: var(--t); cursor: pointer; }
-.t-restrict.mbar, .t-tradition.mbar { opacity: .55; }
-.t-season.mbar { opacity: .4; }
-.mbar-more { justify-self: start; display: inline-flex; align-items: center; gap: 6px; height: 14px; padding: 0; border: 0; background: transparent; font-family: var(--font-body); font-size: 11px; line-height: 12px; color: var(--muted); cursor: pointer; }
-.mbar-more:hover { color: var(--ink); }
-/* Хвіст стелі (B4/B5): бурштинова крапка несе рід, слово — muted. */
-.tail-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); flex: none; }
-.chip-tail { --t: var(--muted); --t-bg: transparent; border: 1px solid var(--line2); }
-.chip-tail:hover { background: var(--card); }
-.mbar-approx { background: repeating-linear-gradient(90deg, var(--t) 0 6px, transparent 6px 9px); }
-.mdays { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding-top: 6px; }
-.mcell { display: flex; flex-direction: column; gap: 4px; min-width: 0; border-radius: 12px; }
-.mnum { font-size: 14px; color: var(--muted); line-height: 26px; }
-.mcell-other .mnum { color: var(--faint); }
-.mcell-today { background: var(--bg); margin: -6px -6px 0; padding: 6px; }
-.mcell-today .mnum { width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; font-size: 13px; font-weight: 600; line-height: 1; }
-.mcell.sel { background: var(--sage-bg); }
-.mev {
-  display: flex; align-items: center; gap: 4px; min-width: 0;
-  padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer;
-  font-family: var(--font-body); font-size: 12px; line-height: 1.3; color: var(--ink);
-}
-.mev > [data-icon] { color: var(--dim); flex: none; }
-.mev .ev-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mev:hover .ev-text { text-decoration: underline; }
-.mev.ev-amber, .mev.ev-amber > [data-icon] { color: var(--amber); }
-.mev.ev-plum, .mev.ev-plum > [data-icon] { color: var(--plum); }
-.mev.ev-sage, .mev.ev-sage > [data-icon] { color: var(--sage); }
-.mev.ev-muted, .mev.ev-done { color: var(--muted); }
-.c6-aside { width: 340px; flex: none; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
-.c6-card { background: var(--card); border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 14px; box-shadow: var(--sh-a), var(--sh-b); }
-.c6-card-tight { padding: 16px 20px; gap: 10px; box-shadow: var(--sh-a); }
-.c6-today { display: flex; align-items: center; gap: 10px; }
-.c6-today-day { font-size: 16px; font-weight: 600; color: var(--ink); }
-.c6-today-tag { font-size: 13px; color: var(--muted); }
-.c6-row {
-  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; width: 100%;
-  border: 0; background: var(--bg); color: var(--ink); text-align: left; cursor: pointer; font-family: var(--font-body);
-}
-.c6-row-sage { background: var(--sage-bg); }
-.c6-row-sage > [data-icon] { color: var(--sage); }
-.c6-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.c6-row-title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.c6-row-sub { font-size: 12px; color: var(--muted); }
-.c6-row-sage .c6-row-sub { color: var(--sage); }
-.c6-ask {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  height: 44px; border: 0; border-radius: 12px; background: var(--ink); color: var(--bg);
-  font-family: var(--font-body); font-size: 14px; font-weight: 600; cursor: pointer;
-}
-.c6-kicker { font-size: 13px; color: var(--muted); padding-bottom: 6px; }
-.c6-week { display: flex; flex-direction: column; gap: 0; }
-.c6-wrow { display: flex; align-items: center; gap: 12px; min-height: 44px; border-top: 1px solid var(--line); width: 100%; border-left: 0; border-right: 0; border-bottom: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; font-family: var(--font-body); color: var(--ink); }
-.c6-wdow { width: 32px; flex: none; font-size: 13px; color: var(--muted); }
-.c6-wrow > [data-icon] { color: var(--dim); flex: none; }
-.c6-wtitle { flex: 1; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.c6-wnote { font-size: 12px; color: var(--muted); white-space: nowrap; }
-.c6-wnote-plum { color: var(--plum); }
-.c6-lrow { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink); width: 100%; border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; font-family: var(--font-body); }
-.c6-ldot { width: 8px; height: 8px; border-radius: 50%; background: var(--t); flex: none; }
-.c6-ltitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.c6-lnote { font-size: 12px; color: var(--muted); white-space: nowrap; }
-/* Р145: «Каталог подій» — та сама кнопка, що «Що на вечерю завтра?» (.c6-ask), на всю
-   ширину картки; під нею «N приховано» 12 dim по центру, лише при N > 0. Між
-   списком і кнопкою 12 (gap картки-tight 10 + 2).
-   <1024 картки «Триває» нема (стрічка D3a, вхід у підписки — кнопка шапки). */
-.c6-subs-row { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
-.c6-subs-row .c6-ask { width: 100%; }
-.c6-hidden { font-size: 12px; color: var(--dim); text-align: center; }
-.c6-empty { font-size: 13px; color: var(--muted); }
-/* 0912 C: хіт 44 у сегментах виду (≥1024) і кнопках шапки; на 360 шапка не стискає «Підписки»/«Подія». */
-.c6-seg button { position: relative; }
-.c6-seg button::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--tap)); height: max(100%, var(--tap)); transform: translate(-50%, -50%); }
-.subs-btn, .add { flex: none; }
-/* fix/ios-inner-scroll-offset: у колонці з фіксованою висотою рейка з overflow-x: auto має min-height 0 і стискається до нуля (чіпи комори 0 px, рецептів 12 px на 390×664 — і в WebKit, і в Chromium). Діти скролера не стискаються. */
-.legend { flex: none; }

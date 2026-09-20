@@ -1,20 +1,17 @@
-// «Що впливає на кухню протягом року» — вхід у підписки з календаря
-// (Components · «Календар · що впливає на кухню: традиція · сезони · свої
-// події», PLAN §7). Одна картка на все: п'ять традицій чіпами, рядки обраної
-// з перемикачами, сезони з каталогу, вхід у свою подію.
+// «Каталог подій» — вхід у підписки з календаря (spec 2026-09-18, Календар
+// v3, К7): ДВА рівні, не чіпи+рядки на одному екрані. Перший рівень —
+// пакети (пʼять традицій + сезони), кожен «підписуєшся й отримуєш весь
+// набір одразу»; другий — вміст пакета, рядки з перемикачами на кожному.
+// Періоди раціону (сушка, набір ваги…) у каталозі більше нема — це власні
+// події. Рішення власника 19.09: «Своя подія» — окрема кнопка в шапці
+// календаря («+ Своя подія»), не пункт унизу каталогу — два входи, не один.
 //
-// Відмінність від серії з чату (PeriodSeries, A1): там галочки й одна кнопка
-// «Записати в календар», бо картка ще має застосуватись. Тут перемикач пише
-// одразу — PUT одним рядком; «увімкнути набір» / «вимкнути набір» — PUT усіма
-// рядками традиції. Знятий рядок лишається на місці як «заглушено · повернути»:
-// повернути — той самий перемикач.
-//
-// Контракт підписок (services/api routes/events.ts): рядок традиції за
-// замовчуванням вимкнений, сезон — увімкнений; збіг із дефолтом сервер
-// прибирає сам. Тому «традиція увімкнена» = хоч один її рядок enabled.
+// Дані й контракт не змінились від попередньої версії (PLAN §7): перемикач
+// пише одразу — PUT одним рядком; «Твій»/«Увімкнути» на пакеті — PUT усіма
+// рядками. Знятий рядок лишається на місці як «заглушено · повернути».
 
-import { useEffect, useState } from 'react';
-import { api, type OccasionItem, type OccasionSet, type SubscriptionRow, type Tradition } from '../../api';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { api, type OccasionItem, type OccasionSet, type SubscriptionRow } from '../../api';
 import { Icon } from '../Icon/Icon';
 import { shortDate, todayIso, TRADITION_LABEL, TRADITION_SETS } from '../../lib/period';
 import type { PeriodChange } from './PeriodArtifact';
@@ -22,28 +19,40 @@ import styles from './PeriodArtifact.module.css';
 import sub from './PeriodSubscriptions.module.css';
 
 export interface SubscriptionsProps {
-  /** Звідки відкрили: рядок «свята» — традиція, «приховані» — сезони. */
+  /** Звідки відкрили: конкретний пакет — одразу його вміст; нема — список пакетів. */
   initialSet?: OccasionSet;
   onDone?: (change: PeriodChange) => void;
-  onAddOwn?: () => void;
-  onClose?: () => void;
 }
 
+/** Шість пакетів каталогу: пʼять традицій + сезони (К7). */
+const OCCASION_SETS: OccasionSet[] = [...TRADITION_SETS, 'seasons'];
+
 export const SUBSCRIPTIONS_COPY = {
-  title: 'Що впливає на кухню протягом року',
-  text: 'Дві підписки: традиція дає свята й пости (обмеження), каталог дає сезони (що зараз найкраще). Обидві потрапляють у «Дім зараз» і в пропозиції — вимкнув набір, і воно зникає звідусіль.',
-  traditions: 'Свята й пости · традиція',
-  seasons: 'Сезонні продукти · каталог · мʼяко',
-  own: 'Своя подія з датами — гості, дієта на період, відпустка',
-  add: 'додати',
-  setOn: 'увімкнути набір',
-  setOff: 'вимкнути набір',
+  // Заголовка «Каталог подій» тут більше нема (живий стенд 20.09: дублював
+  // шапку ArtifactPanel) — назва панелі несе саме шапка, це лишає лише пояснення.
+  text: 'Підпишись на пакет — і отримаєш весь набір одразу. Усередині можна вимкнути зайве, за замовчуванням усе увімкнено.',
+  // Рішення власника 20.09: те саме слово, де раніше було «Твій» — на
+  // рядку пакета (рівень 1) і в шапці вмісту (рівень 2).
+  mine: 'Відслідковується',
+  events: (n: number) => `${n} ${plural(n, ['подія', 'події', 'подій'])}`,
+  seasons: (n: number) => `${n} ${plural(n, ['вікно', 'вікна', 'вікон'])}`,
+  someOff: (n: number) => `${n} вимкнено`,
+  setOn: 'Увімкнути всі',
+  setOff: 'Вимкнути всі',
   muted: 'заглушено · повернути',
   strict: 'суворо',
   err: 'Не вийшло записати. Спробуй ще раз',
 } as const;
 
+function plural(n: number, forms: [string, string, string]): string {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return forms[0];
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return forms[1];
+  return forms[2];
+}
+
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const packageName = (set: OccasionSet) => (set === 'seasons' ? 'Сезонні продукти' : `${cap(TRADITION_LABEL[set])} свята`);
 
 /**
  * Довідник віддає вікна одного року. Рядок, що цього року вже минув,
@@ -87,125 +96,210 @@ export function rowSub(
   return [when, does].filter(Boolean).join(' · ');
 }
 
-export function PeriodSubscriptions({ initialSet, onDone, onAddOwn, onClose }: SubscriptionsProps) {
-  const [viewed, setViewed] = useState<Tradition>(initialSet && initialSet !== 'seasons' ? initialSet : 'orthodox');
+export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) {
+  // Рівень 1 (пакети) — нема обраного набору; рівень 2 (вміст) — набір є.
+  const [viewed, setViewed] = useState<OccasionSet | null>(initialSet ?? null);
   const [subs, setSubs] = useState<SubscriptionRow[] | null>(null);
   const [rows, setRows] = useState<OccasionItem[] | null>(null);
-  const [seasons, setSeasons] = useState<OccasionItem[] | null>(null);
+  // Рівень 1: не лише лічильник — повний список (без злиття років), щоб
+  // «Твій»/«Увімкнути» на пакеті могло писати PUT усіма occasion_id одразу,
+  // не заходячи у вміст.
+  const [packageItems, setPackageItems] = useState<Partial<Record<OccasionSet, OccasionItem[]>>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // Моушн-пас 20.09: «Увімкнути всі»/«Вимкнути всі» флешить ЛИШЕ рядки, що
+  // справді змінились цим викликом (окремий перемикач має власну плавну
+  // зміну — фон-спалах тут зайвий).
+  const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let alive = true;
-    api.occasions.subscriptions()
-      .then(({ subscriptions }) => {
-        if (!alive) return;
-        setSubs(subscriptions);
-        // Відкрили «свята» без набору — показуємо першу увімкнену традицію.
-        if (!initialSet || initialSet === 'seasons') {
-          const on = TRADITION_SETS.find((t) => subscriptions.some((r) => r.enabled && r.tradition === t));
-          if (on) setViewed(on);
-        }
-      })
-      .catch(() => { if (alive) setSubs([]); });
-    readSet('seasons').then((items) => { if (alive) setSeasons(items); }).catch(() => { if (alive) setErr('Не вдалось прочитати довідник'); });
+    api.occasions.subscriptions().then(({ subscriptions }) => { if (alive) setSubs(subscriptions); }).catch(() => { if (alive) setSubs([]); });
     return () => { alive = false; };
-  }, [initialSet]);
+  }, []);
 
+  // Рівень 1: лічильники й склад усіх шести пакетів — на фронті з
+  // GET /v1/occasions?set= (аудит, п. 2.5: сервер їх не рахує).
   useEffect(() => {
+    if (viewed !== null) return;
+    let alive = true;
+    Promise.all(OCCASION_SETS.map((s) => api.occasions.set(s, YEAR).then((r) => [s, r.items] as const)))
+      .then((pairs) => { if (alive) setPackageItems(Object.fromEntries(pairs)); })
+      .catch(() => { if (alive) setErr('Не вдалось прочитати довідник'); });
+    return () => { alive = false; };
+  }, [viewed]);
+
+  // Рівень 2: вміст обраного пакета.
+  useEffect(() => {
+    if (viewed === null) return;
     let alive = true;
     setRows(null);
     readSet(viewed).then((items) => { if (alive) setRows(items); }).catch(() => { if (alive) setErr('Не вдалось прочитати довідник'); });
     return () => { alive = false; };
   }, [viewed]);
 
-  const traditionOn = (t: Tradition): boolean =>
-    t === viewed && rows ? rows.some((r) => r.enabled) : !!subs?.some((r) => r.enabled && r.tradition === t);
+  /**
+   * Пакет «увімкнено»: традиція — за підпискою (лічильник `subs` — лише
+   * відхилення від дефолту, тож перевіряємо, чи є хоч один увімкнений
+   * запис). Сезони (рішення власника 19.09, живий клік у каталозі): той
+   * самий перемикач, що в традицій — «не всі сезони вимкнені», за
+   * ЕФЕКТИВНИМ станом пунктів (`items`/`rows` з `/v1/occasions?set=`, уже
+   * зваженим дефолт+відхилення), а не константа `true`. Раніше «Твій» був
+   * статичним написом — тап після часткового вимкнення «увімкнути всі» не
+   * робив нічого.
+   */
+  const packageOn = (set: OccasionSet): boolean => {
+    if (set === 'seasons') {
+      const items = set === viewed && rows ? rows : packageItems[set];
+      return !!items?.some((r) => r.enabled);
+    }
+    return set === viewed && rows ? rows.some((r) => r.enabled) : !!subs?.some((r) => r.enabled && r.tradition === set);
+  };
+  const offCount = (set: OccasionSet): number =>
+    (subs ?? []).filter((r) => !r.enabled && (set === 'seasons' ? r.type === 'season' : r.tradition === set)).length;
 
-  async function write(list: { occasion_id: string; enabled: boolean }[], key: string) {
+  async function write(list: { occasion_id: string; enabled: boolean }[], key: string, source: OccasionItem[]): Promise<boolean> {
     setBusy(key); setErr(null);
     try {
       await api.occasions.setSubscriptions(list);
       const patch = new Map(list.map((l) => [l.occasion_id, l.enabled]));
-      const apply = (items: OccasionItem[] | null) => items && items.map((i) => (patch.has(i.occasion_id) ? { ...i, enabled: patch.get(i.occasion_id)! } : i));
-      setRows(apply);
-      setSeasons(apply);
+      const apply = (items: OccasionItem[]) => items.map((i) => (patch.has(i.occasion_id) ? { ...i, enabled: patch.get(i.occasion_id)! } : i));
+      setRows((items) => items && apply(items));
+      setPackageItems((bySet) => Object.fromEntries(Object.entries(bySet).map(([s, items]) => [s, items && apply(items)])));
       setSubs((prev) => {
         const rest = (prev ?? []).filter((r) => !patch.has(r.occasion_id));
         const now = new Date().toISOString();
-        const src = [...(rows ?? []), ...(seasons ?? [])];
         return [...rest, ...list.map((l) => {
-          const it = src.find((i) => i.occasion_id === l.occasion_id);
+          const it = source.find((i) => i.occasion_id === l.occasion_id);
           return { occasion_id: l.occasion_id, enabled: l.enabled, updated_at: now, title: it?.title ?? l.occasion_id, type: it?.type ?? null, tradition: it?.tradition ?? null };
         })];
       });
       onDone?.('subscribe');
+      return true;
     } catch {
       setErr(SUBSCRIPTIONS_COPY.err);
+      return false;
     } finally { setBusy(null); }
   }
 
-  const toggle = (i: OccasionItem) => write([{ occasion_id: i.occasion_id, enabled: !i.enabled }], i.occasion_id);
-  const setAll = (enabled: boolean) => rows && write(rows.map((r) => ({ occasion_id: r.occasion_id, enabled })), `set:${viewed}`);
-  const viewedOn = traditionOn(viewed);
+  const toggle = (i: OccasionItem) => write([{ occasion_id: i.occasion_id, enabled: !i.enabled }], i.occasion_id, rows ?? []);
+  const setAll = (enabled: boolean) => {
+    if (!rows || !viewed) return;
+    const changed = rows.filter((r) => r.enabled !== enabled).map((r) => r.occasion_id);
+    void write(rows.map((r) => ({ occasion_id: r.occasion_id, enabled })), `set:${viewed}`, rows).then((ok) => {
+      if (!ok || changed.length === 0) return;
+      setFlashIds((prev) => new Set([...prev, ...changed]));
+      window.setTimeout(() => {
+        setFlashIds((prev) => { const next = new Set(prev); changed.forEach((id) => next.delete(id)); return next; });
+      }, 800);
+    });
+  };
+  const openPackage = (set: OccasionSet) => { setErr(null); setViewed(set); };
+  const backToPackages = () => { setErr(null); setViewed(null); setRows(null); };
 
-  const renderRow = (i: OccasionItem, withDot: boolean, setOn = true) => (
-    <div key={i.occasion_id} className={`${sub.row} ${i.enabled ? '' : sub['row-off']}`} data-occasion={i.occasion_id} data-enabled={i.enabled ? '' : undefined}>
-      {withDot && <span className={`${sub.dot} ${i.enabled ? '' : sub['dot-off']}`} aria-hidden />}
-      <span className={sub['row-body']}>
-        <span className={sub['row-name']}>{i.title}</span>
-        <span className={`${sub['row-sub']} ${i.enabled && i.strict ? sub['row-strict'] : ''}`}>{rowSub(i, setOn)}</span>
-      </span>
-      <button type="button" role="switch" aria-checked={i.enabled} aria-label={i.title}
-        className={`${sub.switch} ${i.enabled ? sub['switch-on'] : ''}`} data-tap
-        disabled={busy !== null} onClick={() => void toggle(i)}>
-        <span className={sub.knob} />
-      </button>
-    </div>
-  );
-
-  return (
-    <div className={styles.body} data-testid="period-subscriptions">
-      <h2 className={sub.head}>{SUBSCRIPTIONS_COPY.title}</h2>
-      <p className={sub['head-text']}>{SUBSCRIPTIONS_COPY.text}</p>
-
-      <div className={sub.section}>
-        <div className={sub['section-head']}>
-          <span className={sub.label}>{SUBSCRIPTIONS_COPY.traditions}</span>
-          {rows && (
-            <button type="button" className={sub['set-link']} data-tap disabled={busy !== null} onClick={() => void setAll(!viewedOn)} data-set-toggle={viewedOn ? 'off' : 'on'}>
-              {viewedOn ? SUBSCRIPTIONS_COPY.setOff : SUBSCRIPTIONS_COPY.setOn}
-            </button>
-          )}
-        </div>
-        <div className={sub.chips} role="tablist">
-          {TRADITION_SETS.map((t) => {
-            const on = traditionOn(t);
+  // ── Рівень 1: список пакетів ────────────────────────────────────────────
+  if (viewed === null) {
+    return (
+      // Моушн-пас 20.09: перехід рівень 1 ↔ рівень 2 — «зміна екрана»,
+      // той самий `.screen-view`/`screen-in` (crossfade + translateX(10px),
+      // tokens.css), що й вкладки/кроки профілю; `key` за рівнем — інакше
+      // обидва рендери reconcile як ОДИН вузол (той самий тип на тому
+      // самому місці) і CSS-анімація на вставку не спрацьовує (перевірено:
+      // без `key` перемикання не грало жодного разу).
+      <div key="packages" className={`${styles.body} screen-view`} data-testid="period-subscriptions" data-catalog-level="packages">
+        {/* Живий стенд 20.09: «Каталог подій» дублювався — та сама назва вже
+            в шапці ArtifactPanel (label «Каталог подій» з Calendar.tsx), тут
+            зайвий власний <h2>. Підзаголовок-пояснення лишається першим
+            рядком — панель усе одно каже, ЩО це за екран. */}
+        <p className={sub['head-text']}>{SUBSCRIPTIONS_COPY.text}</p>
+        {/* Рішення власника 20.09: кнопка «Твій/Увімкнути» на рядку пакета
+            прибрана — рядок веде лише всередину (рівень 2), де тепер обидва
+            «Увімкнути всі»/«Вимкнути всі» завжди видимі зверху. Підпис під
+            назвою несе статус замість кнопки: увімкнено — слово статусу
+            (sage) · кількість · «N вимкнено» (лише коли є); вимкнено —
+            сама кількість, muted. */}
+        <div className={sub.list} data-list="packages">
+          {OCCASION_SETS.map((set) => {
+            const items = packageItems[set];
+            const n = items?.length;
+            const on = packageOn(set);
+            const off = offCount(set);
+            const countLabel = n === undefined ? '…' : set === 'seasons' ? SUBSCRIPTIONS_COPY.seasons(n) : SUBSCRIPTIONS_COPY.events(n);
             return (
-              <button key={t} type="button" role="tab" aria-selected={t === viewed} data-on={on ? '' : undefined}
-                className={`${sub.chip} ${on ? sub['chip-on'] : ''} ${t === viewed ? sub['chip-viewed'] : ''}`}
-                onClick={() => setViewed(t)}>
-                {on && <Icon name="sys.done" size={12} inherit decorative />}
-                {cap(TRADITION_LABEL[t])}
-              </button>
+              <div key={set} className={sub.pkg} data-package={set}>
+                <button type="button" className={sub['pkg-body']} data-tap onClick={() => openPackage(set)}>
+                  <Icon name={set === 'seasons' ? 'live.season' : 'live.tradition'} size={16} inherit decorative />
+                  <span className={sub['row-body']}>
+                    <span className={sub['row-name']}>{packageName(set)}</span>
+                    <span className={sub['row-sub']}>
+                      {on && <span className={sub['status-on']}>{SUBSCRIPTIONS_COPY.mine}</span>}
+                      {on && ' · '}
+                      {countLabel}
+                      {on && off > 0 && ` · ${SUBSCRIPTIONS_COPY.someOff(off)}`}
+                    </span>
+                  </span>
+                  <span className={sub['pkg-chev']}><Icon name="sys.next" size={16} inherit decorative /></span>
+                </button>
+              </div>
             );
           })}
         </div>
-        {!rows && !err && <div className={styles.loading}>Читаю довідник…</div>}
-        {rows && <div className={sub.list} data-list="tradition">{rows.map((i) => renderRow(i, false, viewedOn))}</div>}
+        {err && <div className={styles.err}>{err}</div>}
+      </div>
+    );
+  }
+
+  // ── Рівень 2: вміст пакета ───────────────────────────────────────────────
+  const viewedOn = packageOn(viewed);
+  const total = rows?.length ?? 0;
+  return (
+    <div key="items" className={`${styles.body} screen-view`} data-testid="period-subscriptions" data-catalog-level="items">
+      <div className={sub['items-head']}>
+        <button type="button" className={sub.back} data-tap onClick={backToPackages} aria-label="Назад до пакетів">
+          <Icon name="sys.prev" size={18} inherit decorative />
+        </button>
+        <span className={sub['row-body']}>
+          <span className={sub.head}>{packageName(viewed)}</span>
+          <span className={sub['row-sub']}>{rows ? `${SUBSCRIPTIONS_COPY.events(total)} · ${viewedOn ? SUBSCRIPTIONS_COPY.mine : 'не підключено'}` : '…'}</span>
+        </span>
       </div>
 
-      <div className={sub.section}>
-        <div className={sub['section-head']}><span className={sub.label}>{SUBSCRIPTIONS_COPY.seasons}</span></div>
-        {seasons && <div className={sub.list} data-list="seasons">{seasons.map((i) => renderRow(i, true))}</div>}
-      </div>
-
-      <button type="button" className={sub.own} onClick={() => { onClose?.(); onAddOwn?.(); }}>
-        <Icon name="sys.add" size={16} inherit decorative />
-        <span className={sub['own-text']}>{SUBSCRIPTIONS_COPY.own}</span>
-        <span className={sub['own-go']}>{SUBSCRIPTIONS_COPY.add}</span>
-      </button>
-
+      {!rows && !err && <div className={styles.loading}>Читаю довідник…</div>}
+      {rows && (
+        <>
+          {/* Рішення власника 20.09: обидві дії — завжди видимі зверху
+              списку, не лише одна за станом (раніше — один перемикач
+              setOn/setOff; «Вимкнути пакет» підвалу прибрано — та сама дія,
+              що «Вимкнути всі» тут). */}
+          <div className={sub['section-head']}>
+            <span className={sub.label} />
+            <button type="button" className={sub['set-link']} data-tap disabled={busy !== null} onClick={() => void setAll(true)} data-set-toggle="on">
+              {SUBSCRIPTIONS_COPY.setOn}
+            </button>
+            <button type="button" className={sub['set-link']} data-tap disabled={busy !== null} onClick={() => void setAll(false)} data-set-toggle="off">
+              {SUBSCRIPTIONS_COPY.setOff}
+            </button>
+          </div>
+          <div className={sub.list} data-list={viewed}>
+            {rows.map((i, idx) => (
+              <div key={i.occasion_id}
+                className={`${sub.row} ${sub['row-in']} ${i.enabled ? '' : sub['row-off']} ${flashIds.has(i.occasion_id) ? sub['row-flash'] : ''}`}
+                style={{ '--i': Math.min(idx, 8) } as CSSProperties}
+                data-occasion={i.occasion_id} data-enabled={i.enabled ? '' : undefined}>
+                <span className={sub['row-body']}>
+                  <span className={sub['row-name']}>{i.title}</span>
+                  <span className={`${sub['row-sub']} ${i.enabled && i.strict ? sub['row-strict'] : ''}`}>{rowSub(i, viewedOn)}</span>
+                </span>
+                <button type="button" role="switch" aria-checked={i.enabled} aria-label={i.title}
+                  className={`${sub.switch} ${i.enabled ? sub['switch-on'] : ''}`} data-tap
+                  disabled={busy !== null} onClick={() => void toggle(i)}>
+                  <span className={sub.knob} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
       {err && <div className={styles.err}>{err}</div>}
     </div>
   );
