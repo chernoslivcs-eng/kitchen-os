@@ -28,9 +28,9 @@ describe('довідник', () => {
     const trad = (t: string) => BUILTIN_OCCASIONS.filter((r) => r.tradition === t).length;
     expect(trad('jewish')).toBe(7);
     expect(trad('islamic')).toBe(3);
-    expect(trad('secular')).toBe(7);
+    expect(trad('secular')).toBe(6);       // Миколай переїхав у православний пакет (20.09)
     expect(trad('catholic')).toBe(5);
-    expect(trad('orthodox')).toBe(4);
+    expect(trad('orthodox')).toBe(15);     // православний пакет 20.09
     // Великдень без традиції — в обох християнських наборах.
     expect(occasionSet(BUILTIN_OCCASIONS, 'orthodox').map((r) => r.id)).toContain('easter');
     expect(occasionSet(BUILTIN_OCCASIONS, 'catholic').map((r) => r.id)).toContain('easter');

@@ -31,7 +31,10 @@ export const SOLAR_YEAR = 365.25 * DAY;
  */
 export type Rule =
   | { t: 'window'; from: string; to: string }
-  | { t: 'easter'; from: number; to: number }
+  // `until` (MM-DD): кінець не від Великодня, а фіксована дата того ж року —
+  // Петрів піст іде від понеділка після Трійці (+57) до 28.06 включно; тоді
+  // `to` не читається (постав його рівним `from`).
+  | { t: 'easter'; from: number; to: number; until?: string }
   | { t: 'lunar'; base: number }
   | { t: 'solar'; base: number }
   // Дві форми, яких у глобальних свят немає й бути не може — вони належать
@@ -122,7 +125,10 @@ export function ruleActive(rule: Rule, date: Date, trads: Tradition[]): boolean 
     const trad = christianTradition(trads);
     if (!trad) return false;
     const e = easterDate(date.getFullYear(), trad);
-    return date >= shiftEaster(e, rule.from) && date <= shiftEaster(e, rule.to);
+    // Межі — цілими днями: одноденне вікно (Вербна неділя, −7..−7) інакше
+    // «тривало» лише опівночі, бо Великдень рахується на 00:00.
+    const end = rule.until ? atMonthDay(rule.until, date.getFullYear()) : shiftEaster(e, rule.to).getTime();
+    return date.getTime() >= dayStart(shiftEaster(e, rule.from)) && date.getTime() <= dayEnd(end);
   }
   if (rule.t === 'once') {
     const w = onceWindow(rule);
@@ -174,7 +180,7 @@ export function ruleWindow(
     const e = easterDate(year, trad);
     return {
       start: shiftEaster(e, rule.from).getTime(),
-      end: shiftEaster(e, rule.to).getTime(),
+      end: rule.until ? atMonthDay(rule.until, year) : shiftEaster(e, rule.to).getTime(),
     };
   }
   if (rule.t === 'dates') {

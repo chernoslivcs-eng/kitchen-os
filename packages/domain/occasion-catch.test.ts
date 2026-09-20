@@ -37,8 +37,8 @@ describe('спіймане вікно', () => {
 
   it('свято ловиться лише тим, у кого воно є', () => {
     const dish = r('Печені яблука з медом', ['яблука', 'мед']);
-    expect(catchesFor(dish, d(8, 19), []).map((h) => h.occasion_id)).not.toContain('spas');
-    expect(catchesFor(dish, d(8, 19), ['orthodox']).map((h) => h.occasion_id)).toContain('spas');
+    expect(catchesFor(dish, d(8, 6), []).map((h) => h.occasion_id)).not.toContain('spas');
+    expect(catchesFor(dish, d(8, 6), ['orthodox']).map((h) => h.occasion_id)).toContain('spas');
   });
 });
 
