@@ -1,0 +1,100 @@
+{
+  "id": "writeoff-fix-substitute",
+  "description": "D: після «Як вийшло?» — «замість вʼялених томатів взяв консервовані Helcom» → поправка: повернути вʼялені (120+80=200), списати Helcom (400−80=320); нотатка лишається.",
+  "call": "chat",
+  "now": "2026-09-19T19:30:00",
+  "pantry": [
+    {
+      "id": "b-tom",
+      "label": "вʼялені томати",
+      "zone": "fridge",
+      "v": 120,
+      "u": "g",
+      "state": "opened"
+    },
+    {
+      "id": "b-hel",
+      "label": "томати консервовані Helcom",
+      "zone": "dry",
+      "v": 400,
+      "u": "g",
+      "state": "sealed"
+    },
+    {
+      "id": "b-juice",
+      "label": "лимонний сік",
+      "zone": "fridge",
+      "v": 85,
+      "u": "ml",
+      "state": "opened"
+    },
+    {
+      "id": "b-spag",
+      "label": "спагетіні",
+      "zone": "dry",
+      "v": 180,
+      "u": "g",
+      "state": "opened"
+    },
+    {
+      "id": "b-cap",
+      "label": "каперси",
+      "zone": "fridge",
+      "v": 60,
+      "u": "g",
+      "state": "opened"
+    }
+  ],
+  "sessionWriteoffs": [
+    {
+      "title": "Спагетіні з вʼяленими томатами й каперсами",
+      "at": "2026-09-19T19:10:00",
+      "lines": [
+        {
+          "label": "вʼялені томати",
+          "amount": "80 g"
+        },
+        {
+          "label": "лимонний сік",
+          "amount": "15 ml"
+        },
+        {
+          "label": "спагетіні",
+          "amount": "320 g"
+        },
+        {
+          "label": "каперси",
+          "amount": "20 g"
+        }
+      ],
+      "notFound": []
+    }
+  ],
+  "recentCookRuns": [
+    {
+      "title": "Спагетіні з вʼяленими томатами й каперсами",
+      "rating": null,
+      "verdict": null,
+      "finished_at": "2026-09-19T19:05:00"
+    }
+  ],
+  "conversation": [
+    {
+      "role": "assistant",
+      "content": "Списав із комори — ось що пішло.\n[картка: комора] correct вʼялені томати; correct лимонний сік; correct спагетіні; correct каперси [ЗАСТОСОВАНО]"
+    },
+    {
+      "role": "assistant",
+      "content": "Як вийшло?"
+    },
+    {
+      "role": "user",
+      "content": "Я замість вʼялених томатів взяв консервовані Хелком, вийшло добре"
+    }
+  ],
+  "invariants": [
+    "writeoff-fix-card:вʼялені томати=200:Helcom|Хелком=320",
+    "has-note-or-reply-mentions:Helcom|Хелком",
+    "no-markdown"
+  ]
+}

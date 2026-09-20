@@ -8,7 +8,7 @@
 // сам пише текст у verdict останнього готування. Жоден із цих ходів не
 // викликає модель — 0 токенів.
 
-import type { Repo, IntakeOp, CookRunWithRecipe } from '@kitchen/domain';
+import type { Repo, IntakeOp, CookRunWithRecipe, MessageRow, SessionWriteoff } from '@kitchen/domain';
 import type { Recipe } from './model.js';
 
 // Точні тексти детермінованих реплік. Шорткат у chat-роуті впізнає їх
@@ -165,4 +165,46 @@ export async function latestRunInSession(
 ): Promise<CookRunWithRecipe | null> {
   const runs = await repo.listCookRuns(user_id, 10);
   return runs.find((r) => !r.undone_at && r.session_id === session_id) ?? null;
+}
+
+// ── D (20.09): [СПИСАНО В ЦІЙ СЕСІЇ] ──────────────────────────────────────
+// Живий прохід 19.09: після «Як вийшло?» власник написав «замість вʼялених
+// томатів взяв консервовані Helcom» і «взяв десь 40 лимонного соку» — модель
+// зробила нотатки, але списані лишились вʼялені томати й 15 мл соку. Щоб
+// поправка стала карткою, модель на кожному ході сесії бачить, що саме
+// списано після готувань цього дня. Вікно — уся поточна сесія; скасовані
+// undo списання не показуються; до двох останніх готувань.
+export async function sessionWriteoffs(
+  repo: Repo,
+  user_id: string,
+  session_id: string,
+  messages: readonly MessageRow[],
+): Promise<SessionWriteoff[]> {
+  const cards = messages.filter((m) => m.role === 'assistant' && m.card?.type === 'intake_diff' && (m.text ?? '').startsWith(WRITEOFF_CARD_REPLY));
+  if (!cards.length) return [];
+  // Готування цієї сесії за порядком; n-та картка списання ↔ n-те готування
+  // (списання йде одразу за «Списати продукти?» свого готування).
+  const runs = (await repo.listCookRuns(user_id, 20))
+    .filter((r) => !r.undone_at && r.session_id === session_id)
+    .sort((a, b) => a.started_at.localeCompare(b.started_at));
+  const out: SessionWriteoff[] = [];
+  for (const [i, m] of cards.entries()) {
+    const pc = await repo.getPending(m.id);
+    if (!pc || !pc.applied_at || pc.undone_at) continue;           // не застосовано або скасовано — нема чого поправляти
+    const run = runs[i] ?? runs[runs.length - 1];
+    const recipe = run?.recipe?.payload as Recipe | undefined;
+    const ops = (m.card as { ops: IntakeOp[] }).ops;
+    const opByBatch = new Map(ops.map((o) => [('batch_id' in o ? o.batch_id : undefined) ?? '', o]));
+    const lines = ops.map((o) => {
+      const ing = recipe?.ing?.find((i) => i.p && 'batch_id' in o && i.p === o.batch_id);
+      const amount = o.op === 'deplete' ? 'усе'
+        : o.op === 'open' ? 'відкрито'
+        : ing?.v != null ? `${ing.v} ${ing.u ?? ''}`.trim()
+        : o.op === 'correct' && o.value != null ? `лишилось ${o.value} ${o.unit ?? ''}`.trim() : '';
+      return { label: o.label, amount };
+    });
+    const notFound = (recipe?.ing ?? []).filter((i) => !i.p || !opByBatch.has(i.p)).map((i) => i.n).filter((n): n is string => !!n);
+    out.push({ title: recipe?.t ?? run?.recipe?.title ?? 'Готування', at: m.created_at, lines, notFound });
+  }
+  return out.slice(-2);
 }
