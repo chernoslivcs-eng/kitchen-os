@@ -35,6 +35,8 @@ export const KNOWN_EVENTS = new Set([
   'onboarding_started', 'onboarding_panel_reached', 'onboarding_finished', 'onboarding_skipped',
   // 15.09: події з Telegram-бота — пише сервер напряму (telegram.ts botEvent), не клієнт.
   'tg_start', 'tg_command', 'tg_help', 'tg_web_link', 'tg_message', 'tg_card_apply', 'tg_card_dismiss', 'tg_series_save',
+  // 20.09: recipe_gen віддав нерозбірний JSON — пише сервер (chat-turn recipeJsonFailed), щоб рахувати частоту в /admin/pulse.
+  'recipe_json_failed',
 ]);
 
 /**
