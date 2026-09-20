@@ -883,9 +883,6 @@ export interface TelegramAccountRow {
   linked_at: string;
   /** /stop: рядок лишається, писати в дім більше не можна; новий /start оживляє. */
   revoked_at: string | null;
-  /** Серія «наповнюю комору» (intake-streak.ts, міграція 0042). */
-  intake_streak_until?: string | null;
-  intake_streak_last_apply?: string | null;
 }
 /** E (20.09): лінк «Відкрити у вебі» — один живий токен на акаунт, 24 год, багаторазовий.
  *  Лише хеш; сирий токен виводиться з id серверним секретом (telegram-web-token.ts). */

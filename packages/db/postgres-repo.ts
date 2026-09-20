@@ -274,8 +274,6 @@ function rowToTelegramAccount(r: Record<string, unknown>): TelegramAccountRow {
     telegram_user_id: Number(r.telegram_user_id), user_id: String(r.user_id), chat_id: r.chat_id == null ? null : Number(r.chat_id),
     linked_at: new Date(r.linked_at as string).toISOString(),
     revoked_at: r.revoked_at ? new Date(r.revoked_at as string).toISOString() : null,
-    intake_streak_until: r.intake_streak_until ? new Date(r.intake_streak_until as string).toISOString() : null,
-    intake_streak_last_apply: r.intake_streak_last_apply ? new Date(r.intake_streak_last_apply as string).toISOString() : null,
   };
 }
 function rowToTelegramWebToken(r: Record<string, unknown>): TelegramWebTokenRow {
@@ -1689,14 +1687,6 @@ export class PostgresRepo implements Repo {
     } finally {
       client.release();
     }
-  }
-
-  // ── Серія «наповнюю комору» (19.09) ──
-  async setTelegramIntakeStreak(telegram_user_id: number, s: { intake_streak_until: string | null; intake_streak_last_apply: string | null }): Promise<void> {
-    await this.pool.query(
-      'UPDATE telegram_account SET intake_streak_until = $2, intake_streak_last_apply = $3 WHERE telegram_user_id = $1',
-      [telegram_user_id, s.intake_streak_until, s.intake_streak_last_apply],
-    );
   }
 
   async getMessage(id: string): Promise<MessageRow | null> {

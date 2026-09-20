@@ -369,8 +369,6 @@ export interface Repo {
   getTelegramWebTokenByHash(token_hash: string): Promise<TelegramWebTokenRow | null>;
   revokeTelegramWebTokens(user_id: string, now: string): Promise<void>;
   linkTelegram(row: TelegramAccountRow): Promise<void>;
-  /** Серія «наповнюю комору» (19.09): стан на акаунті. */
-  setTelegramIntakeStreak(telegram_user_id: number, s: { intake_streak_until: string | null; intake_streak_last_apply: string | null }): Promise<void>;
   /** Злиття (15.09): токен «Підключити» спожито, але Telegram уже чужий — записати чий. */
   setTelegramLinkConflict(token: string, conflict_user_id: string): Promise<void>;
   /**
