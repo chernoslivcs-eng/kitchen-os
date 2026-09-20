@@ -37,6 +37,23 @@ export function formatMS(secondsLeft: number, stepSeconds = secondsLeft): string
   return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
+export type StepTextTier = 's' | 'm' | 'l';
+
+/**
+ * Ступінь тексту кроку на <768 (живий прохід власника 19.09: крок «2 з 6 ·
+ * Нарізка», ~175 символів, три чипи, таймер 3:00 — нижній ряд «Далі: …» +
+ * кнопки йшов за межу екрана, під час готування треба було гортати).
+ * Довжина — символи ВЖЕ підставленого тексту кроку (stepText: плейсхолдери
+ * {N} замінені назвами), детерміновано, без заміру рендеру: висота відомо
+ * наперед, до того як браузер щось намалював.
+ */
+export function stepTextTier(text: string): StepTextTier {
+  const len = text.length;
+  if (len <= 110) return 's';
+  if (len <= 200) return 'm';
+  return 'l';
+}
+
 export function CookOverlay() {
   const navigate = useNavigate();
   // Пул-3: поп-ап. Стан приходить зі стора, не з навігації.
@@ -455,6 +472,9 @@ export function CookOverlay() {
   // Звук — volume-2 вмикає/вимикає наявний beep (нових звуків нема).
   const shortOf = (st: { t: string }) => st.t.replace(/\.$/, '');
   const stepText = renderStepContent(step?.c ?? '', recipe.ing, stepLabels);
+  // Хотфікс мобільного 19.09: розмір тексту кроку й компактність таймера на
+  // <768 залежать від довжини — див. stepTextTier().
+  const stepTier = stepTextTier(stepText);
   const stepIngs = step ? stepIngredients(step.c ?? '', recipe.ing) : [];
   const stepMeta = (st: { s?: number }) => (st.s ? `${Math.max(1, Math.round(st.s / 60))} хв` : '');
   const timerTone = running && secondsLeft > 0 && secondsLeft <= 60 ? 'amber' : 'ink';
@@ -525,8 +545,11 @@ export function CookOverlay() {
     </button>
   );
 
+  // Таймер компактний на <768, коли текст кроку m/l (п. 2 хотфіксу 19.09):
+  // один ряд — число зліва, дії справа, без картки-з-числом-по-центру.
+  const timerCompact = stepTier !== 's';
   const timerBox = !!step?.s && (
-    <div className={`${styles.timer} ${styles[`timer-${timerTone}`]} ${secondsLeft === 0 ? styles['timer-zero'] : ''}`} data-timer>
+    <div className={`${styles.timer} ${styles[`timer-${timerTone}`]} ${secondsLeft === 0 ? styles['timer-zero'] : ''} ${timerCompact ? styles['timer-compact'] : ''}`} data-timer data-timer-compact={timerCompact || undefined}>
       <span className={styles['timer-icon']}><Icon name="cook.timer" size={20} inherit decorative live={running && secondsLeft > 0 ? 'timer' : undefined} /></span>
       <span className={`${styles['timer-value']} t-timer`} data-timer-value>{formatMS(secondsLeft, step.s)}</span>
       <span className={styles['timer-base']}>
@@ -627,7 +650,7 @@ export function CookOverlay() {
                 {recipe.st.map((_, i) => <span key={i} className={`${styles.dot} ${done.has(i) ? styles['dot-done'] : i === stepIdx ? styles['dot-cur'] : ''}`} />)}
               </span>
             </div>
-            <div className={styles['step-text']} data-step-text>{stepText}</div>
+            <div className={styles['step-text']} data-step-text data-len={stepTier}>{stepText}</div>
             {stepIngs.length > 0 && (
               <div className={styles['step-chips']}>
                 {stepIngs.map((ing, i) => (
