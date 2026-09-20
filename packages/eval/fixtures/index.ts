@@ -275,6 +275,8 @@ export function loadFixtures(): Fixture[] {
     ...['writeoff-fix-substitute', 'writeoff-fix-quantity', 'writeoff-fix-negative', 'writeoff-fix-third-turn'].map((id) => readJson(`${id}.json`)),
     // 20.09: намір до фото продукту — add (записати) чи ask (питання про продукт).
     ...['photo-product-plain', 'photo-product-ask', 'photo-product-more'].map((id) => readJson(`${id}.json`)),
+    // F (20.09): рід dish × намір — питання про страву не губиться, звіт і без підпису — report/add.
+    ...['photo-dish-ask', 'photo-dish-report', 'photo-dish-plain'].map((id) => readJson(`${id}.json`)),
     // 1.2: уподобання після фідбеку — note з recipe (s42).
     readJson('preference-after-feedback.json'),
     // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картка закрита в іншій сесії,

@@ -1,0 +1,14 @@
+{
+  "id": "photo-dish-report",
+  "description": "Те саме фото + «готово» → dish, intent report.",
+  "call": "attachment_parse",
+  "attachment": {
+    "kind": "image",
+    "path": "photo-dish-dough.png",
+    "hint": "готово"
+  },
+  "invariants": [
+    "raw-kind:dish",
+    "attachment-intent:report"
+  ]
+}

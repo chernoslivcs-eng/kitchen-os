@@ -16,7 +16,7 @@ import { detectRepeat, repeatReply } from './repeat-guard.js';
 import { recipeStaleByNotes } from './recipe-dedup.js';
 import { subscribedRows, periodVetoRows } from '@kitchen/domain';
 import { PROFILE_SUMMARY_REQUEST, acceptAssistantNote, helpTopicFor, helpTopicById, type HelpTopic } from '@kitchen/domain';
-import { createPending, applyCard, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
+import { createPending, applyCard, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow, type CookRunWithRecipe } from '@kitchen/domain';
 import { buildChatHistory } from './chat-history.js';
 import type { AttachmentStore } from './attachment-store.js';
 import { recordUsage } from './usage.js';
@@ -127,6 +127,10 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     if (session && session.user_id !== user_id) session = null;
     if (!session) session = await repo.getOrCreateSessionForDay(user_id, localDay());
 
+    // F (20.09): фото страви з ПИТАННЯМ («а тісто повинно бути таким густим?») — не шорткат
+    // журналу, а звичайний хід моделі з фото в контексті. Гілка вкладень лише готує це;
+    // сам хід іде нижче загальним шляхом.
+    let dishAsk: { images: AttachmentPayload[]; userMsgId: string; fresh: CookRunWithRecipe | null } | null = null;
     if (attachments?.length) {
       const payloads: AttachmentPayload[] = [];
       for (const { id } of attachments) {
@@ -183,24 +187,25 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
         call.reply = INTAKE_TOO_BIG_REPLY;
       }
 
-      // #5: фото готової страви. Якщо є недавнє готування без фото — картка
-      // cook_photo: тап, і фото в журналі. Старше доби не чіпаємо (це вже не
-      // «щойно приготував»), наявне фото мовчки не перезаписуємо.
-      if (call.raw_kind === 'dish' && !call.card && attachments.length === 1) {
-        const runs = await repo.listCookRuns(user_id, 5);
-        const fresh = runs.find((r) =>
-          !r.undone_at && !r.photo_url
-          && Date.now() - new Date(r.finished_at ?? r.started_at).getTime() < 24 * 3600_000);
-        if (fresh) {
-          call.card = {
-            type: 'cook_photo',
-            run_id: fresh.id,
-            recipe_title: fresh.recipe.title,
-            attachment_id: attachments[0]!.id,
-          };
+      // F (20.09): маршрут спершу за наміром із підпису, потім за родом знімка. Живий факт
+      // 20.09 10:43: «А тісто повинно бути таким густим?» → dish → шорткат журналу без моделі
+      // відповів «Гарний вигляд. Це «Гранола…»» — питання загублено.
+      //   dish × ask                  → звичайний хід моделі з фото (нижче), без «Гарний вигляд»;
+      //                                 при готуванні ≤ 60 хв — «Це до «X»? Прикріпити фото» другим
+      //                                 рядком і кнопка cook_photo лишається;
+      //   dish × add|report|fix       → шорткат «прикріпити до журналу» ЛИШЕ при готуванні ≤ 60 хв
+      //                                 без фото; інакше — відгук моделі на страву (note), без картки.
+      //   receipt|shelf × report/fix  → як add (нижче: wantsAuto).
+      if (call.raw_kind === 'dish' && !call.card) {
+        const fresh = await freshCookRun(repo, user_id);
+        if ((call.intent ?? 'add') === 'ask') {
+          dishAsk = { images: payloads, userMsgId, fresh };
+        } else if (fresh) {
+          call.card = { type: 'cook_photo', run_id: fresh.id, recipe_title: fresh.recipe.title, attachment_id: attachments[0]!.id };
           call.reply = `Гарний вигляд. Це «${fresh.recipe.title}» — прикріпити фото до запису в журналі?`;
         }
       }
+      if (!dishAsk) {
 
       stampChatReceipt(call.card, call.raw_kind);
       if (vetoNonfood(call.card)) {
@@ -221,7 +226,7 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
       let att_undo: string | undefined;
       // 20.09: людина ПИТАЄ про продукт («підійде до пасти?») — не записуємо, картка лишається
       // pending із кнопками; репліка — відповідь по суті (note). Одна логіка для вебу й Telegram.
-      const wantsAuto = (input.attachmentApply ?? 'auto') === 'auto' && call.intent !== 'ask';
+      const wantsAuto = (input.attachmentApply ?? 'auto') === 'auto' && call.intent !== 'ask';   // report/fix — як add
       if (call.card?.type === 'intake_diff' && card_id && wantsAuto) {
         const r = await applyCard(repo, card_id, [], user_id);
         // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
@@ -241,12 +246,14 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
         auto_applied: att_auto, undo_token: att_undo,
         raw_kind: call.raw_kind, usage: sumUsage(call.calls), meta: call.meta,
       };
+      }
     }
 
     // Правка №6: детерміновані пост-кук ходи. Якщо останнє слово асистента —
     // наше службове питання, коротка відповідь людини обробляється БЕЗ моделі
     // (0 токенів). Все, що складніше за «так»/«ні», падає у звичайний чат.
-    const preMessages = await repo.listMessages(session.id);
+    // F: при dish×ask репліку людини вже записано в гілці вкладень — в історію її не дублюємо.
+    const preMessages = (await repo.listMessages(session.id)).filter((m) => m.id !== dishAsk?.userMsgId);
     const lastMsg = preMessages[preMessages.length - 1];
     const detMeta = { promptVersion: 'post-cook', model: 'deterministic', mode: 'stub' as const };
     const zeroUsage = { input: 0, output: 0 };
@@ -397,9 +404,10 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     // викликів цього звернення (сам чат, генерація рецепта всередині нього,
     // повтор після вето). Резюме ходу людини не має взагалі: там message_id
     // лишається порожнім, і це чесно — прив'язувати нема до чого.
-    let turnMsgId: string | null = null;
-    // Комбінована відповідь на «Списати?» — репліку людини вже збережено повністю в гілці списання.
-    if (!summaryTurn && !writeoffPrefix) {
+    let turnMsgId: string | null = dishAsk?.userMsgId ?? null;
+    // Комбінована відповідь на «Списати?» — репліку людини вже збережено повністю в гілці списання;
+    // dish×ask — у гілці вкладень.
+    if (!summaryTurn && !writeoffPrefix && !dishAsk) {
       turnMsgId = randomUUID();
       await saveMsg({
         id: turnMsgId, session_id: session.id, role: 'user',
@@ -494,6 +502,7 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     try {
       call = await callChat({
         user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
+        images: dishAsk?.images,
         history, profileText, profileNotes, vetoIndex, occasions, shopping, recentRecipes, products, retailConnected, retailKarpaty,
         // №4: ситуація рахується сервером із повідомлень сесії — той самий
         // факт, який досі жив усередині гілки видалення й нікому не казався.
@@ -995,6 +1004,13 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     // казала «Записав». У повідомлення при цьому йшла резолвлена копія, тож у
     // історії правило було видно, а в календарі — порожньо. Одна картка,
     // одне джерело: те, що ляже в повідомлення, те й застосовується.
+    // F: питання про страву при свіжому готуванні — відповідь по суті, а пропозиція журналу
+    // другим рядком; кнопка cook_photo лишається (якщо модель не дала іншої картки).
+    if (dishAsk?.fresh && !call.card) {
+      const fresh = dishAsk.fresh;
+      call.card = { type: 'cook_photo', run_id: fresh.id, recipe_title: fresh.recipe.title, attachment_id: attachments![0]!.id };
+      call.reply = `${call.reply ?? ''}\n\nЦе до «${fresh.recipe.title}»? Прикріпити фото до запису в журналі.`.trim();
+    }
     const card_id = call.card ? randomUUID() : null;
     // П4-Т6: облік застосувань — лише там, де застосування буває. Родини з
     // applyMode 'none' (пропозиція, слід рецепта, кошик, службові маркери,
@@ -1075,4 +1091,15 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
       auto_applied, undo_token,
       usage: sumUsage(call.calls), meta: call.meta,
     };
+}
+
+/** F (20.09): останнє завершене готування без фото, не старше 60 хв — лише тоді
+ *  фото страви пропонує «прикріпити до журналу». Доба (як було) ловила гранолу
+ *  з ранку під фото тіста опівдні. */
+export const FRESH_COOK_RUN_MS = 60 * 60_000;
+export async function freshCookRun(repo: Repo, user_id: string, now = Date.now()): Promise<CookRunWithRecipe | null> {
+  const runs = await repo.listCookRuns(user_id, 5);
+  return runs.find((r) =>
+    !r.undone_at && !r.photo_url
+    && now - new Date(r.finished_at ?? r.started_at).getTime() <= FRESH_COOK_RUN_MS) ?? null;
 }

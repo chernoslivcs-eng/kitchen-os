@@ -138,8 +138,10 @@ export type AttachmentSubject = 'receipt' | 'shelf' | 'recipe' | 'dish' | 'other
 // шукав {reply, card}, не знаходив, і віддавав порожню картку з JSON-уламком
 // у полі reply. Тобто фікстури на чеки перевіряли не той конвеєр, що працює,
 // і не могли позеленіти в принципі — що й було видно в снапшотах.
-/** 20.09: намір людини до фото продуктів — записати (`add`, типово) чи спитати про продукт (`ask`). */
-export type AttachmentIntent = 'add' | 'ask';
+/** 20.09: намір людини до фото (з підпису): записати (`add`, типово), спитати (`ask`),
+ *  звіт про готування (`report`), правка попередньої картки (`fix`). */
+export type AttachmentIntent = 'add' | 'ask' | 'report' | 'fix';
+const INTENTS: readonly AttachmentIntent[] = ['add', 'ask', 'report', 'fix'];
 
 export function parseAttachmentResponse(text: string): {
   reply: string;
@@ -158,10 +160,10 @@ export function parseAttachmentResponse(text: string): {
 
   let card: Card | null = null;
   let raw_kind: AttachmentSubject | null = null;
-  let intent: AttachmentIntent | null = null;
+  // F (20.09): намір для всіх родів; невідоме чи відсутнє поле → add.
+  const intent: AttachmentIntent | null = parsed?.kind ? (INTENTS.find((i) => i === parsed!.intent) ?? 'add') : null;
   if (parsed?.kind === 'receipt' || parsed?.kind === 'shelf') {
     raw_kind = parsed.kind;
-    intent = parsed.intent === 'ask' ? 'ask' : 'add';
     // Схема моделі компактна (v/u/conf/ev) — приводимо до словника apply
     // (value/unit/confidence/evidence). Черга Д: без цього кількість із чека
     // мовчки губилась (apply читає тільки value/unit). Трійка product·brand·
