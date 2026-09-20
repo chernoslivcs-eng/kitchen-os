@@ -887,6 +887,16 @@ export interface TelegramAccountRow {
   intake_streak_until?: string | null;
   intake_streak_last_apply?: string | null;
 }
+/** E (20.09): лінк «Відкрити у вебі» — один живий токен на акаунт, 24 год, багаторазовий.
+ *  Лише хеш; сирий токен виводиться з id серверним секретом (telegram-web-token.ts). */
+export interface TelegramWebTokenRow {
+  id: string;
+  user_id: string;
+  token_hash: string;
+  created_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+}
 /** Разовий токен «Підключити» з профілю: 15 хвилин, один раз. Зберігається як є (не хеш):
  *  він і так живе в URL t.me, ходить лише до нашого бота і згорає за 15 хв. */
 export interface TelegramLinkTokenRow {

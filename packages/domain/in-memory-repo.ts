@@ -6,7 +6,7 @@ import type {
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
   SessionRow, MessageRow, LastAppliedIntake, IntakeCard, AppEventRow,
-  TelegramAccountRow, TelegramLinkTokenRow, MergeStats,
+  TelegramAccountRow, TelegramLinkTokenRow, TelegramWebTokenRow, MergeStats,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 import { tripleKey, type HouseholdProduct, type ProductTriple } from './product.js';
@@ -48,6 +48,7 @@ export class InMemoryRepo implements Repo {
   private chatSessionsByUserDay = new Map<string, string>();   // `${user_id}:${day}` → session_id
   private messages = new Map<string, MessageRow[]>();          // session_id → messages
   private telegramTokens = new Map<string, TelegramLinkTokenRow>();   // Р147: token → рядок
+  private telegramWebTokens = new Map<string, TelegramWebTokenRow>(); // E: id → рядок
   private telegramAccounts = new Map<number, TelegramAccountRow>();  // Р147: telegram_user_id → рядок
 
   async listBatches(household_id: string): Promise<PantryBatch[]> {
@@ -682,6 +683,24 @@ export class InMemoryRepo implements Repo {
     const next = { ...row, consumed_at: now };
     this.telegramTokens.set(token, next);
     return { ...next };
+  }
+  async saveTelegramWebToken(row: TelegramWebTokenRow): Promise<void> {
+    this.telegramWebTokens.set(row.id, { ...row });
+  }
+  async getLiveTelegramWebToken(user_id: string, now: string): Promise<TelegramWebTokenRow | null> {
+    const live = [...this.telegramWebTokens.values()]
+      .filter((t) => t.user_id === user_id && !t.revoked_at && t.expires_at > now)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return live[0] ? { ...live[0] } : null;
+  }
+  async getTelegramWebTokenByHash(token_hash: string): Promise<TelegramWebTokenRow | null> {
+    const row = [...this.telegramWebTokens.values()].find((t) => t.token_hash === token_hash);
+    return row ? { ...row } : null;
+  }
+  async revokeTelegramWebTokens(user_id: string, now: string): Promise<void> {
+    for (const [id, t] of this.telegramWebTokens) {
+      if (t.user_id === user_id && !t.revoked_at) this.telegramWebTokens.set(id, { ...t, revoked_at: now });
+    }
   }
   async linkTelegram(row: TelegramAccountRow): Promise<void> {
     this.telegramAccounts.set(row.telegram_user_id, { ...row, revoked_at: null });

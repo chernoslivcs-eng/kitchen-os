@@ -7,7 +7,8 @@ import { handleTelegramText, resetSeenUpdates, COPY } from '../src/telegram.js';
 import { resetBotUsernameCache } from '../src/telegram.js';
 
 // TELEGRAM-AUTH-PAY-PLAN-0915, PR 2-бот: /start без токена — акаунт одразу;
-// /web і всі «Відкрити у вебі» — разовий лінк входу GET /v1/auth/telegram?token=…&next=….
+// /web і всі «Відкрити у вебі» — лінк входу GET /v1/auth/telegram?token=…&next=….
+// E (20.09): токен багаторазовий на 24 год — telegram-web-link.test.ts.
 
 const APP = 'https://kos.example';
 const BOT = 'KitchenOSBot';
@@ -47,7 +48,7 @@ describe('PR 2-бот · вхід із Telegram', () => {
     expect(r?.messages[0]).toBe(COPY.startFirst);
   });
 
-  it('/web → разовий лінк входу; GET ставить cookie і веде на /app; вдруге — 410', async () => {
+  it('/web → лінк входу; GET ставить cookie і веде на /app; вдруге (E) — теж ok', async () => {
     await handleTelegramText(deps(), upd(903, '/start'));
     const r = await handleTelegramText(deps(), upd(903, '/web'));
     const text = r!.messages[0]!;
@@ -60,7 +61,7 @@ describe('PR 2-бот · вхід із Telegram', () => {
     const me = await app.inject({ method: 'GET', url: '/v1/me', headers: { cookie } });
     expect(me.json().user.name).toBe('Олена');
     const again = await app.inject({ method: 'GET', url: `/v1/auth/telegram?token=${encodeURIComponent(tokenOf(text))}` });
-    expect(again.statusCode).toBe(410);
+    expect(again.statusCode).toBe(302);
   });
 
   it('next: відносний шлях проходить, зовнішній → /app; без токена → 400', async () => {

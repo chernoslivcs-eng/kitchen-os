@@ -19,7 +19,7 @@ import type {
   HouseholdProduct, ProductTriple,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule, OccasionSubscriptionRow,
   ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
-  TelegramAccountRow, TelegramLinkTokenRow, MergeStats,
+  TelegramAccountRow, TelegramLinkTokenRow, TelegramWebTokenRow, MergeStats,
 } from '@kitchen/domain';
 import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
@@ -276,6 +276,13 @@ function rowToTelegramAccount(r: Record<string, unknown>): TelegramAccountRow {
     revoked_at: r.revoked_at ? new Date(r.revoked_at as string).toISOString() : null,
     intake_streak_until: r.intake_streak_until ? new Date(r.intake_streak_until as string).toISOString() : null,
     intake_streak_last_apply: r.intake_streak_last_apply ? new Date(r.intake_streak_last_apply as string).toISOString() : null,
+  };
+}
+function rowToTelegramWebToken(r: Record<string, unknown>): TelegramWebTokenRow {
+  return {
+    id: String(r.id), user_id: String(r.user_id), token_hash: String(r.token_hash),
+    created_at: new Date(r.created_at as string).toISOString(), expires_at: new Date(r.expires_at as string).toISOString(),
+    revoked_at: r.revoked_at ? new Date(r.revoked_at as string).toISOString() : null,
   };
 }
 function rowToTelegramToken(r: Record<string, unknown>): TelegramLinkTokenRow {
@@ -1386,6 +1393,29 @@ export class PostgresRepo implements Repo {
     );
     const r = rows[0];
     return r ? rowToTelegramToken(r) : null;
+  }
+  // E (20.09): багаторазовий лінк у веб, один живий на акаунт.
+  async saveTelegramWebToken(row: TelegramWebTokenRow): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO telegram_web_token (id, user_id, token_hash, created_at, expires_at, revoked_at)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [row.id, row.user_id, row.token_hash, row.created_at, row.expires_at, row.revoked_at],
+    );
+  }
+  async getLiveTelegramWebToken(user_id: string, now: string): Promise<TelegramWebTokenRow | null> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM telegram_web_token WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > $2
+        ORDER BY created_at DESC LIMIT 1`,
+      [user_id, now],
+    );
+    return rows[0] ? rowToTelegramWebToken(rows[0]) : null;
+  }
+  async getTelegramWebTokenByHash(token_hash: string): Promise<TelegramWebTokenRow | null> {
+    const { rows } = await this.pool.query('SELECT * FROM telegram_web_token WHERE token_hash = $1', [token_hash]);
+    return rows[0] ? rowToTelegramWebToken(rows[0]) : null;
+  }
+  async revokeTelegramWebTokens(user_id: string, now: string): Promise<void> {
+    await this.pool.query('UPDATE telegram_web_token SET revoked_at = $2 WHERE user_id = $1 AND revoked_at IS NULL', [user_id, now]);
   }
   async linkTelegram(row: TelegramAccountRow): Promise<void> {
     await this.pool.query(

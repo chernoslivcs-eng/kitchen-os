@@ -6,9 +6,9 @@
 // вибачатись за те, що все правильно.
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ErrorScreen } from '../../components/ErrorState/ErrorScreen';
-import { LINK_EXPIRED, LINK_CONSUMED, type ErrorCopy } from '../../components/ErrorState/copy';
+import { LINK_EXPIRED, LINK_CONSUMED, LINK_EXPIRED_TELEGRAM, type ErrorCopy } from '../../components/ErrorState/copy';
 import { useAuth } from '../../store/auth';
 import styles from './LinkGone.module.css';
 import { useLightOnly } from '../../lib/useLightOnly';
@@ -93,5 +93,16 @@ function LinkGone({ copy, tone }: { copy: ErrorCopy; tone: 'amber' | 'sage' }) {
   );
 }
 
-export const LinkExpiredPage = () => <LinkGone copy={LINK_EXPIRED} tone="amber" />;
+/** E (20.09): лінк із бота (?kind=telegram) перевидати зі сторінки не можна — лише /web у боті. */
+function TelegramLinkGone() {
+  useLightOnly();
+  const navigate = useNavigate();
+  const c = LINK_EXPIRED_TELEGRAM;
+  return <ErrorScreen tone="amber" kicker={c.kicker} h1a={c.h1a} h1b={c.h1b} body={c.body} cta={c.cta} onCta={() => navigate('/')} />;
+}
+
+export const LinkExpiredPage = () => {
+  const [params] = useSearchParams();
+  return params.get('kind') === 'telegram' ? <TelegramLinkGone /> : <LinkGone copy={LINK_EXPIRED} tone="amber" />;
+};
 export const LinkConsumedPage = () => <LinkGone copy={LINK_CONSUMED} tone="sage" />;

@@ -12,7 +12,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Repo } from '@kitchen/domain';
-import { requestChallenge, verifyChallenge, verifyEmailAttach, resolveSession, logoutSession, CHALLENGE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
+import { requestChallenge, verifyChallenge, verifyEmailAttach, resolveSession, logoutSession, openSession, verifyTelegramWebToken, CHALLENGE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
 import type { Mailer } from '../mailer.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 import { tooMany } from '../too-many.js';
@@ -159,26 +159,35 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
     return reply.send({ ok: true, user_id: out.result.user_id, household_id: out.result.household_id });
   });
 
-  // PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): разовий лінк входу з бота — той самий
-  // auth_challenge (kind 'telegram'), cookie як у verify, редірект на next
-  // (лише відносний шлях; типово /app). Вдруге — 410, як магік-лінк.
+  // Лінк входу з бота. E (20.09): токен багаторазовий на 24 год (telegram-web-token.ts),
+  // бо Telegram iOS відкриває лінки у вбудованому браузері з окремими куками. Якщо в
+  // браузері вже є сесія того ж user — нову не відкриваємо, лише redirect на next
+  // (відносний шлях; типово /app). Мертвий токен → 410; браузеру — /link/expired?kind=telegram
+  // (перевидати можна лише з бота: /web).
   app.get<{ Querystring: { token?: string; next?: string } }>('/v1/auth/telegram', async (req, reply) => {
     const raw = req.query.token;
     if (!raw) return reply.code(400).send({ error: 'token required' });
-    const out = await verifyChallenge(repo, raw, req.ip, req.headers['user-agent'] ?? null);
+    const out = await verifyTelegramWebToken(repo, raw);
     if (!out.ok) {
       const wantsHtmlPage = /text\/html/i.test(String(req.headers.accept ?? ''));
-      if (wantsHtmlPage && (out.reason === 'expired' || out.reason === 'consumed')) return reply.redirect(`/link/${out.reason}`);
+      if (wantsHtmlPage && out.reason !== 'not_found') return reply.redirect('/link/expired?kind=telegram');
       return reply.code(out.reason === 'not_found' ? 404 : 410).send({ error: out.reason });
     }
-    reply.setCookie(COOKIE_NAME, out.result.raw_cookie, { httpOnly: true, secure: isSecure(), sameSite: 'lax', path: '/', maxAge: SESSION_TTL_MS / 1000 });
     const next = req.query.next;
     const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '/app';
+    const cookieRaw = (req.cookies as Record<string, string | undefined>)[COOKIE_NAME];
+    const current = await resolveSession(repo, cookieRaw ?? null);
+    if (current?.user_id === out.user_id) return reply.redirect(safeNext);
+    const { raw_cookie } = await openSession(repo, out.user_id, req.ip, req.headers['user-agent'] ?? null);
+    reply.setCookie(COOKIE_NAME, raw_cookie, { httpOnly: true, secure: isSecure(), sameSite: 'lax', path: '/', maxAge: SESSION_TTL_MS / 1000 });
     return reply.redirect(safeNext);
   });
 
   app.post('/v1/auth/logout', async (req, reply) => {
     const raw = (req.cookies as Record<string, string | undefined>)[COOKIE_NAME];
+    // E: вихід відкликає й лінк із бота — інакше він відкривав би сесію далі.
+    const ctx = raw ? await resolveSession(repo, raw) : null;
+    if (ctx) await repo.revokeTelegramWebTokens(ctx.user_id, new Date().toISOString());
     if (raw) await logoutSession(repo, raw);
     reply.clearCookie(COOKIE_NAME, { path: '/' });
     return reply.code(204).send();

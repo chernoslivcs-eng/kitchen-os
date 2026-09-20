@@ -85,7 +85,8 @@ describe('Р147/Р149 · Telegram', () => {
     const me = await linked();
     const reply = await handleTelegramText(deps(), upd(500, 'купив молоко і хліб'));
     expect(reply?.html).toBe(true);
-    expect(reply?.messages.at(-1)).toMatch(new RegExp(`Відкрити у вебі: ${APP}/v1/auth/telegram\\?token=[A-Za-z0-9_-]+&amp;next=%2Fapp`));
+    // E: картка комори → next=/pantry, не /app.
+    expect(reply?.messages.at(-1)).toMatch(new RegExp(`Відкрити у вебі: ${APP}/v1/auth/telegram\\?token=[A-Za-z0-9_-]+&amp;next=%2Fpantry`));
     const session = await repo.getOrCreateSessionForDay(me.user_id, localDay());
     const msgs = await repo.listMessages(session.id);
     const user = msgs.filter((m) => m.role === 'user');
@@ -119,7 +120,8 @@ describe('Р147/Р149 · Telegram', () => {
     expect(renderCardText({ type: 'cook_go', title: 'x' })).toBeNull();
     const msgs = renderTurnMessages({ reply: 'a < b & c', card: proposal }, APP);
     expect(msgs).toHaveLength(1);
-    expect(msgs[0]).toBe(`a &lt; b &amp; c\n\n${escapeHtml(renderCardText(proposal)!)}\n\n${escapeHtml(COPY.openWeb(`${APP}/app`))}`);
+    // E: під варіантами «Відкрити у вебі» нема — лише під карткою, куди є куди йти.
+    expect(msgs[0]).toBe(`a &lt; b &amp; c\n\n${escapeHtml(renderCardText(proposal)!)}`);
     const long = Array.from({ length: 300 }, (_, i) => `рядок ${i} ${'x'.repeat(20)}`).join('\n');
     const parts = splitTelegramText(long);
     expect(parts.length).toBeGreaterThan(1);
