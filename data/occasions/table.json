@@ -254,6 +254,41 @@
       "to": "2030-07-20"
     },
     {
+      "occasion_id": "christmas",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-12-25",
+      "to": "2026-12-26"
+    },
+    {
+      "occasion_id": "christmas",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-12-25",
+      "to": "2027-12-26"
+    },
+    {
+      "occasion_id": "christmas",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-12-25",
+      "to": "2028-12-26"
+    },
+    {
+      "occasion_id": "christmas",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-12-25",
+      "to": "2029-12-26"
+    },
+    {
+      "occasion_id": "christmas",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-12-25",
+      "to": "2030-12-26"
+    },
+    {
       "occasion_id": "citrus",
       "tradition": null,
       "year": 2026,
@@ -429,6 +464,76 @@
       "to": "2030-07-20"
     },
     {
+      "occasion_id": "dormition",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-08-15",
+      "to": "2026-08-15"
+    },
+    {
+      "occasion_id": "dormition",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-08-15",
+      "to": "2027-08-15"
+    },
+    {
+      "occasion_id": "dormition",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-08-15",
+      "to": "2028-08-15"
+    },
+    {
+      "occasion_id": "dormition",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-08-15",
+      "to": "2029-08-15"
+    },
+    {
+      "occasion_id": "dormition",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-08-15",
+      "to": "2030-08-15"
+    },
+    {
+      "occasion_id": "dormition-fast",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-08-01",
+      "to": "2026-08-14"
+    },
+    {
+      "occasion_id": "dormition-fast",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-08-01",
+      "to": "2027-08-14"
+    },
+    {
+      "occasion_id": "dormition-fast",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-08-01",
+      "to": "2028-08-14"
+    },
+    {
+      "occasion_id": "dormition-fast",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-08-01",
+      "to": "2029-08-14"
+    },
+    {
+      "occasion_id": "dormition-fast",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-08-01",
+      "to": "2030-08-14"
+    },
+    {
       "occasion_id": "easter",
       "tradition": "catholic",
       "year": 2026,
@@ -577,6 +682,41 @@
       "from": "2030-02-05",
       "to": "2030-02-07",
       "approx": true
+    },
+    {
+      "occasion_id": "epiphany",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-01-06",
+      "to": "2026-01-06"
+    },
+    {
+      "occasion_id": "epiphany",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-01-06",
+      "to": "2027-01-06"
+    },
+    {
+      "occasion_id": "epiphany",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-01-06",
+      "to": "2028-01-06"
+    },
+    {
+      "occasion_id": "epiphany",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-01-06",
+      "to": "2029-01-06"
+    },
+    {
+      "occasion_id": "epiphany",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-01-06",
+      "to": "2030-01-06"
     },
     {
       "occasion_id": "epiphany-cath",
@@ -752,6 +892,41 @@
       "year": 2030,
       "from": "2030-09-15",
       "to": "2030-10-31"
+    },
+    {
+      "occasion_id": "honey-spas",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-08-01",
+      "to": "2026-08-01"
+    },
+    {
+      "occasion_id": "honey-spas",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-08-01",
+      "to": "2027-08-01"
+    },
+    {
+      "occasion_id": "honey-spas",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-08-01",
+      "to": "2028-08-01"
+    },
+    {
+      "occasion_id": "honey-spas",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-08-01",
+      "to": "2029-08-01"
+    },
+    {
+      "occasion_id": "honey-spas",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-08-01",
+      "to": "2030-08-01"
     },
     {
       "occasion_id": "independence-day",
@@ -1034,6 +1209,41 @@
       "to": "2030-10-31"
     },
     {
+      "occasion_id": "nativity-fast",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-11-15",
+      "to": "2026-12-24"
+    },
+    {
+      "occasion_id": "nativity-fast",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-11-15",
+      "to": "2027-12-24"
+    },
+    {
+      "occasion_id": "nativity-fast",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-11-15",
+      "to": "2028-12-24"
+    },
+    {
+      "occasion_id": "nativity-fast",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-11-15",
+      "to": "2029-12-24"
+    },
+    {
+      "occasion_id": "nativity-fast",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-11-15",
+      "to": "2030-12-24"
+    },
+    {
       "occasion_id": "new-potato",
       "tradition": null,
       "year": 2026,
@@ -1137,6 +1347,41 @@
       "year": 2030,
       "from": "2030-01-13",
       "to": "2030-01-14"
+    },
+    {
+      "occasion_id": "palm-sunday",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-04-05",
+      "to": "2026-04-05"
+    },
+    {
+      "occasion_id": "palm-sunday",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-04-25",
+      "to": "2027-04-25"
+    },
+    {
+      "occasion_id": "palm-sunday",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-04-09",
+      "to": "2028-04-09"
+    },
+    {
+      "occasion_id": "palm-sunday",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-04-01",
+      "to": "2029-04-01"
+    },
+    {
+      "occasion_id": "palm-sunday",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-04-21",
+      "to": "2030-04-21"
     },
     {
       "occasion_id": "peach",
@@ -1244,6 +1489,41 @@
       "to": "2030-04-25"
     },
     {
+      "occasion_id": "peter-fast",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-06-08",
+      "to": "2026-06-28"
+    },
+    {
+      "occasion_id": "peter-fast",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-06-28",
+      "to": "2027-06-28"
+    },
+    {
+      "occasion_id": "peter-fast",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-06-12",
+      "to": "2028-06-28"
+    },
+    {
+      "occasion_id": "peter-fast",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-06-04",
+      "to": "2029-06-28"
+    },
+    {
+      "occasion_id": "peter-fast",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-06-24",
+      "to": "2030-06-28"
+    },
+    {
       "occasion_id": "plum",
       "tradition": null,
       "year": 2026,
@@ -1277,6 +1557,41 @@
       "year": 2030,
       "from": "2030-08-10",
       "to": "2030-09-20"
+    },
+    {
+      "occasion_id": "pokrova",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-10-01",
+      "to": "2026-10-01"
+    },
+    {
+      "occasion_id": "pokrova",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-10-01",
+      "to": "2027-10-01"
+    },
+    {
+      "occasion_id": "pokrova",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-10-01",
+      "to": "2028-10-01"
+    },
+    {
+      "occasion_id": "pokrova",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-10-01",
+      "to": "2029-10-01"
+    },
+    {
+      "occasion_id": "pokrova",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-10-01",
+      "to": "2030-10-01"
     },
     {
       "occasion_id": "pumpkin",
@@ -1602,68 +1917,68 @@
       "occasion_id": "spas",
       "tradition": "orthodox",
       "year": 2026,
-      "from": "2026-08-17",
-      "to": "2026-08-21"
+      "from": "2026-08-05",
+      "to": "2026-08-06"
     },
     {
       "occasion_id": "spas",
       "tradition": "orthodox",
       "year": 2027,
-      "from": "2027-08-17",
-      "to": "2027-08-21"
+      "from": "2027-08-05",
+      "to": "2027-08-06"
     },
     {
       "occasion_id": "spas",
       "tradition": "orthodox",
       "year": 2028,
-      "from": "2028-08-17",
-      "to": "2028-08-21"
+      "from": "2028-08-05",
+      "to": "2028-08-06"
     },
     {
       "occasion_id": "spas",
       "tradition": "orthodox",
       "year": 2029,
-      "from": "2029-08-17",
-      "to": "2029-08-21"
+      "from": "2029-08-05",
+      "to": "2029-08-06"
     },
     {
       "occasion_id": "spas",
       "tradition": "orthodox",
       "year": 2030,
-      "from": "2030-08-17",
-      "to": "2030-08-21"
+      "from": "2030-08-05",
+      "to": "2030-08-06"
     },
     {
       "occasion_id": "st-nicholas",
-      "tradition": "secular",
+      "tradition": "orthodox",
       "year": 2026,
       "from": "2026-12-05",
       "to": "2026-12-06"
     },
     {
       "occasion_id": "st-nicholas",
-      "tradition": "secular",
+      "tradition": "orthodox",
       "year": 2027,
       "from": "2027-12-05",
       "to": "2027-12-06"
     },
     {
       "occasion_id": "st-nicholas",
-      "tradition": "secular",
+      "tradition": "orthodox",
       "year": 2028,
       "from": "2028-12-05",
       "to": "2028-12-06"
     },
     {
       "occasion_id": "st-nicholas",
-      "tradition": "secular",
+      "tradition": "orthodox",
       "year": 2029,
       "from": "2029-12-05",
       "to": "2029-12-06"
     },
     {
       "occasion_id": "st-nicholas",
-      "tradition": "secular",
+      "tradition": "orthodox",
       "year": 2030,
       "from": "2030-12-05",
       "to": "2030-12-06"
@@ -1772,6 +2087,41 @@
       "year": 2030,
       "from": "2030-09-05",
       "to": "2030-09-07"
+    },
+    {
+      "occasion_id": "trinity",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-05-31",
+      "to": "2026-06-01"
+    },
+    {
+      "occasion_id": "trinity",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-06-20",
+      "to": "2027-06-21"
+    },
+    {
+      "occasion_id": "trinity",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-06-04",
+      "to": "2028-06-05"
+    },
+    {
+      "occasion_id": "trinity",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-05-27",
+      "to": "2029-05-28"
+    },
+    {
+      "occasion_id": "trinity",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-06-16",
+      "to": "2030-06-17"
     },
     {
       "occasion_id": "valentine",

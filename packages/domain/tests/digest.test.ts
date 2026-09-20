@@ -39,12 +39,12 @@ describe('форма 2 · подія в межах 7 днів', () => {
     expect(eventLine({ at: Date.parse('2026-11-28T09:00:00Z'), title: 'Різдвяний піст — починається', kind: 'tradition' })).toBe('Різдвяний піст із суботи, 28.11');
   });
   it('лише підписані рядки; далі за 7 днів — ні; вибір ставить кнопку «Календар»', () => {
-    // Дім підписаний лише на Спас (сезони вимкнені явно) — 12.08 він за 5 днів.
+    // Дім підписаний лише на Спас (сезони вимкнені явно) — 01.08 він за 4 дні (05.08, новий стиль).
     const subs = [{ occasion_id: 'spas', enabled: true }, ...BUILTIN_OCCASIONS.filter((r) => r.id !== 'spas').map((r) => ({ occasion_id: r.id, enabled: false }))];
     const rows = subscribedRows(BUILTIN_OCCASIONS, subs);
-    const p = pickForm({ ...base, trads: ['orthodox'], occasionRows: rows, now: new Date('2026-08-12T15:30:00Z') });
+    const p = pickForm({ ...base, trads: ['orthodox'], occasionRows: rows, now: new Date('2026-08-01T15:30:00Z') });
     expect(p?.form).toBe(2);
-    expect(p?.facts).toBe('Яблучний Спас із понеділка, 17.08');
+    expect(p?.facts).toBe('Яблучний Спас (Преображення) із середи, 05.08');
     expect(p?.button).toEqual({ text: 'Календар', next: '/calendar' });
     expect(pickForm({ ...base, trads: ['orthodox'], occasionRows: rows, now: new Date('2026-07-01T15:30:00Z') })).toBeNull();
   });

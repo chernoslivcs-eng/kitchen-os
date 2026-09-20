@@ -40,6 +40,13 @@ describe('П1 · періоди з правилом', () => {
     expect(items.find((i) => i.occasion_id === 'easter')?.from).toBe('2026-04-12');
     const cath = (await get('/v1/occasions?set=catholic&year=2026')).json() as { items: { occasion_id: string; from: string }[] };
     expect(cath.items.find((i) => i.occasion_id === 'easter')?.from).toBe('2026-04-05');
+    // Православний пакет (20.09): 15 + спільний Великдень; Спас новим стилем; Миколай тут, не в secular.
+    expect(items).toHaveLength(16);
+    expect(items.find((i) => i.occasion_id === 'spas')?.from).toBe('2026-08-05');
+    expect(items.find((i) => i.occasion_id === 'peter-fast')).toMatchObject({ from: '2026-06-08' });
+    expect(items.some((i) => i.occasion_id === 'st-nicholas')).toBe(true);
+    const sec = (await get('/v1/occasions?set=secular&year=2026')).json() as { items: { occasion_id: string }[] };
+    expect(sec.items.some((i) => i.occasion_id === 'st-nicholas')).toBe(false);
   });
 
   it('GET /v1/occasions?set=seasons — усі увімкнені за дефолтом; кривий set — 400', async () => {

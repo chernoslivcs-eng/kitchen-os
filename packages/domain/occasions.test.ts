@@ -51,8 +51,9 @@ describe('що триває зараз', () => {
   // Головна перевірка гейта: Спас не показуємо людині, яка не згадувала
   // православʼя. Прототип показував усім — ми цю ваду не переносимо.
   it('Спас лише для тих, у кого розпізнано традицію', () => {
-    expect(activeOccasions(d(2026, 8, 19), []).map((o) => o.id)).not.toContain('spas');
-    expect(activeOccasions(d(2026, 8, 19), ['orthodox']).map((o) => o.id)).toContain('spas');
+    // 20.09: Спас 05–06.08 (новий стиль).
+    expect(activeOccasions(d(2026, 8, 6), []).map((o) => o.id)).not.toContain('spas');
+    expect(activeOccasions(d(2026, 8, 6), ['orthodox']).map((o) => o.id)).toContain('spas');
   });
 
   it('Святвечір — вікно через кінець грудня', () => {
