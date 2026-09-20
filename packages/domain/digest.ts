@@ -15,6 +15,11 @@ import { upcomingEvents, type UpcomingEvent } from './occasions.js';
 import { BUILTIN_OCCASIONS, type OccasionRow } from './occasion-data.js';
 
 export const DIGEST_HOUR = 18;
+/** Hobby-план Vercel дозволяє крон раз на добу (0 15 * * * = 18:00 Київ улітку, 17:00 узимку),
+ *  тому гейт — вікно 17..19 включно, щоб зимовий зсув не глушив розсилку. Логіка за поясом
+ *  лишається: при переїзді на щогодинний будильник міняється лише розклад. */
+export const DIGEST_HOUR_FROM = 17;
+export const DIGEST_HOUR_TO = 19;
 export const DIGEST_DEFAULT_TZ = 'Europe/Kyiv';
 /** Писала в чат за останні 3 години — вона й так у додатку. */
 export const DIGEST_ACTIVE_WINDOW_MS = 3 * 60 * 60_000;
@@ -159,11 +164,11 @@ export interface DigestCandidate {
   wrote_recently: boolean;
 }
 
-/** Слати зараз? Крон щогодини: лише в годину 18 місцевого часу, раз на день, не опт-аут, не «щойно в чаті». */
+/** Слати зараз? Лише у вікні 17..19 місцевого часу (крон раз на добу о 15:00 UTC), раз на день, не опт-аут, не «щойно в чаті». */
 export function shouldSendDigest(c: DigestCandidate, now = new Date()): { send: boolean; day: string; reason?: string } {
   const { hour, day } = localClock(now, c.tz);
   if (!c.digest_enabled) return { send: false, day, reason: 'opted_out' };
-  if (hour !== DIGEST_HOUR) return { send: false, day, reason: 'not_hour' };
+  if (hour < DIGEST_HOUR_FROM || hour > DIGEST_HOUR_TO) return { send: false, day, reason: 'not_hour' };
   if (c.digest_sent_on === day) return { send: false, day, reason: 'already_sent' };
   if (c.wrote_recently) return { send: false, day, reason: 'already_active' };
   return { send: true, day };

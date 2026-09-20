@@ -122,7 +122,7 @@ describe('runDigestFor · форми і розкладка', () => {
     const s2 = await r2.getOrCreateSessionForDay(t2.user_id, '2026-09-17');
     await r2.saveMessage({ id: randomUUID(), session_id: s2.id, role: 'user', text: 'привіт', card: null, applied: 0, created_at: '2026-09-17T12:31:00.000Z' });   // 15:31
     expect(await runDigestFor(deps(r2), await cand(r2))).toMatchObject({ status: 'skipped', reason: 'already_active' });
-    expect(await runDigestFor(deps(r2, { now: () => new Date('2026-09-17T14:30:00Z') }), await cand(r2))).toMatchObject({ status: 'skipped', reason: 'not_hour' });
+    expect(await runDigestFor(deps(r2, { now: () => new Date('2026-09-17T13:30:00Z') }), await cand(r2))).toMatchObject({ status: 'skipped', reason: 'not_hour' });
     await r2.setDigestEnabled(t2.user_id, false);
     expect(await runDigestFor(deps(r2), await cand(r2))).toMatchObject({ status: 'skipped', reason: 'opted_out' });
   });
