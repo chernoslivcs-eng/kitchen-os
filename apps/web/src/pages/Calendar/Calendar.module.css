@@ -176,17 +176,34 @@
 
 /* Колонка «назва + мета»: рядок 1 — сама назва (право й період — свої
    колонки поруч, не тут); рядок 2 (мета) — лише коли є що сказати, у двох
-   версіях (wide/m), поріг ширини картки вирішує, яка видима. `.content`
-   БЕЗ власного `min-width:0` — інакше він (не `.name`) визначав би
-   мінімум для флекс-розподілу `.row`, і підлога `.name` нижче лише
-   переповнювала б картку замість чесно резервувати собі місце. */
-.content { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; }
+   версіях (wide/m), поріг ширини картки вирішує, яка видима.
+
+   Живий стенд 20.09 (довга мета «Йом Кіпур», ~300 символів): `min-width:
+   auto` на `.content` (стан після Р181) бере МІНІМАЛЬНИЙ КОНТЕНТ
+   найширшої дитини як «внутрішній» розмір `.content` для флекс-розрахунку
+   `.row` — а `min-width` ДИТИНИ (нижче, на `.rmeta`) на це не впливає:
+   мінімальний контент рахується з природної ширини тексту (`white-space:
+   nowrap` → min-content == max-content == вся нерозгорнута ширина),
+   `min-width` лише обмежує, наскільки дитина сама може стиснутись
+   УСЕРЕДИНІ вже виділеного місця — це РІЗНІ розрахунки (перевірено
+   `getComputedStyle` напряму: `.rmeta{min-width:0}` саме по собі не
+   зменшило `.content`'s computed width ні на піксель, воно лишалось
+   ~1920px — повна ширина тексту). Тому `.content` тепер має ЯВНИЙ
+   `min-width: 8em` (те саме число, що підлога `.name` нижче, свідомо
+   продубльоване) — явне число замість `auto` виключає мінімальний
+   контент дітей із розрахунку взагалі, і `.row` вільно стискає `.content`
+   аж до 8em, коли місця не вистачає (Р181-кейс і 20.09-кейс — одним
+   правилом, не два конкуруючі). */
+.content { flex: 1 1 auto; min-width: 8em; display: flex; flex-direction: column; gap: 2px; }
 .line1 { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 /* Назва ніколи не вужча за 8em (живий стенд 20.09: з відкритою панеллю
    картка вужчала, і назви падали до однієї літери — «Б…», «С», «Н»).
    Ellipsis — лише понад цю підлогу. */
 .name { flex: 1; min-width: 8em; font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rmeta { display: block; width: 100%; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* `min-width:0` тут — щоб `.rmeta` саму могло стиснутись до фактично
+   виділеної `.content` ширини (замість переповнювати її своїм природним
+   мінімальним контентом) і показати ellipsis, а не втекти за край. */
+.rmeta { display: block; width: 100%; min-width: 0; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rmeta-m { display: none; }
 @container cal-card (max-width: 519px) { .rmeta-wide { display: none; } .rmeta-m { display: block; } }
 /* Право («дні»): тривалі — ink (число, що справді щось рахує), інакше —

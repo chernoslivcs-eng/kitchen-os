@@ -7,6 +7,9 @@ vi.setConfig({ testTimeout: 20_000 });
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { CalendarPage } from './Calendar';
 import { CALENDAR_FAILED } from '../../components/ErrorState/copy';
 import { usePanelStore } from '../../store/panel';
@@ -190,6 +193,48 @@ describe('CalendarPage · «Сьогодні» (zone-card)', () => {
     for (const t of ['Без молочного', 'Різдвяний піст', 'Покрова']) {
       expect(rows.find((r) => r.textContent?.includes(t))!.hasAttribute('data-meta-wide'), t).toBe(true);
     }
+  });
+
+  it('живий стенд 20.09: довга мета (300 символів, «Йом Кіпур») не ламає рендер — рядок і сусідні колонки лишаються на місці', async () => {
+    const long = 'Добовий піст. Ситна вечеря напередодні без солоного й гострого, після посту — легке розговіння без мʼяса, молочного, яєць, риби і алкоголю, поки організм звикає знову їсти після довгого дня без води й їжі. Добовий піст. Ситна вечеря напередодні без солоного й гострого, після посту — легке розговіння'.slice(0, 300);
+    expect(long.length).toBe(300);
+    const longNow: NowItem[] = [
+      { kind: 'diet', title: 'Йом Кіпур', from: iso(day(-4)), to: iso(day(16)), strict: true, source: 'catalog', occasion_id: 'yk', rule_text: long },
+    ];
+    ({ host, root } = await mount(true, longNow, []));
+    const card = host!.querySelector('[data-cal-today]')!;
+    const row = card.querySelector('button[class*="_row_"]')!;
+    // Мета видима повністю в DOM (jsdom не рендерить справжній ellipsis —
+    // це CSS-рівень, перевірено живим стендом нижче, не тут); .period і
+    // .rval лишаються СВОЇМИ окремими вузлами поруч, не витісненими.
+    expect(row.querySelector('[class*="_rmeta-wide_"]')!.textContent).toBe(long);
+    expect(row.querySelector('[class*="_period_"]')).not.toBeNull();
+    // source: 'catalog' — nowProgress не рахує прогрес (лише для власного
+    // 'user'), тож право — повна довжина періоду, не «N-й день з M».
+    expect(row.querySelector('[class*="_rval_"]')!.textContent).toBe('21 день');
+  });
+
+  it('живий стенд 20.09: CSS-механіка проти розпирання рядка довгою метою — .content:min-width явним числом (не auto/0), .rmeta:min-width:0', () => {
+    // jsdom не вантажить справжні CSS-правила (document.styleSheets.length
+    // === 0 при рендері сторінки, задокументовано з Р181) — ні
+    // getComputedStyle, ні власний рендер тут не бачать явних px/ellipsis.
+    // Живою перевіркою в БРАУЗЕРІ підтверджено: `.content` computed
+    // min-width 128px (8em), `.rmeta` computed min-width 0px — з довгою
+    // метою (300 символів) `.zone-card.scrollWidth === clientWidth` (без
+    // overflow), правий край `.rval` === правий край контенту картки.
+    // Тут — регресійний контроль ЛИШЕ на присутність цих двох властивостей
+    // у джерелі, щоб випадкове видалення не пройшло непоміченим.
+    const css = readFileSync(resolve(fileURLToPath(import.meta.url), '..', 'Calendar.module.css'), 'utf8');
+    const ruleOf = (selector: string) => {
+      const start = css.indexOf(selector);
+      const end = css.indexOf('}', start);
+      return css.slice(start, end + 1);
+    };
+    const contentRule = ruleOf('.content {');
+    expect(contentRule).toMatch(/min-width:\s*8em/);
+    expect(contentRule).not.toMatch(/min-width:\s*(auto|0)\b/);
+    const rmetaRule = ruleOf('.rmeta {');
+    expect(rmetaRule).toMatch(/min-width:\s*0\b/);
   });
 
   it('порожньо — «Нічого не діє»', async () => {
