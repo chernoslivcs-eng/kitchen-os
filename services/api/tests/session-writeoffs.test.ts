@@ -73,4 +73,16 @@ describe('sessionWriteoffs', () => {
     const next = await repo.createFreshSession(me.user_id, '2026-09-20');
     expect(await sessionWriteoffs(repo, me.user_id, next.id, await repo.listMessages(next.id))).toEqual([]);
   });
+
+  it('комбінований хід «Так. А що на завтра?» — блок збирається з картки, записаної в цьому ж ході', async () => {
+    const me = await signIn(app, mailer, 'w3@example.com');
+    const b = await batch(me.household_id, 'спагеті', 500, 'g');
+    const session = await repo.createFreshSession(me.user_id, '2026-09-19');
+    const cook = await app.inject({ method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie }, payload: { recipe: { t: 'Паста', tm: 20, sv: 2, ing: [{ p: b, n: 'спагеті', v: 320, u: 'g' }], st: [{ t: 'Вари', c: 'Вари {0}' }] }, skip_pantry: true, session_id: session.id, ask_writeoff: true } });
+    expect(cook.statusCode).toBe(201);
+    const chat = await app.inject({ method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie }, payload: { session_id: session.id, text: 'Так. А що на завтра?' } });
+    const body = chat.json() as { card?: { type: string }; meta?: { writeoffs_seen?: number } };
+    expect(body.card?.type).toBe('intake_diff');
+    expect(body.meta?.writeoffs_seen).toBe(1);
+  });
 });

@@ -376,6 +376,8 @@ export interface ChatCall {
     // зразок voice.md. chat.ts логує це як 'example-copy' — сюди, а не в
     // model.ts, бо тільки маршрут має req.log.
     example_copy?: boolean;
+    /** D (20.09), лише stub: скільки готувань було в [СПИСАНО В ЦІЙ СЕСІЇ] — для тестів. */
+    writeoffs_seen?: number;
     // Крок 4в (2а): reply містив службові позначки — був повторний виклик.
     service_markers?: boolean;
   };
@@ -615,7 +617,8 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
     reply: `[STUB без ANTHROPIC_API_KEY] відповідь на: ${args.text}`,
     card: null,
     calls: [ZERO_USAGE],
-    meta: { promptVersion, model: 'stub', mode: 'stub' },
+    // writeoffs_seen — тестам видно, скільки готувань було в [СПИСАНО В ЦІЙ СЕСІЇ] (D).
+    meta: { promptVersion, model: 'stub', mode: 'stub', writeoffs_seen: args.sessionWriteoffs?.length ?? 0 },
   };
 }
 

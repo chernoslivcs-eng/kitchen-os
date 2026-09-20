@@ -468,7 +468,9 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
 
     // D (20.09): списання після готувань цієї сесії — модель бачить, що саме пішло з комори,
     // і може дати поправку («взяв Helcom замість вʼялених», «десь 40 мл соку»).
-    const sessionWriteoffsBlock = await sessionWriteoffs(repo, user_id, session.id, preMessages);
+    // У комбінованому ході («Так. А що на завтра?») картку списання щойно записано
+    // ПІСЛЯ preMessages — читаємо сесію заново, щоб блок узяв і її.
+    const sessionWriteoffsBlock = await sessionWriteoffs(repo, user_id, session.id, writeoffPrefix ? await repo.listMessages(session.id) : preMessages);
 
     const started = Date.now();
     // QA5-05: коли історія обрізана, модель читала порожнечу як відсутність факту —
