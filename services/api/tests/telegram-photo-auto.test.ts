@@ -30,9 +30,16 @@ describe('фото → одразу в комору', () => {
     seen.length = 0;
   });
   /** Мок ходу: фото → intake_diff «молоко»; auto — застосована одразу з undo (як chat-turn); dish — без картки. */
-  const turn = (kind: 'intake' | 'dish' | 'empty' = 'intake') => async (input: ChatTurnInput) => {
+  const turn = (kind: 'intake' | 'dish' | 'empty' | 'ask' = 'intake') => async (input: ChatTurnInput) => {
     seen.push(input);
     if (kind === 'dish') return { reply: 'Гарна паста.', card: null, card_id: null, raw_kind: 'dish' };
+    if (kind === 'ask') {
+      // Як chat-turn при intent ask: картка pending, репліка — відповідь по суті.
+      const card: Card = { type: 'intake_diff', ops: [{ op: 'add', label: 'фует', value: 150, unit: 'g' }] };
+      const card_id = randomUUID();
+      await createPending(repo, { message_id: card_id, household_id: me.household_id, user_id: me.user_id, card });
+      return { reply: 'Так, фует до пасти підійде.', card, card_id, auto_applied: false };
+    }
     if (kind === 'empty') return { reply: 'Нічого не розібрав.', card: { type: 'intake_diff', ops: [] } as Card, card_id: null };
     const card: Card = { type: 'intake_diff', ops: [{ op: 'add', label: `молоко ${seq}`, value: 1000, unit: 'ml' }] };
     const card_id = randomUUID();
@@ -41,8 +48,8 @@ describe('фото → одразу в комору', () => {
     return { reply: 'Розібрав чек — розкладаємо?', card, card_id, auto_applied: false };
   };
   const deps = (extra: Record<string, unknown> = {}) => ({ repo, store, appUrl: APP, downloadFile: async () => ({ buffer: png, content_type: 'image/jpeg' }), ...extra });
-  const photo = (kind: 'intake' | 'dish' | 'empty' = 'intake', source: 'photo' | 'document' = 'photo') =>
-    handleTelegramFile(deps({ turn: turn(kind) }), { update_id: ++seq, telegram_user_id: 500, chat_id: 500, source, file_id: `f${seq}`, mime_type: 'image/jpeg' });
+  const photo = (kind: 'intake' | 'dish' | 'empty' | 'ask' = 'intake', source: 'photo' | 'document' = 'photo', caption?: string) =>
+    handleTelegramFile(deps({ turn: turn(kind) }), { update_id: ++seq, telegram_user_id: 500, chat_id: 500, source, file_id: `f${seq}`, mime_type: 'image/jpeg', caption });
   const cb = (data: string) => handleTelegramCallback(deps(), { update_id: ++seq, telegram_user_id: 500, data });
   const idOf = (r: Awaited<ReturnType<typeof photo>>, prefix: string) => (r?.keyboard?.[0]?.find((b) => b.data?.startsWith(prefix))?.data ?? '').slice(prefix.length);
   const batches = async () => (await repo.listBatches(me.household_id)).filter((b) => !b.depleted_at).length;
@@ -86,5 +93,14 @@ describe('фото → одразу в комору', () => {
     await handleTelegramText(deps({ turn: turn('dish') }), { update_id: ++seq, telegram_user_id: 500, chat_id: 500, text: 'все у комору' });
     expect(seen).toHaveLength(1);
     expect(seen[0]!.text).toBe('все у комору');
+  });
+
+  it('підпис-питання («підійде до пасти?») → картка pending з «У комору / Не треба», репліка — відповідь по суті', async () => {
+    const r = await photo('ask', 'photo', 'це підійде до пасти з фуетом?');
+    expect(seen[0]!.attachmentApply).toBe('auto');                    // рішення про pending — у chat-turn, не тут
+    expect(r?.messages[0]).toContain('Так, фует до пасти підійде.');
+    expect(r?.messages[0]).not.toContain('Записав у комору');
+    expect(r?.keyboard?.[0]?.map((b) => b.text)).toEqual([COPY.toPantry, COPY.notNeeded]);
+    expect(await batches()).toBe(0);
   });
 });

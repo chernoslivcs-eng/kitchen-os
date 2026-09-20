@@ -138,13 +138,17 @@ export type AttachmentSubject = 'receipt' | 'shelf' | 'recipe' | 'dish' | 'other
 // шукав {reply, card}, не знаходив, і віддавав порожню картку з JSON-уламком
 // у полі reply. Тобто фікстури на чеки перевіряли не той конвеєр, що працює,
 // і не могли позеленіти в принципі — що й було видно в снапшотах.
+/** 20.09: намір людини до фото продуктів — записати (`add`, типово) чи спитати про продукт (`ask`). */
+export type AttachmentIntent = 'add' | 'ask';
+
 export function parseAttachmentResponse(text: string): {
   reply: string;
   card: Card | null;
   raw_kind: AttachmentSubject | null;
+  intent: AttachmentIntent | null;
 } {
   let parsed = extractJson(text).parsed as {
-    kind?: AttachmentSubject; note?: string; ops?: unknown; recipe?: unknown;
+    kind?: AttachmentSubject; intent?: unknown; note?: string; ops?: unknown; recipe?: unknown;
   } | null;
   // Живий прогін 2026-08-31: модель віддала [{...}] — одноелементний масив
   // замість обʼєкта. Розгортаємо, а не валимо весь чек.
@@ -154,8 +158,10 @@ export function parseAttachmentResponse(text: string): {
 
   let card: Card | null = null;
   let raw_kind: AttachmentSubject | null = null;
+  let intent: AttachmentIntent | null = null;
   if (parsed?.kind === 'receipt' || parsed?.kind === 'shelf') {
     raw_kind = parsed.kind;
+    intent = parsed.intent === 'ask' ? 'ask' : 'add';
     // Схема моделі компактна (v/u/conf/ev) — приводимо до словника apply
     // (value/unit/confidence/evidence). Черга Д: без цього кількість із чека
     // мовчки губилась (apply читає тільки value/unit). Трійка product·brand·
@@ -182,5 +188,5 @@ export function parseAttachmentResponse(text: string): {
     // dish/other картки не дають: людина показала результат, не завдання.
     raw_kind = parsed.kind;
   }
-  return { reply: parsed?.note ?? text, card, raw_kind };
+  return { reply: parsed?.note ?? text, card, raw_kind, intent };
 }

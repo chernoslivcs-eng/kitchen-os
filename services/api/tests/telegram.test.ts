@@ -206,7 +206,7 @@ describe('Р147/Р149 · Telegram', () => {
   const png = Buffer.from('89504e470d0a1a0a', 'hex');
   const fileDeps = (turn: (input: ChatTurnInput) => Promise<{ reply: string | null; card: Card | null; card_id: string | null; auto_applied?: boolean }>, extra: Record<string, unknown> = {}) =>
     deps({ downloadFile: async () => ({ buffer: png, content_type: 'image/jpeg' }), turn, ...extra });
-  const intakeOut = (card_id: string) => ({ reply: 'Розібрав чек.', card: { type: 'intake_diff', ops: [{ op: 'add', label: 'молоко', value: 1000, unit: 'ml' }, { op: 'add', label: 'хліб', value: 1, unit: 'pcs' }] } as Card, card_id, auto_applied: false });
+  const intakeOut = (card_id: string) => ({ reply: 'Розібрав чек.', card: { type: 'intake_diff', ops: [{ op: 'add', label: 'молоко', value: 1000, unit: 'ml' }, { op: 'add', label: 'хліб', value: 1, unit: 'pcs' }] } as Card, card_id, auto_applied: true, undo_token: 'u' });   // 20.09: фото застосовано в chat-turn
 
   it('фото → той самий store і attachment, хід із вкладенням (auto — власник 20.09), список позицій і «Скасувати»; caption — текст ходу', async () => {
     const me = await linked();

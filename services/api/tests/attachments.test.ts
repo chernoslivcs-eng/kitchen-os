@@ -76,6 +76,28 @@ describe('POST /v1/attachments → /v1/chat with attachment → /apply', () => {
     expect(await repo.listBatches(me.household_id)).toHaveLength(1);
   });
 
+  // 20.09: намір людини до вкладення. Текст-констатація (або порожній) → одразу в
+  // комору з undo; текст-питання про продукт → картка pending, репліка — відповідь по
+  // суті. Стаб читає намір із «?» у hint; текст ходу їде в hint, коли явного hint нема.
+  it('текст-констатація до вкладення → auto_applied з undo; текст-питання → pending, комора недоторкана', async () => {
+    const me = await signIn(app, mailer, 'intent@example.com');
+    const a = (await uploadReceipt(app, me)).json().id;
+    const add = (await app.inject({ method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie }, payload: { text: 'ще дві банки', attachments: [{ id: a }] } })).json();
+    expect(add.card?.type).toBe('intake_diff');
+    expect(add.auto_applied).toBe(true);
+    expect(add.undo_token).toBeTruthy();
+    expect(await repo.listBatches(me.household_id)).toHaveLength(1);
+
+    const b = (await uploadReceipt(app, me)).json().id;
+    const ask = (await app.inject({ method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie }, payload: { text: 'це підійде до пасти?', attachments: [{ id: b }] } })).json();
+    expect(ask.card?.type).toBe('intake_diff');
+    expect(ask.auto_applied).toBe(false);
+    expect(ask.undo_token).toBeUndefined();
+    expect(ask.reply).toContain('підійде');
+    expect(await repo.listBatches(me.household_id)).toHaveLength(1);   // не додалось
+    expect((await repo.getPending(ask.card_id))?.applied_at).toBeFalsy();
+  });
+
   it('reparse з hint зберігає підказку і повертає нову картку', async () => {
     const me = await signIn(app, mailer, 'me@example.com');
     const { id } = (await uploadReceipt(app, me)).json();

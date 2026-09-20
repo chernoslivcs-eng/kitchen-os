@@ -12,7 +12,8 @@ export interface Fixture {
   description: string;
   call: FixtureKind;
   invariants: string[];
-  attachment?: { kind: 'text' | 'image'; path: string; content?: string };
+  /** hint — підпис/текст людини до вкладення (у проді: [уточнення від користувача: …]). */
+  attachment?: { kind: 'text' | 'image'; path: string; content?: string; hint?: string };
   pantry?: unknown[];
   // Раунд 4: сім речень напряму ({ no: "…", ban: "none" }) і нотатки; крок 11:
   // єдина форма профілю у фікстурах.
@@ -272,6 +273,8 @@ export function loadFixtures(): Fixture[] {
     })),
     // D (20.09): поправка списання після готування — [СПИСАНО В ЦІЙ СЕСІЇ].
     ...['writeoff-fix-substitute', 'writeoff-fix-quantity', 'writeoff-fix-negative', 'writeoff-fix-third-turn'].map((id) => readJson(`${id}.json`)),
+    // 20.09: намір до фото продукту — add (записати) чи ask (питання про продукт).
+    ...['photo-product-plain', 'photo-product-ask', 'photo-product-more'].map((id) => readJson(`${id}.json`)),
     // 1.2: уподобання після фідбеку — note з recipe (s42).
     readJson('preference-after-feedback.json'),
     // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картка закрита в іншій сесії,

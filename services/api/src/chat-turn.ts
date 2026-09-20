@@ -134,7 +134,9 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
         if (!rec) throw new ChatTurnHttpError(404, { error: `attachment not found: ${id}` });
         if (rec.user_id !== user_id) throw new ChatTurnHttpError(403, { error: `forbidden attachment: ${id}` });
         const { buffer, content_type } = await store.get(rec.url);
-        payloads.push({ kind: rec.kind, buffer, content_type, hint: rec.hint ?? undefined });
+        // 20.09: текст ходу до фото («це підійде до пасти?», «ще дві банки») — теж уточнення
+        // для розбору: з нього модель читає намір (intent add|ask). Явний hint вкладення — важливіший.
+        payloads.push({ kind: rec.kind, buffer, content_type, hint: rec.hint ?? (text?.trim() || undefined) });
       }
       // Спершу записуємо user-message (текст + факт вкладень).
       // Пул-9 №2: текст ходу — те, що людина СКАЗАЛА. Якщо вона не сказала
@@ -217,7 +219,10 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
       // Пул-8 №2: розібраний чек/фото полиці — теж одразу в комору, undo є.
       let att_auto = false;
       let att_undo: string | undefined;
-      if (call.card?.type === 'intake_diff' && card_id && (input.attachmentApply ?? 'auto') === 'auto') {
+      // 20.09: людина ПИТАЄ про продукт («підійде до пасти?») — не записуємо, картка лишається
+      // pending із кнопками; репліка — відповідь по суті (note). Одна логіка для вебу й Telegram.
+      const wantsAuto = (input.attachmentApply ?? 'auto') === 'auto' && call.intent !== 'ask';
+      if (call.card?.type === 'intake_diff' && card_id && wantsAuto) {
         const r = await applyCard(repo, card_id, [], user_id);
         // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
         // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це

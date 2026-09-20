@@ -1018,6 +1018,8 @@ export interface AttachmentCall {
   reply: string;
   card: Card | null;
   raw_kind: 'receipt' | 'shelf' | 'recipe' | 'dish' | 'other' | null;
+  /** 20.09: `ask` — людина питає про продукт, не записує (картка лишається pending). */
+  intent?: 'add' | 'ask' | null;
   /** По одному запису на фактичний виклик моделі (крок А4б). */
   calls: ModelCallUsage[];
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number };
@@ -1033,9 +1035,12 @@ function attachmentStub(atts: AttachmentPayload[], promptVersion: string): Attac
       .replace(/х\d+.*$/i, '')
       .replace(/\s+/g, ' ')
       .trim() || 'позиція з чека';
+    // Стаб для тестів наміру (20.09): підпис-питання («?» у hint) → ask з відповіддю по суті.
+    const ask = !!textish.hint && /\?/.test(textish.hint);
     return {
-      reply: `Розібрав ${atts.length} вкладення. Все зафіксувати?`,
+      reply: ask ? `Так, ${label} підійде.` : `Розібрав ${atts.length} вкладення. Все зафіксувати?`,
       raw_kind: 'receipt',
+      intent: ask ? 'ask' : 'add',
       card: {
         type: 'intake_diff',
         ops: [{ op: 'add', label, evidence: 'receipt_line', confidence: 0.9 }],
@@ -1157,12 +1162,13 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
     .join('\n');
   // Розбір — у домені, спільний з eval. Поки він жив тут, eval розбирав
   // відповідь про чек чатовим парсером і перевіряв не той конвеєр.
-  const { reply, card, raw_kind } = parseAttachmentResponse(text);
+  const { reply, card, raw_kind, intent } = parseAttachmentResponse(text);
 
   return {
     reply,
     card,
     raw_kind,
+    intent,
     calls: [usageFrom(resp.usage)],
     meta: {
       promptVersion: prompt.version, model, mode: 'live', ...reasoningMeta(model), ...resp._provider,

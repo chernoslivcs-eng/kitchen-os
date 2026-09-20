@@ -445,7 +445,9 @@ export async function handleTelegramFile(deps: TelegramDeps, u: IncomingFile): P
     const card = out.card;
     const web = await webLink(deps, linked.user_id);
     if (card?.type === 'intake_diff' && out.card_id && card.ops.length) {
-      if (auto) {
+      // Застосовано — «Записав…» зі «Скасувати». Не застосовано (людина ПИТАЛА про продукт,
+      // intent ask, або не-зображення) — картка pending: репліка моделі + «У комору / Не треба».
+      if (out.auto_applied) {
         // Репліка — доконана й наша, не нотатка розбору («розкладаємо по полицях?» — не її рішення).
         const text = [escapeHtml(COPY.photoAdded(card.ops.length)), escapeHtml(renderCardText(card)!)].join('\n\n');
         return { messages: splitTelegramText(text), html: true, keyboard: [[{ text: COPY.undo, data: `undo:${out.card_id}` }]] };

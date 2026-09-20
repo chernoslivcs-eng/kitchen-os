@@ -1401,6 +1401,31 @@ export function resolve(name: string): Invariant {
       return bad.length ? fail(bad.join(' · ')) : pass(ops.map((o) => `${o.op} ${o.label} ${o.value ?? ''}`).join('; '));
     };
   }
+  // 20.09: «has-op-label:томат» — intake_diff має add-оп, чий label містить фрагмент.
+  if (base === 'has-op-label') {
+    return (out) => {
+      const card = out.card as { type?: string; ops?: { op: string; label?: string }[] } | null;
+      if (!card || card.type !== 'intake_diff') return fail(`нема intake_diff-картки: «${String(out.reply ?? '').slice(0, 100)}»`);
+      const hit = (card.ops ?? []).find((o) => o.op === 'add' && (o.label ?? '').toLowerCase().includes((arg ?? '').toLowerCase()));
+      return hit ? pass(hit.label) : fail(`нема add-опа з «${arg}»: ${(card.ops ?? []).map((o) => o.label).join(', ')}`);
+    };
+  }
+  // 20.09: «attachment-intent:add» / «attachment-intent:ask» — поле intent у відповіді розбору.
+  if (base === 'attachment-intent') {
+    return (out) => {
+      const m = /"intent"\s*:\s*"(add|ask)"/.exec(out.raw);
+      const got = m?.[1] ?? 'add';                                     // поля нема → add (як сервер)
+      return got === arg ? pass(got) : fail(`intent ${got}, чекали ${arg}: «${String(out.reply ?? '').slice(0, 120)}»`);
+    };
+  }
+  // 20.09: при ask note — відповідь по суті, не «додати?/розкласти?/зафіксувати?».
+  if (base === 'note-answers-not-asks-to-add') {
+    return (out) => {
+      const r = String(out.reply ?? '');
+      if (!r.trim()) return fail('note порожня');
+      return /(додати|розклас|зафіксувати|записати|у комору)[^.!]*\?/i.test(r) ? fail(`note питає про запис замість відповіді: «${r}»`) : pass(r);
+    };
+  }
   if (base === 'has-note-or-reply-mentions') {
     const roots = (arg ?? '').split('|');
     return (out) => (roots.some((r) => `${out.note ?? ''} ${out.reply ?? ''}`.toLowerCase().includes(r.toLowerCase())) ? pass() : fail(`ні note, ні reply не згадують «${arg}»`));
