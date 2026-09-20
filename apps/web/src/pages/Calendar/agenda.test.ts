@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   nowProgress, nowWhen, nowIcon, eventIcon, nowItemToEvent, todayGroups, todayPointEvents, todayPointMeta, todayPointRight,
-  todayPeriodRange, todayPeriodDays,
+  todayPeriodRange, todayPeriodDays, todayConsequence,
   seasonNames, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, aheadPeriod, aheadRight, aheadRightIsDays, aheadMonthGroups, monthName,
 } from './agenda';
 import type { EventOccurrence, NowItem } from '../../api';
@@ -168,6 +168,35 @@ describe('todayPeriodRange / todayPeriodDays (живий стенд 20.09: пе�
     expect(todayPeriodDays(own, '2026-09-19')).toBe('5-й день з 21');
     const catalog: NowItem = { kind: 'tradition', source: 'catalog', from: '2026-09-20', to: '2026-09-21', title: 'Щось', strict: true };
     expect(todayPeriodDays(catalog, '2026-09-19')).toBe('2 дні');
+  });
+});
+
+describe('todayConsequence: мета рядка «Сьогодні» — наслідок для кухні, не тип (рішення власника 20.09)', () => {
+  it('власний період з rule_text — сам текст правила, без обробки', () => {
+    const own: NowItem = { kind: 'diet', source: 'user', title: 'Без молочного', from: '2026-09-15', to: '2026-10-05', strict: true, rule_text: 'без молока, сирів, вершків' };
+    expect(todayConsequence(own)).toBe('без молока, сирів, вершків');
+    // «калорійніше» — те саме поле, без спецобробки під конкретне слово.
+    const own2: NowItem = { kind: 'diet', source: 'user', title: 'Набір ваги', from: '2026-09-15', to: '2026-10-05', strict: false, rule_text: 'калорійніше' };
+    expect(todayConsequence(own2)).toBe('калорійніше');
+  });
+  it('власний період БЕЗ rule_text — null (не падає в meaning/каталожну гілку)', () => {
+    const own: NowItem = { kind: 'diet', source: 'user', title: 'Щось своє', from: '2026-09-15', to: '2026-10-05', strict: false, meaning: 'це поле не власника — не має читатись' };
+    expect(todayConsequence(own)).toBeNull();
+  });
+  it('каталожний піст (rule_text = restricts) — той самий текст, deduped проти назви (dedupeTitle, як PeriodArtifact.tsx)', () => {
+    const fast: NowItem = { kind: 'tradition', source: 'catalog', title: 'Різдвяний піст', from: '2026-11-28', to: '2027-01-06', strict: true, rule_text: 'без мʼяса, риби, молочного і яєць' };
+    expect(todayConsequence(fast)).toBe('без мʼяса, риби, молочного і яєць');
+    // Правило вже починається з назви — назва не дублюється (dedupeTitle).
+    const dup: NowItem = { kind: 'tradition', source: 'catalog', title: 'Піст', from: '2026-11-28', to: '2027-01-06', strict: true, rule_text: 'Піст: без мʼяса' };
+    expect(todayConsequence(dup)).toBe('Піст: без мʼяса');
+  });
+  it('каталожне свято без rule_text — meaning одним рядком (ellipsis — CSS, не тут)', () => {
+    const holiday: NowItem = { kind: 'tradition', source: 'catalog', title: 'Покрова', from: '2026-10-14', to: '2026-10-14', strict: false, meaning: 'покров Богородиці над домом і людьми' };
+    expect(todayConsequence(holiday)).toBe('покров Богородиці над домом і людьми');
+  });
+  it('каталожне без rule_text і без meaning — null (рядок 48, без другого рядка)', () => {
+    const bare: NowItem = { kind: 'tradition', source: 'catalog', title: 'Покрова', from: '2026-10-14', to: '2026-10-14', strict: false };
+    expect(todayConsequence(bare)).toBeNull();
   });
 });
 

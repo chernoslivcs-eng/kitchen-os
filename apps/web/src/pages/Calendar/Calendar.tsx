@@ -4,9 +4,12 @@
 // і двома компактними діями (як «Фільтр»/«Додати»), zone-card + section-label
 // (замість голого блоку), рядки 48 ROW ANATOMY зі знаком замість крапки-тону,
 // один стовпчик до 720px, як «Список» (рішення власника 20.09), «Далі» —
-// картка на місяць (замість голого роздільника-рядка). Нічого нового не вигадуємо — усі числа
-// й розмітка звідти. Обмеження — по тапу на рядок (артефакт події), не в
-// самій картці. Клік по будь-якому рядку — той самий артефакт, що з чату
+// ОДНА картка з роздільниками місяців усередині (рішення власника 20.09,
+// раніше — картка на місяць). Нічого нового не вигадуємо — усі числа
+// й розмітка звідти. «Сьогодні» показує наслідок для кухні (rule_text/
+// restricts/meaning) другим рядком уже в картці (рішення власника 20.09,
+// todayConsequence); «Далі» — тип/правило (aheadMeta), не наслідок, свідомо
+// інша мета. Клік по будь-якому рядку — той самий артефакт, що з чату
 // (openNowItem/showEvent, той самий обробник з Р174/Р175).
 
 import { Icon } from '../../components/Icon/Icon';
@@ -18,7 +21,7 @@ import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import {
   nowWhen, nowIcon, eventIcon, nowItemToEvent, todayGroups, todayPointEvents, todayPointMeta, todayPointRight,
-  todayPeriodRange, todayPeriodDays,
+  todayPeriodRange, todayPeriodDays, todayConsequence,
   seasonNames, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, aheadPeriod, aheadRight, aheadRightIsDays, aheadMonthGroups, dow, type AheadRow,
 } from './agenda';
 import { todayIso } from '../../lib/period';
@@ -220,7 +223,7 @@ export function CalendarPage() {
   const periodRow = (it: NowItem) => {
     const id = it.occasion_id ?? it.id ?? it.title;
     return row({
-      key: `${id}:${it.from}`, icon: nowIcon(it), name: it.title,
+      key: `${id}:${it.from}`, icon: nowIcon(it), name: it.title, meta: todayConsequence(it),
       period: todayPeriodRange(it), right: todayPeriodDays(it, todayIsoStr), daysTone: 'days',
       onClick: () => openNowItem(it), motionId: id,
     });
@@ -342,16 +345,19 @@ export function CalendarPage() {
 
               {ahead.length > 0 && (
                 <div className={styles['col-ahead']} data-cal-ahead>
-                  {monthGroups.map((g) => (
-                    <section key={g.key} className={styles['zone-card']} data-cal-month={g.key}>
-                      <div className={styles['section-label']}>
-                        <Icon name="sys.calendar" size={16} inherit decorative />
-                        <span className={styles['section-name']}>{g.label}</span>
-                        <span className={styles['section-count']}>{g.rows.length}</span>
+                  <section className={styles['zone-card']}>
+                    <div className={styles['section-label']}>
+                      <Icon name="sys.calendar" size={16} inherit decorative />
+                      <span className={styles['section-name']}>Далі</span>
+                      <span className={styles['section-count']}>{ahead.length}</span>
+                    </div>
+                    {monthGroups.map((g) => (
+                      <div key={g.key} data-cal-month={g.key}>
+                        <div className={styles['month-sep']}>{g.label}</div>
+                        {g.rows.map(aheadRow)}
                       </div>
-                      {g.rows.map(aheadRow)}
-                    </section>
-                  ))}
+                    ))}
+                  </section>
                 </div>
               )}
             </div>

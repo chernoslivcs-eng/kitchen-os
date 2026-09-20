@@ -4,7 +4,7 @@
 // «кінець»», «який знак у рядка») перевірялись тестом.
 
 import type { EventOccurrence, NowItem } from '../../api';
-import { daysBetween, plural, todayIso } from '../../lib/period';
+import { daysBetween, dedupeTitle, plural, todayIso } from '../../lib/period';
 import { isLasting, spanDays } from '../../lib/spans';
 
 function isoParts(iso: string): [number, number, number] {
@@ -102,6 +102,26 @@ export function todayPeriodDays(it: Pick<NowItem, 'kind' | 'source' | 'from' | '
   if (p) return `${p.dayN}-й день з ${p.total}`;
   const total = daysBetween(it.from, it.to) + 1;
   return `${total} ${plural(total, ['день', 'дні', 'днів'])}`;
+}
+
+/**
+ * Мета рядка-періоду «Сьогодні» (рішення власника 20.09): НАСЛІДОК для
+ * кухні, не тип — лише в цій картці («Далі» несе тип/правило тим самим
+ * рядком, `aheadMeta`, не наслідок — рішення власника той-таки, не
+ * чіпати). Три роди: власний період (`source==='user'`) з `rule_text` —
+ * сам текст правила («без молока, сирів, вершків», «калорійніше» — те
+ * саме поле, без обробки); каталожний піст (`rule_text` непорожній — у
+ * `NowItem` це те саме поле, що `EventOccurrence.restricts` після
+ * `nowItemToEvent`) — той самий текст, пропущений через `dedupeTitle`
+ * (не дублювати назву, якщо правило вже починається з неї — той самий
+ * рецепт, що `PeriodArtifact.tsx`: `dedupeTitle(title, event.restricts)`);
+ * каталожне свято без правила — `meaning` одним рядком (обрізає CSS
+ * `.rmeta`, тут — без обробки).
+ */
+export function todayConsequence(it: Pick<NowItem, 'title' | 'source' | 'rule_text' | 'meaning'>): string | null {
+  if (it.source === 'user') return it.rule_text?.trim() || null;
+  if (it.rule_text?.trim()) return dedupeTitle(it.title, it.rule_text).rule;
+  return it.meaning?.trim() || null;
 }
 
 /**

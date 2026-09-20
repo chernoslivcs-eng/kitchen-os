@@ -73,12 +73,14 @@
 .layout { display: flex; flex-direction: column; gap: 14px; max-width: 720px; }
 .col-today, .col-ahead { display: flex; flex-direction: column; gap: 14px; }
 
-/* ── Картка (Pantry «zone-card»): та сама форма для «Сьогодні» й кожного
-   місяця «Далі». container-type — не косметика: рядок усередині вирішує
-   «широкий/вузький» варіант за шириною КАРТКИ, не вʼюпорту (живий стенд
-   20.09 — з відкритою панеллю праворуч на 1440 картка вужча за вʼюпорт,
-   і в'юпортний @media <768 не встигав спрацювати, назви падали до
-   однієї літери). ── */
+/* ── Картка (Pantry «zone-card»): та сама форма для «Сьогодні» й для
+   «Далі» (рішення власника 20.09: ОДНА картка на всі місяці, не по
+   картці на місяць — місяці всередині позначені роздільником, не
+   окремими zone-card). container-type — не косметика: рядок усередині
+   вирішує «широкий/вузький» варіант за шириною КАРТКИ, не вʼюпорту
+   (живий стенд 20.09 — з відкритою панеллю праворуч на 1440 картка
+   вужча за вʼюпорт, і в'юпортний @media <768 не встигав спрацювати,
+   назви падали до однієї літери). ── */
 .zone-card {
   background: var(--card); border-radius: 14px; overflow: hidden; padding: 0 18px 4px; box-shadow: var(--sh-a), var(--sh-b);
   container-type: inline-size; container-name: cal-card;
@@ -96,6 +98,19 @@
 @media (max-width: 767px) {
   .zone-card { padding: 0 16px 4px; }
   .section-label { margin: 0 -16px 8px; padding: 0 16px; }
+}
+
+/* Роздільник місяця всередині картки «Далі» (рішення власника 20.09):
+   mono-kicker 10/600 uppercase muted, 32 у висоту, БЕЗ темного фону
+   (на відміну від `.section-label` — той несе назву й лічильник самої
+   картки, цей лише ділить рядки на місяці всередині неї). Перед
+   ПЕРШИМ місяцем теж є — однорідність (не «поточний місяць без
+   підпису, наступні з підписом»). */
+.month-sep {
+  display: flex; align-items: center;
+  height: 32px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
 }
 
 /* ── «Сьогодні»: «20 вересня» крупно (токен display, як h1 Комори) + «нд»

@@ -10,6 +10,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { CalendarPage } from './Calendar';
 import { CALENDAR_FAILED } from '../../components/ErrorState/copy';
 import { usePanelStore } from '../../store/panel';
+import type { NowItem } from '../../api';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -135,8 +136,9 @@ describe('CalendarPage · «Сьогодні» (zone-card)', () => {
     expect(card.textContent).toContain('5-й день з 21');
     expect(card.textContent).toContain('Гості на вечерю');
     expect(card.textContent).toContain('6 осіб');
-    // Обмеження — по тапу, не в картці.
-    expect(card.textContent).not.toContain('без молока, сирів, вершків');
+    // Рішення власника 20.09: мета рядка «Сьогодні» — наслідок для кухні
+    // (todayConsequence), тепер видима в картці, не лише по тапу.
+    expect(card.textContent).toContain('без молока, сирів, вершків');
     // Сезони — назва «Сезон», зведення (без дат) другим рядком-метою.
     expect(card.textContent).toContain('СезонСливи · Білі гриби');
     const rows = [...card.querySelectorAll('[class*="_row_"]')].map((r) => r.textContent);
@@ -172,13 +174,31 @@ describe('CalendarPage · «Сьогодні» (zone-card)', () => {
     expect(card.textContent).toContain('Білі гриби');
   });
 
+  it('рішення власника 20.09: мета рядка — наслідок для кухні, три роди (rule_text власний / restricts каталожний / meaning без правила)', async () => {
+    const consequenceNow: NowItem[] = [
+      { kind: 'diet', title: 'Без молочного', from: iso(day(-4)), to: iso(day(16)), strict: true, source: 'user', id: 'diet1', rule_text: 'без молока, сирів, вершків' },
+      { kind: 'tradition', title: 'Різдвяний піст', from: iso(day(0)), to: iso(day(20)), strict: true, source: 'catalog', occasion_id: 'fast', rule_text: 'без мʼяса, риби, молочного і яєць' },
+      { kind: 'tradition', title: 'Покрова', from: iso(day(-3)), to: iso(day(3)), strict: false, source: 'catalog', occasion_id: 'pokrova', meaning: 'покров Богородиці над домом і людьми' },
+    ];
+    ({ host, root } = await mount(true, consequenceNow, []));
+    const card = host!.querySelector('[data-cal-today]')!;
+    expect(card.textContent).toContain('без молока, сирів, вершків');
+    expect(card.textContent).toContain('без мʼяса, риби, молочного і яєць');
+    expect(card.textContent).toContain('покров Богородиці над домом і людьми');
+    // Рядок з метою — 56 (data-meta-wide), не 48.
+    const rows = [...card.querySelectorAll('button[class*="_row_"]')];
+    for (const t of ['Без молочного', 'Різдвяний піст', 'Покрова']) {
+      expect(rows.find((r) => r.textContent?.includes(t))!.hasAttribute('data-meta-wide'), t).toBe(true);
+    }
+  });
+
   it('порожньо — «Нічого не діє»', async () => {
     ({ host, root } = await mount(true, [], []));
     expect(host!.querySelector('[data-cal-today-empty]')!.textContent).toBe('Нічого не діє');
   });
 });
 
-describe('CalendarPage · «Далі» (картка на місяць)', () => {
+describe('CalendarPage · «Далі» (одна картка, роздільники місяців — рішення власника 20.09)', () => {
   let host: HTMLDivElement | undefined; let root: Root | undefined;
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(FIXED_NOW)); });
   afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
@@ -256,6 +276,11 @@ describe('CalendarPage · «Далі» (картка на місяць)', () => 
     expect(notime.hasAttribute('data-meta-mobile')).toBe(true); // «рамка дня» саме по собі теж іде в мобільну мету
 
     // Каталожне свято без деталей («Покрова») — ні мети, ні права, ні висоти-56.
+    // Рішення власника 20.09: «Далі» несе тип/правило (aheadMeta), НЕ
+    // наслідок для кухні — на відміну від «Сьогодні» (todayConsequence),
+    // aheadMeta свідомо не читає `meaning` навіть для каталожного свята без
+    // restricts, тож тут і лишається порожньо (не «покрова над домом…»,
+    // якою ця сама подія показалась би в «Сьогодні»).
     const pokrova = find('Покрова');
     expect(pokrova.hasAttribute('data-meta-wide')).toBe(false);
     expect(pokrova.hasAttribute('data-meta-mobile')).toBe(false);
@@ -263,16 +288,21 @@ describe('CalendarPage · «Далі» (картка на місяць)', () => 
     expect(pokrova.querySelector('[class*="_period_"]')!.textContent).toBe('');
   });
 
-  it('картки місяців — «Вересень», «Жовтень», «Листопад», кожна з лічильником рядків', async () => {
+  it('рішення власника 20.09: ОДНА картка «Далі · N» (не картка на місяць), роздільники «Вересень»/«Жовтень»/«Листопад» усередині', async () => {
     ({ host, root } = await mount(true, [], fixtureEvents()));
     const ahead = host!.querySelector('[data-cal-ahead]')!;
-    const months = [...ahead.querySelectorAll('[class*="_section-name_"]')].map((m) => m.textContent);
-    expect(months).toEqual(['Вересень', 'Жовтень', 'Листопад']);
+    // Одна картка — один section-name «Далі», один лічильник (сума всіх
+    // рядків, не по місяцю): 3+3+1 = 7 (той самий підрахунок, що раніше
+    // йшов на три окремі картки).
+    const names = [...ahead.querySelectorAll('[class*="_section-name_"]')].map((m) => m.textContent);
+    expect(names).toEqual(['Далі']);
     const counts = [...ahead.querySelectorAll('[class*="_section-count_"]')].map((c) => c.textContent);
-    // Вересень (23,29,30.09): Мало часу, Замовлення Сільпо, Набір ваги старт = 3;
-    // Жовтень (05,14,30.10): Без молочного кінець, Покрова, Набір ваги кінець = 3;
-    // Листопад (28.11): Різдвяний піст старт = 1.
-    expect(counts).toEqual(['3', '3', '1']);
+    expect(counts).toEqual(['7']);
+    // Місяці тепер — роздільники всередині картки (mono-kicker), не власні
+    // section-name; для ПЕРШОГО місяця роздільник теж є (однорідність).
+    const seps = [...ahead.querySelectorAll('[class*="_month-sep_"]')].map((s) => s.textContent);
+    expect(seps).toEqual(['Вересень', 'Жовтень', 'Листопад']);
+    expect(ahead.querySelectorAll('[class*="_zone-card_"]').length).toBe(1);
   });
 
   it('порожній список при непорожньому «Сьогодні» — колонка «Далі» не рендериться', async () => {
