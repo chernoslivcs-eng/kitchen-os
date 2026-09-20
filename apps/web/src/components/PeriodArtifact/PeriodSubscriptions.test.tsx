@@ -87,6 +87,17 @@ describe('PeriodSubscriptions', () => {
     expect($('[data-package="seasons"]')!.textContent).toContain('2 вікна');
   });
 
+  // Живий стенд 20.09: «Каталог подій» дублювався — той самий текст уже в
+  // шапці ArtifactPanel (label з Calendar.tsx), і ще раз власним <h2> тут.
+  // Компонент більше не малює заголовок сам — лишає це шапці панелі.
+  it('немає власного заголовка «Каталог подій» (його несе шапка панелі, не цей компонент)', async () => {
+    await mount(<PeriodSubscriptions />);
+    expect(host!.textContent).not.toContain('Каталог подій');
+    expect(host!.querySelector('h2')).toBeNull();
+    // Пояснення лишається першим рядком змісту.
+    expect(host!.textContent?.trim().startsWith('Підпишись на пакет')).toBe(true);
+  });
+
   it('клік по рядку пакета — переходить у вміст (рівень 2) з кнопкою «назад»', async () => {
     await mount(<PeriodSubscriptions />);
     await click($('[data-package="catholic"] button'));

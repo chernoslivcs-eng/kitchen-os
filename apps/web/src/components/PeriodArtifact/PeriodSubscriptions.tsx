@@ -28,7 +28,8 @@ export interface SubscriptionsProps {
 const OCCASION_SETS: OccasionSet[] = [...TRADITION_SETS, 'seasons'];
 
 export const SUBSCRIPTIONS_COPY = {
-  title: 'Каталог подій',
+  // Заголовка «Каталог подій» тут більше нема (живий стенд 20.09: дублював
+  // шапку ArtifactPanel) — назва панелі несе саме шапка, це лишає лише пояснення.
   text: 'Підпишись на пакет — і отримаєш весь набір одразу. Усередині можна вимкнути зайве, за замовчуванням усе увімкнено.',
   // Рішення власника 20.09: те саме слово, де раніше було «Твій» — на
   // рядку пакета (рівень 1) і в шапці вмісту (рівень 2).
@@ -184,7 +185,10 @@ export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) 
   if (viewed === null) {
     return (
       <div className={styles.body} data-testid="period-subscriptions" data-catalog-level="packages">
-        <h2 className={sub.head}>{SUBSCRIPTIONS_COPY.title}</h2>
+        {/* Живий стенд 20.09: «Каталог подій» дублювався — та сама назва вже
+            в шапці ArtifactPanel (label «Каталог подій» з Calendar.tsx), тут
+            зайвий власний <h2>. Підзаголовок-пояснення лишається першим
+            рядком — панель усе одно каже, ЩО це за екран. */}
         <p className={sub['head-text']}>{SUBSCRIPTIONS_COPY.text}</p>
         {/* Рішення власника 20.09: кнопка «Твій/Увімкнути» на рядку пакета
             прибрана — рядок веде лише всередину (рівень 2), де тепер обидва
