@@ -382,7 +382,7 @@ export function CalendarPage() {
         </Sheet>
       )}
       {seriesOpen && !panelInFlow && (
-        <Sheet onClose={() => closePanel()} ariaLabel="Каталог подій" kind="event">
+        <Sheet onClose={() => closePanel()} ariaLabel="Каталог подій" title="Каталог подій" kind="event">
           <PeriodSubscriptions key={openSeriesSet ?? 'root'} initialSet={openSeriesSet}
             onDone={(c) => onEventChanged(undefined, c)} />
         </Sheet>

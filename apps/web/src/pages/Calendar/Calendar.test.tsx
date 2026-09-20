@@ -354,10 +354,13 @@ describe('панель: подія ↔ каталог — одне з двох',
     ({ host, root } = await mountPanel(false, fixtureEvents()));
     await click(host!.querySelector('[data-cal-catalog]'));
     // Живий стенд 20.09: PeriodSubscriptions більше не малює власний
-    // заголовок (дублював шапку ArtifactPanel) — у шторці назву несе
-    // aria-label на [data-sheet], не видимий текст (Sheet.tsx не має
-    // візуального title, лише aria-label для скрінрідера).
+    // заголовок (дублював шапку ArtifactPanel), а Sheet сам за замовчуванням
+    // видимого імені не показує — лишав шторку каталогу зовсім без назви.
+    // Рішення власника: Sheet отримав проп `title` (видимий, той самий
+    // стиль, що `.rail-kicker-title` панелі) — Calendar передає його для
+    // каталогу; aria-label дублює title.
     expect(host!.querySelector('[data-sheet]')!.getAttribute('aria-label')).toBe('Каталог подій');
+    expect(host!.textContent).toContain('Каталог подій');
     await click(eventButton());
     const sheets = [...host!.querySelectorAll('[data-sheet]')].map((e) => e.getAttribute('aria-label'));
     expect(sheets).toContain('Мало часу');
