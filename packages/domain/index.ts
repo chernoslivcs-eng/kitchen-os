@@ -30,6 +30,7 @@ export * from './telegram-emoji.js';
 export * from './pantry-add.js';
 export * from './backfill-generic-keys.js';
 export * from './dish-category.js';
+export * from './intake-streak.js';
 export * from './account-merge.js';
 export * from './periods.js';
 export * from './hebrew-calendar.js';

@@ -56,6 +56,27 @@ export function isNo(text: string): boolean {
   return first != null && NO_FIRST.has(first);
 }
 
+// Живий прохід 19.09: на «Списати продукти?» власник відповів «Так. І що до
+// цього з напоїв? Вино?» — isYes на всьому тексті не спрацював, повідомлення
+// пішло моделі як чат, і списання ПРОПАЛО. Рішення: рішення читається з
+// ПЕРШОГО СЕГМЕНТА (до першої крапки, «!», «?», переносу чи тире), а решта —
+// звичайний хід моделі в тому самому повідомленні.
+export type LeadingAnswer = { decision: 'yes' | 'no' | null; rest: string };
+// Решта, що починається з уточнення («Так, але тільки пасту»), — не згода:
+// людина звужує списання, і це має вирішувати модель, а не детермінатика.
+const QUALIFIER_START = /^(але|тільки|лише|крім|окрім|без|а не)(?![а-яіїєґ'ʼ])/iu;
+
+export function splitLeadingAnswer(text: string): LeadingAnswer {
+  const m = /^([^.!?,\n—–]*)([.!?,\n—–]+)?([\s\S]*)$/.exec(text.trim());
+  const head = (m?.[1] ?? text).trim();
+  const rest = (m?.[3] ?? '').trim();
+  const decision = isNo(head) ? 'no' : isYes(head) ? 'yes' : null;
+  // Без розділювача сегмент = увесь текст, і решти нема — як було.
+  if (!decision) return { decision: null, rest: '' };
+  if (QUALIFIER_START.test(rest)) return { decision: null, rest: '' };
+  return { decision, rest };
+}
+
 // Оцінка з вільної фрази: словоформи («на четвірку») і цифри тільки в явних
 // формах — «4 з 5», «5/5» або сама цифра. Голе число посеред фрази («варив
 // 3 години») оцінкою не вважаємо.

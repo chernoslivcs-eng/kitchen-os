@@ -364,6 +364,8 @@ export interface Repo {
   saveTelegramLinkToken(row: TelegramLinkTokenRow): Promise<void>;
   consumeTelegramLinkToken(token: string, now: string): Promise<TelegramLinkTokenRow | null>;
   linkTelegram(row: TelegramAccountRow): Promise<void>;
+  /** Серія «наповнюю комору» (19.09): стан на акаунті. */
+  setTelegramIntakeStreak(telegram_user_id: number, s: { intake_streak_until: string | null; intake_streak_last_apply: string | null }): Promise<void>;
   /** Злиття (15.09): токен «Підключити» спожито, але Telegram уже чужий — записати чий. */
   setTelegramLinkConflict(token: string, conflict_user_id: string): Promise<void>;
   /**

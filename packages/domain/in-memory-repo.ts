@@ -890,6 +890,12 @@ export class InMemoryRepo implements Repo {
     return stats;
   }
 
+  // ── Серія «наповнюю комору» (19.09) ──
+  async setTelegramIntakeStreak(telegram_user_id: number, s: { intake_streak_until: string | null; intake_streak_last_apply: string | null }): Promise<void> {
+    const a = this.telegramAccounts.get(telegram_user_id);
+    if (a) { a.intake_streak_until = s.intake_streak_until; a.intake_streak_last_apply = s.intake_streak_last_apply; }
+  }
+
   async getMessage(id: string): Promise<MessageRow | null> {
     for (const arr of this.messages.values()) {
       const m = arr.find((x) => x.id === id);

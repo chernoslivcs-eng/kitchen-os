@@ -883,6 +883,9 @@ export interface TelegramAccountRow {
   linked_at: string;
   /** /stop: рядок лишається, писати в дім більше не можна; новий /start оживляє. */
   revoked_at: string | null;
+  /** Серія «наповнюю комору» (intake-streak.ts, міграція 0042). */
+  intake_streak_until?: string | null;
+  intake_streak_last_apply?: string | null;
 }
 /** Разовий токен «Підключити» з профілю: 15 хвилин, один раз. Зберігається як є (не хеш):
  *  він і так живе в URL t.me, ходить лише до нашого бота і згорає за 15 хв. */
