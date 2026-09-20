@@ -680,7 +680,17 @@ async function applyIntakeOp(
     // народжується, строку в неї ще немає. Тут строк уже стоїть і описує
     // ЗАПЕЧАТАНУ партію — поставити opened_at, не перерахувавши expires_at,
     // означало б запустити годинник і лишити на екрані стару дату зіпсуття.
-    if (op.state === 'opened') {
+    //
+    // 19.09 (живий прохід): «коктейль» дав correct 700 → 650 мл на джині й
+    // лікерах — партії лишились sealed. Списати частину з запечатаної можна,
+    // лише відкривши її: менше value на sealed (у тій самій одиниці) — це
+    // відкриття, з тим самим годинником «після відкриття».
+    const consumedFromSealed = op.state === undefined
+      && target.state === 'sealed'
+      && patch.value != null && target.value != null
+      && (patch.unit ?? target.unit) === target.unit
+      && patch.value < target.value;
+    if (op.state === 'opened' || consumedFromSealed) {
       patch.state = 'opened';
       patch.opened_at = new Date().toISOString();
       // А2: те саме менше-з-двох, що в гілці `open`; Б1 — від розрахованого.
