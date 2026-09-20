@@ -1,5 +1,8 @@
 // Vercel Cron → api/cron-digest.ts → api-dist/cron-digest.mjs (esbuild, як
-// telegram-handler). Щогодини; захист — Authorization: Bearer CRON_SECRET
+// telegram-handler). Раз на добу о 15:00 UTC (18:00 Київ улітку, 17:00 узимку) —
+// обмеження Hobby-плану (щогодинний крон деплой відхиляє); логіка за поясом
+// лишається (вікно 17..19 у shouldSendDigest), при переїзді на щогодинний
+// будильник змінюється лише розклад у vercel.json. Захист — Authorization: Bearer CRON_SECRET
 // (Vercel шле його сам; env ставить власник). Без секрету в env — 503, щоб
 // крон не працював «відкритим».
 import './env.js';

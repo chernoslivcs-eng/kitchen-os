@@ -99,15 +99,20 @@ describe('речення голосу', () => {
 
 describe('кому і коли', () => {
   const c = { digest_enabled: true, digest_sent_on: null, tz: 'Europe/Kyiv', wrote_recently: false };
-  it('18 місцевого — так; 17 — ні; вже сьогодні — ні; писала за 3 год — ні; опт-аут — ні', () => {
+  it('вікно 17..19 місцевого: 16:59 — ні, 17:00 — так, 19:59 — так, 20:00 — ні; вже сьогодні — ні; писала за 3 год — ні; опт-аут — ні', () => {
     expect(shouldSendDigest(c, NOW)).toEqual({ send: true, day: '2026-09-17' });
-    expect(shouldSendDigest(c, new Date('2026-09-17T14:30:00Z')).reason).toBe('not_hour');
+    expect(shouldSendDigest(c, new Date('2026-09-17T13:59:00Z')).reason).toBe('not_hour');   // 16:59 Київ
+    expect(shouldSendDigest(c, new Date('2026-09-17T14:00:00Z')).send).toBe(true);           // 17:00
+    expect(shouldSendDigest(c, new Date('2026-09-17T16:59:00Z')).send).toBe(true);           // 19:59
+    expect(shouldSendDigest(c, new Date('2026-09-17T17:00:00Z')).reason).toBe('not_hour');   // 20:00
     expect(shouldSendDigest({ ...c, digest_sent_on: '2026-09-17' }, NOW).reason).toBe('already_sent');
     expect(shouldSendDigest({ ...c, wrote_recently: true }, NOW).reason).toBe('already_active');
     expect(shouldSendDigest({ ...c, digest_enabled: false }, NOW).reason).toBe('opted_out');
   });
-  it('пояси: Лісабон о 18 = 17:xx UTC; хибний пояс — Київ', () => {
-    expect(shouldSendDigest({ ...c, tz: 'Europe/Lisbon' }, NOW).reason).toBe('not_hour');
+  it('крон о 15:00 UTC: Київ улітку (18:00) і взимку (17:00) — обидва у вікні; Лісабон (16:00) — ні', () => {
+    expect(shouldSendDigest(c, new Date('2026-09-17T15:00:00Z')).send).toBe(true);
+    expect(shouldSendDigest(c, new Date('2026-12-17T15:00:00Z')).send).toBe(true);
+    expect(shouldSendDigest({ ...c, tz: 'Europe/Lisbon' }, new Date('2026-09-17T15:00:00Z')).reason).toBe('not_hour');
     expect(shouldSendDigest({ ...c, tz: 'Europe/Lisbon' }, new Date('2026-09-17T17:30:00Z')).send).toBe(true);
     expect(localClock(NOW, 'Not/AZone')).toEqual({ hour: 18, day: '2026-09-17' });
   });
