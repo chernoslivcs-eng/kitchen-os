@@ -10,7 +10,7 @@
 // пише одразу — PUT одним рядком; «Твій»/«Увімкнути» на пакеті — PUT усіма
 // рядками. Знятий рядок лишається на місці як «заглушено · повернути».
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { api, type OccasionItem, type OccasionSet, type SubscriptionRow } from '../../api';
 import { Icon } from '../Icon/Icon';
 import { shortDate, todayIso, TRADITION_LABEL, TRADITION_SETS } from '../../lib/period';
@@ -107,6 +107,10 @@ export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) 
   const [packageItems, setPackageItems] = useState<Partial<Record<OccasionSet, OccasionItem[]>>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // Моушн-пас 20.09: «Увімкнути всі»/«Вимкнути всі» флешить ЛИШЕ рядки, що
+  // справді змінились цим викликом (окремий перемикач має власну плавну
+  // зміну — фон-спалах тут зайвий).
+  const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let alive = true;
@@ -154,7 +158,7 @@ export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) 
   const offCount = (set: OccasionSet): number =>
     (subs ?? []).filter((r) => !r.enabled && (set === 'seasons' ? r.type === 'season' : r.tradition === set)).length;
 
-  async function write(list: { occasion_id: string; enabled: boolean }[], key: string, source: OccasionItem[]) {
+  async function write(list: { occasion_id: string; enabled: boolean }[], key: string, source: OccasionItem[]): Promise<boolean> {
     setBusy(key); setErr(null);
     try {
       await api.occasions.setSubscriptions(list);
@@ -171,20 +175,38 @@ export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) 
         })];
       });
       onDone?.('subscribe');
+      return true;
     } catch {
       setErr(SUBSCRIPTIONS_COPY.err);
+      return false;
     } finally { setBusy(null); }
   }
 
   const toggle = (i: OccasionItem) => write([{ occasion_id: i.occasion_id, enabled: !i.enabled }], i.occasion_id, rows ?? []);
-  const setAll = (enabled: boolean) => rows && viewed && write(rows.map((r) => ({ occasion_id: r.occasion_id, enabled })), `set:${viewed}`, rows);
+  const setAll = (enabled: boolean) => {
+    if (!rows || !viewed) return;
+    const changed = rows.filter((r) => r.enabled !== enabled).map((r) => r.occasion_id);
+    void write(rows.map((r) => ({ occasion_id: r.occasion_id, enabled })), `set:${viewed}`, rows).then((ok) => {
+      if (!ok || changed.length === 0) return;
+      setFlashIds((prev) => new Set([...prev, ...changed]));
+      window.setTimeout(() => {
+        setFlashIds((prev) => { const next = new Set(prev); changed.forEach((id) => next.delete(id)); return next; });
+      }, 800);
+    });
+  };
   const openPackage = (set: OccasionSet) => { setErr(null); setViewed(set); };
   const backToPackages = () => { setErr(null); setViewed(null); setRows(null); };
 
   // ── Рівень 1: список пакетів ────────────────────────────────────────────
   if (viewed === null) {
     return (
-      <div className={styles.body} data-testid="period-subscriptions" data-catalog-level="packages">
+      // Моушн-пас 20.09: перехід рівень 1 ↔ рівень 2 — «зміна екрана»,
+      // той самий `.screen-view`/`screen-in` (crossfade + translateX(10px),
+      // tokens.css), що й вкладки/кроки профілю; `key` за рівнем — інакше
+      // обидва рендери reconcile як ОДИН вузол (той самий тип на тому
+      // самому місці) і CSS-анімація на вставку не спрацьовує (перевірено:
+      // без `key` перемикання не грало жодного разу).
+      <div key="packages" className={`${styles.body} screen-view`} data-testid="period-subscriptions" data-catalog-level="packages">
         {/* Живий стенд 20.09: «Каталог подій» дублювався — та сама назва вже
             в шапці ArtifactPanel (label «Каталог подій» з Calendar.tsx), тут
             зайвий власний <h2>. Підзаголовок-пояснення лишається першим
@@ -231,7 +253,7 @@ export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) 
   const viewedOn = packageOn(viewed);
   const total = rows?.length ?? 0;
   return (
-    <div className={styles.body} data-testid="period-subscriptions" data-catalog-level="items">
+    <div key="items" className={`${styles.body} screen-view`} data-testid="period-subscriptions" data-catalog-level="items">
       <div className={sub['items-head']}>
         <button type="button" className={sub.back} data-tap onClick={backToPackages} aria-label="Назад до пакетів">
           <Icon name="sys.prev" size={18} inherit decorative />
@@ -259,8 +281,11 @@ export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) 
             </button>
           </div>
           <div className={sub.list} data-list={viewed}>
-            {rows.map((i) => (
-              <div key={i.occasion_id} className={`${sub.row} ${i.enabled ? '' : sub['row-off']}`} data-occasion={i.occasion_id} data-enabled={i.enabled ? '' : undefined}>
+            {rows.map((i, idx) => (
+              <div key={i.occasion_id}
+                className={`${sub.row} ${sub['row-in']} ${i.enabled ? '' : sub['row-off']} ${flashIds.has(i.occasion_id) ? sub['row-flash'] : ''}`}
+                style={{ '--i': Math.min(idx, 8) } as CSSProperties}
+                data-occasion={i.occasion_id} data-enabled={i.enabled ? '' : undefined}>
                 <span className={sub['row-body']}>
                   <span className={sub['row-name']}>{i.title}</span>
                   <span className={`${sub['row-sub']} ${i.enabled && i.strict ? sub['row-strict'] : ''}`}>{rowSub(i, viewedOn)}</span>

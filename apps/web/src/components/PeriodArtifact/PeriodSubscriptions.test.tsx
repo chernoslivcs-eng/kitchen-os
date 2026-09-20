@@ -190,4 +190,47 @@ describe('PeriodSubscriptions', () => {
     await click($('[data-set-toggle="off"]'));
     expect(host!.textContent).toContain(SUBSCRIPTIONS_COPY.err);
   });
+
+  // Моушн-пас 20.09: перехід рівень 1 ↔ рівень 2 — «зміна екрана»
+  // (`screen-view`, tokens.css); рядки рівня 2 вʼїжджають зі стагером
+  // (`--i`, стеля 8); «Увімкнути всі»/«Вимкнути всі» флешить лише рядки,
+  // що СПРАВДІ змінились цим викликом.
+  describe('моушн 20.09', () => {
+    it('рівень 1 і рівень 2 — обидва несуть `screen-view` (перехід як зміна екрана)', async () => {
+      await mount(<PeriodSubscriptions />);
+      expect($('[data-catalog-level="packages"]')!.className).toContain('screen-view');
+      await click($('[data-package="catholic"] button'));
+      expect($('[data-catalog-level="items"]')!.className).toContain('screen-view');
+    });
+
+    it('рядки рівня 2 мають `row-in` і зростаючий `--i` (стеля 8) для стагера', async () => {
+      rowsBySet.catholic = [...catholic, ...Array.from({ length: 8 }, (_, i) => ({ ...catholic[0]!, occasion_id: `extra${i}` }))];
+      await mount(<PeriodSubscriptions initialSet="catholic" />);
+      const rows = [...host!.querySelectorAll('[data-occasion]')] as HTMLElement[];
+      expect(rows.length).toBe(10);
+      rows.forEach((r) => expect(r.className).toMatch(/row-in/));
+      expect(rows[0]!.style.getPropertyValue('--i')).toBe('0');
+      expect(rows[1]!.style.getPropertyValue('--i')).toBe('1');
+      // Стеля 8 — 10-й рядок (idx 9) капується на 8, не росте без кінця.
+      expect(rows[9]!.style.getPropertyValue('--i')).toBe('8');
+    });
+
+    it('«Вимкнути всі» — флеш лише на рядках, що СПРАВДІ вимкнулись цим викликом', async () => {
+      // xmas уже enabled:false (не зміниться), lent enabled:true (зміниться).
+      rowsBySet.catholic = [catholic[0]!, { ...catholic[1]!, enabled: true }];
+      await mount(<PeriodSubscriptions initialSet="catholic" />);
+      await click($('[data-set-toggle="off"]'));
+      expect($('[data-occasion="xmas"]')!.className).not.toMatch(/row-flash/);
+      expect($('[data-occasion="lent"]')!.className).toMatch(/row-flash/);
+    });
+
+    it('PUT «Увімкнути всі» впав — флешу нема (лише на успіху)', async () => {
+      rowsBySet.catholic = catholic.map((r) => ({ ...r, enabled: false }));
+      await mount(<PeriodSubscriptions initialSet="catholic" />);
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(async () => new Response('{}', { status: 500 }));
+      await click($('[data-set-toggle="on"]'));
+      expect($('[data-occasion="xmas"]')!.className).not.toMatch(/row-flash/);
+      expect($('[data-occasion="lent"]')!.className).not.toMatch(/row-flash/);
+    });
+  });
 });

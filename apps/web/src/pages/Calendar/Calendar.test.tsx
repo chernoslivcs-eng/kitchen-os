@@ -483,3 +483,93 @@ describe('панель: подія ↔ каталог — одне з двох',
     expect(usePanelStore.getState().active).toBe('event:diet1');
   });
 });
+
+// Моушн-пас 20.09 (еталон — Комора Pantry.tsx: перший рендер списку — без
+// входів, «список просто зʼявляється», рядок «вʼїжджає» лише коли щойно
+// зʼявився ПІСЛЯ першого завантаження).
+describe('CalendarPage · моушн 20.09', () => {
+  let host: HTMLDivElement | undefined; let root: Root | undefined;
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(FIXED_NOW)); usePanelStore.getState().clear(); });
+  afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+  it('перший рендер — жоден рядок не має `row-fresh` (список просто зʼявляється, як у Коморі)', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} })));
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('/v1/now')) return jsonRes({ now: fixtureNow() });
+      if (url.includes('/v1/events')) return jsonRes({ events: fixtureEvents() });
+      return jsonRes({});
+    }));
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => { root!.render(<MemoryRouter><CalendarPage /></MemoryRouter>); });
+    await act(async () => {});
+    const rows = [...host!.querySelectorAll('button[class*="_row_"]')];
+    expect(rows.length).toBeGreaterThan(0);
+    rows.forEach((r) => expect(r.className, r.textContent ?? '').not.toMatch(/row-fresh/));
+  });
+
+  it('нова подія після перезавантаження (setVersion) — лише вона отримує `row-fresh`, наявні рядки — ні', async () => {
+    // Шторка (<600, matches:false) — на відміну від панелі (≥1200), яка
+    // лише пише в usePanelStore й нічого не рендерить у host без обгортки
+    // ArtifactPanel — PeriodSubscriptions реально в DOM host, «Далі»/
+    // «Сьогодні» лишаються в тому самому host позаду (jsdom не знає про
+    // візуальний стек — обидва доступні одразу).
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} })));
+    let eventsList = fixtureEvents();
+    // Каталог (рівень 2, «Католицькі свята») — робочий місток до setVersion:
+    // «Увімкнути всі» реально пише PUT і, за успіху, кличе onDone('subscribe')
+    // → Calendar.onEventChanged(undefined,'subscribe') → той самий шлях, що
+    // й будь-яка інша зміна дому. Саме на ЦЬОМУ повторному довантаженні
+    // events/now підміняємо список — так, як реально приходить нова подія.
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'PUT') return jsonRes({ ok: true });
+      if (url.includes('/v1/now')) return jsonRes({ now: fixtureNow() });
+      if (url.includes('/v1/events')) return jsonRes({ events: eventsList });
+      if (url.includes('/v1/occasions/subscriptions')) return jsonRes({ subscriptions: [] });
+      if (url.includes('/v1/occasions')) return jsonRes({ set: 'catholic', year: 2026, items: [] });
+      return jsonRes({});
+    }));
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => { root!.render(<MemoryRouter><CalendarPage /></MemoryRouter>); });
+    await act(async () => {});
+    // Нова подія в горизонті «Далі» — зʼявиться лише ПІСЛЯ повторного фетчу.
+    eventsList = [...fixtureEvents(), { id: 'newone', scope: 'household', kind: 'custom', title: 'Новий захід', start: day(3).getTime(), end: day(3, 23).getTime(), force: 'hint' }];
+    await act(async () => { (host!.querySelector('[data-cal-catalog]') as HTMLButtonElement).click(); });
+    await act(async () => {});
+    const catholicPkg = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('Католицькі свята'))!;
+    await act(async () => { catholicPkg.click(); });
+    await act(async () => {});
+    const setOn = host!.querySelector('[data-set-toggle="on"]') as HTMLButtonElement;
+    await act(async () => { setOn.click(); });
+    await act(async () => {});
+    const rows = [...host!.querySelectorAll('[data-cal-ahead] button[class*="_row_"]')];
+    const fresh = rows.find((r) => r.textContent?.includes('Новий захід'));
+    expect(fresh, 'новий рядок мав зʼявитись').not.toBeUndefined();
+    expect(fresh!.className).toMatch(/row-fresh/);
+    const old = rows.find((r) => r.textContent?.includes('Мало часу'));
+    expect(old!.className, 'наявний рядок не мав перезайти').not.toMatch(/row-fresh/);
+  });
+
+  it('розкриття «Сезон» — шеврон отримує `chev-open`, підрядки — `subrow-in` зі зростаючим `--i`', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} })));
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('/v1/now')) return jsonRes({ now: fixtureNow() });
+      if (url.includes('/v1/events')) return jsonRes({ events: fixtureEvents() });
+      return jsonRes({});
+    }));
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => { root!.render(<MemoryRouter><CalendarPage /></MemoryRouter>); });
+    await act(async () => {});
+    const toggle = host!.querySelector<HTMLButtonElement>('[data-cal-season-toggle]')!;
+    const chev = toggle.querySelector('[class*="_chev_"]')!;
+    expect(chev.className).not.toMatch(/chev-open/);
+    await act(async () => { toggle.click(); });
+    expect(chev.className).toMatch(/chev-open/);
+    const subrows = [...host!.querySelectorAll('button[class*="_subrow_"]')];
+    expect(subrows.length).toBe(2); // Сливи, Білі гриби (fixtureNow)
+    subrows.forEach((r) => expect(r.className).toMatch(/subrow-in/));
+    expect((subrows[0] as HTMLElement).style.getPropertyValue('--i')).toBe('0');
+    expect((subrows[1] as HTMLElement).style.getPropertyValue('--i')).toBe('1');
+    await act(async () => { toggle.click(); });
+    expect(chev.className).not.toMatch(/chev-open/);
+  });
+});

@@ -213,7 +213,11 @@
    стовпчику (.dcol, .period). */
 .rval { flex: none; font-size: 13px; color: var(--muted); }
 .rval-days { color: var(--ink); }
-.chev { display: inline-flex; color: var(--dim); flex: none; }
+/* Моушн-пас 20.09: один знак (sys.next, ChevronRight), не заміна на інший
+   («sys.opened») — той самий кут, що ChevronUp (-90°), анімовано.
+   Прецеденту рухомого шеврона в застосунку нема — токени стандартні. */
+.chev { display: inline-flex; color: var(--dim); flex: none; transition: transform var(--dur-fast) var(--ease-standard); }
+.chev-open { transform: rotate(-90deg); }
 
 /* Колонка «період»: «30.09 – 30.10», фіксована ширина — щоб «дні» справа
    стояли в одну лінію в усіх рядках картки, одноденні чи ні. Порожня для
@@ -237,6 +241,11 @@
 }
 @media (hover: hover) { .subrow:hover { background: var(--bg); } }
 .subrow .name, .subrow .rval { color: var(--muted); }
+/* Розкриття «Сезон» (постановка 20.09): підрядки вʼїжджають зі ступінчастим
+   запізненням 20ms на рядок, стеля 8 (той самий `--i`, що передає JSX,
+   капований там-таки Math.min(i,8)) — згортання без рядка-виходу, миттєво
+   (у застосунку нема прецеденту анімованого згортання диз-клоужа). */
+.subrow-in { --i: 0; animation: cal-in var(--dur-base, 250ms) var(--ease-enter, ease) both; animation-delay: calc(var(--i) * 20ms); }
 
 /* ── Порожній стан (К9, стиль — як Комора: .empty дашд, r-xl). ──────────── */
 .empty {
@@ -263,8 +272,14 @@
 .add { border: 0; background: var(--ink); color: var(--bg); }
 
 /* Моушн-чекліст: рядок, що зʼявився після дії, входить через base/enter;
-   прибраний — гасне й осідає (exit); правлений — флеш тінтом. */
-.row { animation: cal-in var(--dur-base, 250ms) var(--ease-enter, ease) both; }
+   прибраний — гасне й осідає (exit); правлений — флеш тінтом. Еталон —
+   Комора (Pantry.tsx `freshIds`/`snapshotReady`): ПЕРШЕ завантаження
+   списку — без входів, «список просто зʼявляється»; `cal-in` на
+   `.row-fresh` грає лише коли `motionId` рядка щойно з'явився в наступному
+   знімку (Calendar.tsx, ефект після `strict`/`soft`/`todayEvents`/`ahead`),
+   не при першому рендері — тому анімація не на базовому `.row` (раніше
+   грала на кожному першому рендері картки, не збігалось з Коморою). */
+.row-fresh { animation: cal-in var(--dur-base, 250ms) var(--ease-enter, ease) both; }
 @keyframes cal-in {
   from { opacity: 0; transform: translateY(2px); }
   to { opacity: 1; transform: none; }

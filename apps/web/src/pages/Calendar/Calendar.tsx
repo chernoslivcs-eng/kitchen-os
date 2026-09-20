@@ -14,7 +14,7 @@
 
 import { Icon } from '../../components/Icon/Icon';
 import type { IconName } from '../../components/Icon/icons';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { track } from '../../lib/track';
 import { api, type EventOccurrence, type NowItem, type OccasionSet } from '../../api';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
@@ -86,6 +86,16 @@ export function CalendarPage() {
     setVersion((v) => v + 1);
   };
   const evMotion = (id: string) => `${leavingEvent === id ? styles['ev-leave'] : ''} ${flashEvent === id ? styles['ev-flash'] : ''}`;
+  // Моушн-пас 20.09 (еталон — Комора Pantry.tsx `freshIds`/`snapshotReady`):
+  // перший рендер списку — без входів, «список просто зʼявляється»; рядок
+  // «вʼїжджає» (`.row-fresh`, `cal-in`) лише коли його `motionId` щойно
+  // з'явився в ОДНОМУ з наступних знімків (не в першому). Один спільний
+  // Set на «Сьогодні» й «Далі» — той самий `motionId`, що вже несе
+  // `evMotion`, тож нова подія отримує cal-in (тут) + ev-flash (створення
+  // нижче) без окремого поля.
+  const snapshotReady = useRef(false);
+  const seenMotionIds = useRef<Set<string>>(new Set());
+  const [freshIds, setFreshIds] = useState<Set<string>>(new Set());
   // Нова подія: з кнопки «+ Своя подія» (рішення власника 19.09), на сьогодні.
   const [creating, setCreating] = useState<{ date: string; dateTo: string } | null>(null);
   const openAfterCreate = useRef<string | null>(null);
@@ -128,6 +138,28 @@ export function CalendarPage() {
   const todayEvents = useMemo(() => todayPointEvents(events, today), [events, today]);
   const ahead = useMemo(() => aheadRows(events, today, horizon), [events, today, horizon]);
   const monthGroups = useMemo(() => aheadMonthGroups(ahead), [ahead]);
+  // Моушн-пас 20.09: знімок `motionId` після кожного повного завантаження —
+  // перший прохід лише запамʼятовує (без входів), кожен наступний рахує
+  // різницю й на 300ms позначає нові `.row-fresh`.
+  useEffect(() => {
+    if (loading) return;
+    const ids = new Set<string>();
+    for (const it of [...strict, ...soft]) ids.add(it.occasion_id ?? it.id ?? it.title);
+    for (const e of todayEvents) ids.add(e.id);
+    for (const r of ahead) ids.add(r.event.id);
+    if (snapshotReady.current) {
+      const fresh = [...ids].filter((id) => !seenMotionIds.current.has(id));
+      if (fresh.length > 0) {
+        setFreshIds((prev) => new Set([...prev, ...fresh]));
+        window.setTimeout(() => {
+          setFreshIds((prev) => { const next = new Set(prev); fresh.forEach((id) => next.delete(id)); return next; });
+        }, 300);
+      }
+    } else {
+      snapshotReady.current = true;
+    }
+    seenMotionIds.current = ids;
+  }, [strict, soft, todayEvents, ahead, loading]);
   const [seasonOpen, setSeasonOpen] = useState(false);
   const todayEmpty = strict.length === 0 && soft.length === 0 && seasons.length === 0 && todayEvents.length === 0;
   const pageEmpty = todayEmpty && ahead.length === 0;
@@ -201,8 +233,9 @@ export function CalendarPage() {
     date?: ReactNode; onClick: () => void; motionId: string;
   }) => {
     const metaMobile = [opts.period, opts.meta].filter(Boolean).join(' · ') || null;
+    const fresh = freshIds.has(opts.motionId) ? styles['row-fresh'] : '';
     return (
-      <button key={opts.key} type="button" className={`${styles.row} ${evMotion(opts.motionId)}`} data-tap onClick={opts.onClick}
+      <button key={opts.key} type="button" className={`${styles.row} ${fresh} ${evMotion(opts.motionId)}`} data-tap onClick={opts.onClick}
         data-meta-wide={opts.meta ? '' : undefined} data-meta-mobile={metaMobile ? '' : undefined}>
         {opts.date}
         {/* Без `inherit`: рядок не задає свій колір, а бездоганний спокійний
@@ -320,18 +353,23 @@ export function CalendarPage() {
                           {/* Назва — завжди «Сезон» (не зведення): зведення без дат тепер
                               живе в меті другим рядком, дати — лише в розкритих підрядках.
                               Розгорнуто — мета ховається, підрядки вже все кажуть. */}
-                          <button type="button" className={`${styles.row} ${!seasonOpen ? styles['row-tall'] : ''}`} data-tap onClick={() => setSeasonOpen((o) => !o)} data-cal-season-toggle>
+                          <button type="button" className={`${styles.row} ${!seasonOpen ? styles['row-tall'] : ''}`} data-tap onClick={() => setSeasonOpen((o) => !o)} data-cal-season-toggle aria-expanded={seasonOpen}>
                             <Icon name="live.season" size={16} decorative />
                             <span className={styles.content}>
                               <span className={styles.line1}>
                                 <span className={styles.name}>Сезон</span>
-                                <span className={styles.chev}><Icon name={seasonOpen ? 'sys.opened' : 'sys.next'} size={12} inherit decorative /></span>
+                                {/* Моушн-пас 20.09: один знак (sys.next), що повертається на 90°
+                                    замість заміни на інший (sys.opened) — той самий глиф, той
+                                    самий кут, що ChevronUp, лише анімовано. Прецеденту рухомого
+                                    шеврона ніде в застосунку нема — токени стандартні (fast/standard). */}
+                                <span className={`${styles.chev} ${seasonOpen ? styles['chev-open'] : ''}`}><Icon name="sys.next" size={12} inherit decorative /></span>
                               </span>
                               {!seasonOpen && <span className={styles.rmeta}>{seasonNames(seasons)}</span>}
                             </span>
                           </button>
-                          {seasonOpen && seasons.map((s) => (
-                            <button key={s.occasion_id ?? s.title} type="button" className={styles.subrow} data-tap onClick={() => openNowItem(s)}>
+                          {seasonOpen && seasons.map((s, i) => (
+                            <button key={s.occasion_id ?? s.title} type="button" className={`${styles.subrow} ${styles['subrow-in']}`}
+                              style={{ '--i': Math.min(i, 8) } as CSSProperties} data-tap onClick={() => openNowItem(s)}>
                               <span className={styles.name}>{s.title}</span>
                               <span className={styles.rval}>{nowWhen(s, todayIsoStr)}</span>
                             </button>
@@ -378,7 +416,13 @@ export function CalendarPage() {
       {creating && (
         <Sheet onClose={() => setCreating(null)} ariaLabel="Нова подія" kind="event">
           <PeriodEvent initial={creating} onClose={() => setCreating(null)}
-            onChanged={(id) => { if (id) openAfterCreate.current = id; setVersion((v) => v + 1); }} />
+            onChanged={(id) => {
+              // Моушн-пас 20.09: новий рядок і так вʼїжджає (freshIds
+              // бачить невідомий id), тут лише ev-flash поверх — «поява
+              // нового рядка → cal-in + ev-flash» з постановки.
+              if (id) { openAfterCreate.current = id; setFlashEvent(id); window.setTimeout(() => setFlashEvent(null), 900); }
+              setVersion((v) => v + 1);
+            }} />
         </Sheet>
       )}
       {openEvent && !panelInFlow && (
