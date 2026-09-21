@@ -8,7 +8,8 @@
 // сам пише текст у verdict останнього готування. Жоден із цих ходів не
 // викликає модель — 0 токенів.
 
-import type { Repo, IntakeOp, CookRunWithRecipe, MessageRow, SessionWriteoff } from '@kitchen/domain';
+import type { Repo, IntakeOp, CookRunWithRecipe, MessageRow, SessionWriteoff, PantryBatch } from '@kitchen/domain';
+import { BY_KEY } from '@kitchen/catalog/seed';
 import type { Recipe } from './model.js';
 
 // Точні тексти детермінованих реплік. Шорткат у chat-роуті впізнає їх
@@ -125,12 +126,24 @@ export function normalizeForBatch(value: number | null, unit: string | null, bat
 // авто-списанні cook-runs (QA4-03: невідома кількість → open, не deplete),
 // але результат — ops для звичайної intake_diff-картки: людина бачить і
 // підтверджує, модель у циклі не бере участі.
+//
+// Партії v2 (21.09, spec shelf-life-v2): ШТУЧНА партія (pcs/pack) при
+// частковому списанні у грамах/мл ВІДДІЛЯЄ одиницю: N зап → (N−1) зап (стара
+// партія, лишається sealed) + 1 відкрита з залишком = вага одиниці − вжите.
+// Вага одиниці — household_product.pack_size, інакше unit_weight каталогу;
+// невідома — відкрита з невідомим залишком. Спершу береться з уже відкритого
+// залишку того самого продукту (той самий ланцюжок: 4×400 − 200 − 300 →
+// 2 зап + 1 відкрита 300). «open» на всю штучну партію більше не робиться.
+const WEIGHT: Record<string, 'g' | 'ml'> = { g: 'g', г: 'g', kg: 'g', кг: 'g', ml: 'ml', мл: 'ml', l: 'ml', л: 'ml' };
+const toBase = (v: number, u: string) => (/^(kg|кг|l|л)$/i.test(u) ? v * 1000 : v);
+
 export async function buildWriteoffOps(
   repo: Repo,
   household_id: string,
   recipe: Recipe,
 ): Promise<IntakeOp[]> {
   const ops: IntakeOp[] = [];
+  const all = await repo.listBatches(household_id);
   for (const ing of recipe.ing ?? []) {
     if (!ing.p) continue;
     const batch = await repo.getBatch(ing.p);
@@ -138,6 +151,12 @@ export async function buildWriteoffOps(
     if (batch.state === 'depleted') continue;
     const used = normalizeForBatch(ing.v ?? null, ing.u ?? null, batch.unit);
     if (used == null) {
+      const base = ing.u ? WEIGHT[ing.u.toLowerCase()] : undefined;
+      if ((batch.unit === 'pcs' || batch.unit === 'pack') && ing.v != null && base) {
+        ops.push(...await splitUnit(repo, all, batch, toBase(ing.v, ing.u!), base));
+        continue;
+      }
+      // Одиниці несумісні й рецепт без числа (або вагова партія без ваги) — як було: open.
       if (batch.state === 'sealed') ops.push({ op: 'open', label: batch.label, batch_id: batch.id });
       continue;
     }
@@ -153,6 +172,53 @@ export async function buildWriteoffOps(
       ops.push({ op: 'deplete', label: batch.label, batch_id: batch.id });
     }
   }
+  return ops;
+}
+
+/** Вага/обʼєм однієї одиниці штучної партії (г або мл), якщо відома. */
+async function unitWeightOf(repo: Repo, batch: PantryBatch, base: 'g' | 'ml'): Promise<number | null> {
+  const product = batch.product_id ? await repo.getProduct(batch.product_id) : null;
+  if (product?.pack_size != null && (product.unit === base || product.unit == null)) return product.pack_size;
+  const key = batch.catalog_key ?? product?.catalog_key ?? null;
+  const item = key ? BY_KEY.get(key) : undefined;
+  if (base === 'g' && item?.unit_weight) return item.unit_weight;
+  return null;
+}
+
+async function splitUnit(repo: Repo, all: PantryBatch[], batch: PantryBatch, used: number, base: 'g' | 'ml'): Promise<IntakeOp[]> {
+  const ops: IntakeOp[] = [];
+  let left = used;
+  // 1. Спершу — з уже відкритих залишків того самого продукту в тій самій базовій одиниці.
+  const opened = all.filter((b) => b.id !== batch.id && b.state === 'opened' && !b.depleted_at
+    && b.unit === base && b.value != null && b.value > 0
+    && (batch.product_id ? b.product_id === batch.product_id : b.label === batch.label))
+    .sort((a, b) => (a.opened_at ?? a.added_at).localeCompare(b.opened_at ?? b.added_at));
+  for (const o of opened) {
+    if (left <= 0) break;
+    if (o.value! > left) {
+      ops.push({ op: 'correct', label: o.label, batch_id: o.id, value: Math.round((o.value! - left) * 100) / 100, unit: base });
+      left = 0;
+    } else {
+      ops.push({ op: 'deplete', label: o.label, batch_id: o.id });
+      left = Math.round((left - o.value!) * 100) / 100;
+    }
+  }
+  if (left <= 0) return ops;
+  // 2. Решта — з нової одиниці (чи кількох): (N−k) лишаються запечатані.
+  const w = await unitWeightOf(repo, batch, base);
+  const units = w ? Math.max(1, Math.ceil(left / w)) : 1;
+  const count = batch.value ?? 1;
+  if (count > units) ops.push({ op: 'correct', label: batch.label, batch_id: batch.id, value: count - units, unit: batch.unit ?? undefined });
+  else ops.push({ op: 'deplete', label: batch.label, batch_id: batch.id });
+  const product = batch.product_id ? await repo.getProduct(batch.product_id) : null;
+  const remainder = w ? Math.round((w * units - left) * 100) / 100 : null;
+  if (remainder === 0) return ops;   // одиницю вжито цілком — відкритого залишку нема
+  ops.push({
+    op: 'add', label: batch.label, zone: batch.zone, state: 'opened',
+    ...(product ? { product: product.product, brand: product.brand ?? undefined, variant: product.variant ?? undefined } : {}),
+    ...(remainder != null ? { value: remainder, unit: base } : {}),
+    evidence: 'user_statement', confidence: 1,
+  });
   return ops;
 }
 

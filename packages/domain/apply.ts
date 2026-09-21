@@ -543,6 +543,24 @@ async function applyIntakeOp(
     // label як product).
     const triple = normalizeTriple({ product: op.product ?? op.label, brand: op.brand, variant: op.variant });
     const product = await ensureProduct(repo, household_id, triple, op.label, op.tags, norm.unit);
+    const state: PantryBatch['state'] = op.state === 'opened' ? 'opened' : 'sealed';
+
+    // Партії v2 (21.09): нове надходження зливається з наявною партією ЛИШЕ
+    // коли той самий продукт, той самий локальний день і той самий стан (і та
+    // сама одиниця, інакше суму нема як рахувати). Інакше — окрема партія з
+    // власним строком: два молока з різних днів — це два годинники.
+    if (product && norm.value != null && norm.unit) {
+      const today = localDayOf(new Date());
+      const same = (await repo.listBatches(household_id)).find((b) =>
+        b.product_id === product.id && b.state === state && !b.depleted_at
+        && b.unit === norm.unit && b.value != null && localDayOf(new Date(b.added_at)) === today);
+      if (same) {
+        snap.before.modified_batches!.push({ ...same });
+        await repo.updateBatch(same.id, { value: Math.round((same.value! + norm.value) * 100) / 100, last_by: actor, last_action: 'add' });
+        op.batch_id = same.id;
+        return 'landed';
+      }
+    }
 
     const batch: PantryBatch = {
       id,
@@ -558,8 +576,8 @@ async function applyIntakeOp(
       unit: norm.unit,
       // «(початке)»: інвентар описує і відкриті упаковки — інакше стан
       // губився і годинник «вжити до» не стартував.
-      state: op.state === 'opened' ? 'opened' : 'sealed',
-      opened_at: op.state === 'opened' ? new Date().toISOString() : null,
+      state,
+      opened_at: state === 'opened' ? new Date().toISOString() : null,
       expires_at: null,
       // «відкр., дн» з тегів продукту — джерело м'якого «вжити до».
       best_before_opened_days: product?.tags.shelf_open_days ?? null,
@@ -685,11 +703,15 @@ async function applyIntakeOp(
     // лікерах — партії лишились sealed. Списати частину з запечатаної можна,
     // лише відкривши її: менше value на sealed (у тій самій одиниці) — це
     // відкриття, з тим самим годинником «після відкриття».
+    // Партії v2 (21.09): це стосується лише ВАГОВОГО (g/ml/kg/l). Штучне
+    // (pcs/pack) при частковому списанні не відкривається цілком — одиницю
+    // відділяє buildWriteoffOps (api/post-cook): (N−1) запечатані + 1 відкрита.
     const consumedFromSealed = op.state === undefined
       && target.state === 'sealed'
       && patch.value != null && target.value != null
       && (patch.unit ?? target.unit) === target.unit
-      && patch.value < target.value;
+      && patch.value < target.value
+      && WEIGHT_UNITS.has(target.unit ?? '');
     if (op.state === 'opened' || consumedFromSealed) {
       patch.state = 'opened';
       patch.opened_at = new Date().toISOString();
@@ -856,6 +878,14 @@ async function applyShoppingOp(
   snap.before.added_shopping_ids ??= [];
   snap.before.added_shopping_ids.push(id);
   return 'landed';
+}
+
+/** Вагові/обʼємні одиниці — часткове списання тут «відкриває» партію; штучні — ні. */
+const WEIGHT_UNITS = new Set(['g', 'ml', 'kg', 'l']);
+
+/** Локальний день 'YYYY-MM-DD' — межа злиття партій (partії v2). */
+export function localDayOf(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /** 'YYYY-MM-DD' + днів (локальний календар, без DST-зсувів). */

@@ -129,6 +129,8 @@ describe('позицію адресує вказівник, а не назва',
       type: 'intake_diff', ops: [{ op: 'add', label: 'мʼясо', value: 300, unit: 'g' }],
     };
     await apply(repo, w, first);
+    // Партії v2: той самий продукт того ж дня злився б — перша партія «вчорашня».
+    await repo.updateBatch(adds(first)[0]!.batch_id!, { added_at: new Date(Date.now() - 86_400_000).toISOString() });
     await apply(repo, w, second);
     const targetId = adds(second)[0]!.batch_id!;
 

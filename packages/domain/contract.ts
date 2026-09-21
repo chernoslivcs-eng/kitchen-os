@@ -114,7 +114,10 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(displayName(prod!)).toBe(b.label);
 
       // Друга покупка тієї ж трійки (інший регістр, інші модельні теги) —
-      // продукт НЕ дублюється, теги з БД перемагають.
+      // продукт НЕ дублюється, теги з БД перемагають. Партії v2 (21.09): того
+      // самого дня і стану надходження ЗЛИЛОСЯ б в одну партію — тому першу
+      // відсуваємо на вчора, щоб побачити дві партії на одному продукті.
+      await ctx.repo.updateBatch(b.id, { added_at: new Date(Date.now() - 86_400_000).toISOString() });
       const mid2 = randomUUID();
       await createPending(ctx.repo, { message_id: mid2, household_id: ctx.household_id, user_id: ctx.user_id, card: {
         type: 'intake_diff', ops: [{
