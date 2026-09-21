@@ -28,24 +28,25 @@ describe('topCategory', () => {
 });
 
 describe('effectiveExpiry — строк рахується, а не зберігається (Б1, Р2)', () => {
-  it('запечатана партія без дати отримує строк від added_at і зони', () => {
-    // Досі 245 із 246 партій були «без терміну», тобто мовчазно свіжі. Строк —
-    // чиста функція від дати завантаження й зони, і рахується на льоту: у БД
-    // його ніхто не пише.
-    const b = batch('помідори', { zone: 'fresh' });   // додано 5 днів тому
-    const exp = effectiveExpiry(b, null, NOW);
+  it('запечатана партія без дати отримує строк від added_at і таблиці за категорією; без категорії — числа нема (v2)', () => {
+    // Строк — чиста функція від дати додавання, категорії й зони, і рахується
+    // на льоту: у БД його ніхто не пише. v2 (21.09): дефолтів зон більше нема —
+    // «Щось без категорії» лишається без числа, а не мовчазно «7 днів».
+    const b = batch('помідори', { zone: 'fresh', catalog_key: 'veg_tomato_plum' });   // додано 5 днів тому
+    const exp = effectiveExpiry(b, 'veg_tomato_plum', NOW);
     expect(exp).not.toBeNull();
-    expect(daysLeft(exp, NOW), 'fresh живе 7 днів, 5 минуло').toBe(2);
+    expect(daysLeft(exp, NOW), 'томати на полиці 7 днів, 5 минуло').toBe(2);
+    expect(effectiveExpiry(batch('помідори', { zone: 'fresh' }), null, NOW)).toBeNull();
   });
 
   it('зона змінює строк без жодної правки даних', () => {
     // Заради цього Р2 і вибрав обчислення замість колонки: та сама партія,
     // перекладена в морозилку, одразу живе інакше.
     const added = new Date(NOW - 5 * 86_400_000).toISOString();
-    const inFridge = effectiveExpiry(batch('гуляш', { zone: 'fridge', added_at: added }), null, NOW);
-    const inFreezer = effectiveExpiry(batch('гуляш', { zone: 'freezer', added_at: added }), null, NOW);
-    expect(daysLeft(inFridge, NOW)).toBe(16);
-    expect(daysLeft(inFreezer, NOW)).toBe(265);
+    const inFridge = effectiveExpiry(batch('стейк', { zone: 'fridge', added_at: added, catalog_key: 'beef_ribeye' }), 'beef_ribeye', NOW);
+    const inFreezer = effectiveExpiry(batch('стейк', { zone: 'freezer', added_at: added, catalog_key: 'beef_ribeye' }), 'beef_ribeye', NOW);
+    expect(daysLeft(inFridge, NOW)).toBe(9);      // стейк у вакуумі: fridge 14
+    expect(daysLeft(inFreezer, NOW)).toBe(235);   // freezer 240
   });
 
   it('ручна дата бʼє розрахунок — і коротша, і довша', () => {
@@ -61,8 +62,8 @@ describe('effectiveExpiry — строк рахується, а не збері�
     // Партія, яка пролежала довше за свій строк, має показувати мінус, а не
     // «сьогодні»: інакше зріз «скоро зіпсується» ховав би найгірші позиції.
     const old = new Date(NOW - 30 * 86_400_000).toISOString();
-    const exp = effectiveExpiry(batch('салат', { zone: 'fresh', added_at: old }), null, NOW);
-    expect(daysLeft(exp, NOW)).toBe(-23);
+    const exp = effectiveExpiry(batch('салат', { zone: 'fresh', added_at: old, catalog_key: 'veg_lettuce_iceberg' }), 'veg_lettuce_iceberg', NOW);
+    expect(daysLeft(exp, NOW)).toBe(-29);   // салат на полиці — 1 день
   });
 });
 
@@ -72,7 +73,7 @@ describe('каталог поверх зони, зона — арбітр (Б2, 
     // дні), і шість цибуль із часниками (місяці). Плоскі сім днів помиляються
     // тут у пʼятдесят разів в обидва боки.
     const onion = batch('цибуля', { zone: 'fresh', catalog_key: 'onion_yellow' });
-    expect(daysLeft(effectiveExpiry(onion, 'onion_yellow', NOW), NOW)).toBe(115);
+    expect(daysLeft(effectiveExpiry(onion, 'onion_yellow', NOW), NOW)).toBe(40);   // v2: цибуля на полиці 45
 
     const bread = batch('багет', { zone: 'dry', catalog_key: 'bread_baguette' });
     expect(daysLeft(effectiveExpiry(bread, 'bread_baguette', NOW), NOW)).toBe(-2);
@@ -85,12 +86,12 @@ describe('каталог поверх зони, зона — арбітр (Б2, 
     expect(effectiveExpiry(salt, 'spice_salt_table', NOW)).toBeNull();
   });
 
-  it('зона бʼє каталог, коли вони не згодні — саме тут гасяться помилки резолвера', () => {
+  it('арбітр проти хибного ключа: свіжі помідори в пелаті — числа нема, а не два роки консерви (v2)', () => {
     // `свіжі помідори → Помідори пелаті` (консерва, dry) — чотири партії в
-    // проді. Каталог сказав би «не псується»; зона `fresh` каже сім днів, і
-    // права вона. Те саме з `лосось морожений → лосось охолоджений`.
+    // проді. Каталог сказав би 730; зона `fresh` проти dry — інша фізика, і
+    // v2 мовчить (дефолту зони «7» більше нема), замість того щоб брехати.
     const tomato = batch('помідори', { zone: 'fresh', catalog_key: 'pomodori_pelati' });
-    expect(daysLeft(effectiveExpiry(tomato, 'pomodori_pelati', NOW), NOW)).toBe(2);
+    expect(effectiveExpiry(tomato, 'pomodori_pelati', NOW)).toBeNull();
   });
 });
 
@@ -126,12 +127,11 @@ describe('pantryItemView', () => {
     const v = pantryItemView(b, undefined, buildVetoIndex('u1', 'no', 'мʼяса'), new Set([b.id]), NOW);
     expect(v).toEqual({ catalog_key: 'chicken_fillet', cat: 'мʼясо', kcal: 114, fat: 2.62, prot: 22.5, carb: 0, est: false, days: 2, receipt: true, no: 'не їм', added: 5, unit_weight: 180 });
   });
-  it('невідомий продукт — БЖВ null, але строк тепер є: він від зони, не від каталогу', () => {
-    // Б1 змінив саме це. Раніше `days: null` означало «мовчазно свіже» — і так
-    // виглядали 245 із 246 позицій. Тепер позиція без каталогу все одно має
-    // строк: fridge живе 21 день, пʼять минуло.
+  it('невідомий продукт — БЖВ null і строку нема: без категорії числа не рахуємо (v2)', () => {
+    // v2 (21.09): дефолт зони «fridge 21» зник — «без категорії» показується
+    // чесно, як «без категорії», а не як 16 днів нізвідки.
     const v = pantryItemView(batch('Щось xyz'), undefined, [], new Set(), NOW);
-    expect(v).toEqual({ catalog_key: null, cat: null, kcal: null, fat: null, prot: null, carb: null, est: null, days: 16, receipt: false, no: null, added: 5, unit_weight: null });
+    expect(v).toEqual({ catalog_key: null, cat: null, kcal: null, fat: null, prot: null, carb: null, est: null, days: null, receipt: false, no: null, added: 5, unit_weight: null });
   });
   it('ключ продукту йде у відповідь, коли партія свого не має (прод 15.09: 0 із 129 із ключем)', () => {
     const b = batch('Куряче філе', { catalog_key: null, product_id: 'p1' });

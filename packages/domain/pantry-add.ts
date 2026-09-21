@@ -6,7 +6,6 @@
 import { resolveLabelToKey, resolveLabelToZone, type ResolveCtx } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import { shelfSealedDays } from './shelf-life.js';
-import { ZONE_SHELF_DAYS } from './pantry-view.js';
 import type { Zone } from './types.js';
 
 export interface PantryAddHint {
@@ -31,7 +30,7 @@ export function pantryAddHint(label: string, ctx?: ResolveCtx): PantryAddHint | 
   const item = key ? BY_KEY.get(key) : undefined;
   if (!key || !item) return null;
   const zone = pantryAddZone(label) ?? item.zone_default;
-  const fromCatalog = shelfSealedDays(key, zone);
-  const days = fromCatalog === null ? null : (fromCatalog ?? ZONE_SHELF_DAYS[zone] ?? null);
+  // v2: число лише з таблиці; нема клітинки — строку нема (days null, як і «не псується»).
+  const days = shelfSealedDays(key, zone) ?? null;
   return { key, name: item.name, cat: item.categories[0] ?? '', zone, days };
 }

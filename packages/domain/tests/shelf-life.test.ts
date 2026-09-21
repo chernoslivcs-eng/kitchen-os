@@ -1,219 +1,108 @@
-// Б2: покриття каталогу правилами й поведінка арбітра.
-//
-// Головне, що стереже цей файл, — НЕ конкретні числа днів (вони ще
-// уточнюватимуться звіркою з відкритим набором), а те, що правила накривають
-// каталог. Позиція, яку не накрило жодне правило, мовчки провалюється в
-// таблицю зон — і саме такий мовчазний провал найважче помітити.
-
+// Строки v2 (21.09, spec 2026-09-21-shelf-life-v2-design.md): одна таблиця
+// категорія × {запечатане, відкрите} × {полиця, холодильник, морозилка}.
+// Файл стереже: покриття каталогу (жодних дефолтів зон більше нема — непокрита
+// позиція лишається БЕЗ числа), порядок правил (вужче вище), порожня клітинка =
+// «зона не для цього», арбітр лише проти хибного ключа, ключові числа таблиці.
 import { describe, it, expect } from 'vitest';
 import { CATALOG } from '@kitchen/catalog/seed';
-import { shelfRuleFor, shelfSealedDays, uncoveredCategories, SHELF_RULES } from '../shelf-life.js';
+import { shelfRuleFor, shelfSealedDays, shelfOpenDays, uncoveredCategories, SHELF_RULES, shelfGroupOf } from '../shelf-life.js';
 
-// Стеля непокритих позицій. Три раунди поспіль дірки в покритті знаходились
-// свіпом уручну — а це означає, що покриття ніхто не стереже й наступна дірка
-// теж чекатиме, поки хтось спеціально піде дивитись.
-//
-// Число можна тільки ЗМЕНШУВАТИ. Виросло — значить каталог поповнили родом
-// їжі, про який правила нічого не знають, і ці позиції мовчки лягли на плоску
-// таблицю зон.
-const UNCOVERED_MAX = 42;
-
-// Що саме лишилось без правила, за спаданням. Список тут не для тесту, а для
-// читача: щоб наступний бачив залишок одразу й не робив свіп заново.
-//
-// Жодне з цього не «зламане» — воно працює за таблицею зон. Це список
-// кандидатів на уточнення, а не список багів.
-// Мікрозелень і паростки зі списку пішли: це були єдині два рядки, де розрив
-// був у НЕБЕЗПЕЧНИЙ бік (живуть 3-5 днів, зона обіцяла 7). Решта нижче
-// помиляється в бік тривоги або лежить у сухій бакалії, якій таблиця зон дає
-// правильний порядок, — вони лишаються під гейтом свідомо.
+// Стеля непокритих позицій. Число можна тільки ЗМЕНШУВАТИ: без правила позиція
+// тепер не має числа взагалі, і кожна така — мовчазна дірка.
+const UNCOVERED_MAX = 1;
 const UNCOVERED_TOP: [string, number][] = [
-  ['оливки', 7],             // сусідні оливки під іншим токеном уже «не псуються»
-  ['каша', 6],
-  ['крохмаль', 5],
-  ['кокос', 3],
-  ['локшина', 3],
-  ['приправа', 3],
-  ['суп', 3],
-  ['вершки кокосові', 2],
-  ['борщ', 1],
-  ['бульйон', 1],
+  ['рисовий папір', 1],       // не хліб і не папір — обгортка для ролів, окремого рядка нема
 ];
 
 describe('покриття каталогу правилами строків', () => {
   it('покриття не просідає: непокритих не більше за стелю', () => {
-    // Позиція без правила падає на таблицю зон — безпечно, але грубо, і
-    // мовчки. Саме мовчазність тут головна: помітити її без цього тесту
-    // нічим.
-    const uncovered = CATALOG.filter((i) => !shelfRuleFor(i.categories));
-    expect(
-      uncovered.length,
-      `непокритих побільшало. Що саме:\n${uncoveredCategories(CATALOG)
-        .slice(0, 10).map(([c, n]) => `  ${c} — ${n}`).join('\n')}`,
-    ).toBeLessThanOrEqual(UNCOVERED_MAX);
+    const total = uncoveredCategories(CATALOG).reduce((n, [, c]) => n + c, 0);
+    expect(total, 'непокритих позицій').toBeLessThanOrEqual(UNCOVERED_MAX);
   });
-
   it('список непокритого в файлі збігається з дійсністю', () => {
-    // Розбіжність тут — не помилка, а привід глянути: каталог виріс, і
-    // залишок змінився. Оновити список і, якщо треба, завести правило.
-    expect(uncoveredCategories(CATALOG).slice(0, UNCOVERED_TOP.length)).toEqual(UNCOVERED_TOP);
+    expect(uncoveredCategories(CATALOG)).toEqual(UNCOVERED_TOP);
   });
-
-  it('жодне правило не мертве — кожне ловить хоч одну позицію каталогу', () => {
-    // Мертве правило означає одруківку в токені категорії: воно виглядає як
-    // покриття, а не робить нічого.
-    const hits = new Map(SHELF_RULES.map((r) => [r, 0]));
-    for (const item of CATALOG) {
-      const r = shelfRuleFor(item.categories);
-      if (r) hits.set(r, hits.get(r)! + 1);
+  it('жодне правило не мертве (крім родинних) — кожне ловить хоч одну позицію каталогу', () => {
+    const dead = SHELF_RULES.filter((r) => !r.family && !CATALOG.some((i) => shelfRuleFor(i.categories, i.name) === r)).map((r) => r.when[0]);
+    expect(dead).toEqual([]);
+  });
+  it('у кожного правила є хоч одна клітинка або явне «не псується»', () => {
+    for (const r of SHELF_RULES) {
+      const cells = (m: typeof r.sealed) => (m === null ? 1 : Object.keys(m).length);
+      expect(cells(r.sealed) + cells(r.opened), r.when[0]).toBeGreaterThan(0);
     }
-    const dead = SHELF_RULES.filter((r) => hits.get(r) === 0).map((r) => r.when[0]);
-    expect(dead, 'правила без жодного збігу').toEqual([]);
   });
 });
 
-describe('зона як арбітр', () => {
-  it('у своїй зоні працює каталог, у чужій — таблиця зон', () => {
-    // `Помідори пелаті` — консерва з `dry`. У своїй зоні каталог каже
-    // «не псується»; у зоні `fresh` (куди позицію заводить помилка резолвера
-    // на свіжих помідорах) каталогу не вірять, і строк дає зона.
-    expect(shelfSealedDays('pomodori_pelati', 'dry')).toBeNull();
+describe('порядок правил — вужче вище', () => {
+  const rule = (key: string) => { const i = CATALOG.find((x) => x.key === key)!; return shelfRuleFor(i.categories, i.name)?.when[0]; };
+  it('батон — хліб, не крупа (несе «борошняне» й «зернові»)', () => { expect(rule('bread_baton')).toBe('хліб'); });
+  it('хлібці — суха бакалія, не хліб; печиво — печиво, не випічка', () => { expect(rule('bread_crispbread_rye')).toBe('хлібці'); expect(rule('bake_oat_cookies')).toBe('печиво'); });
+  it('масло вершкове — молочне, не олія (несе «жири»)', () => { expect(rule('butter_82')).toBe('масло вершкове'); });
+  it('гірчиця — банка, не вічна спеція (перше слово назви)', () => { expect(rule('mustard')).toBe('гірчиця'); });
+  it('пиво — напій, не крупа (несе «ячмінь»); кава — кава, не напій', () => { expect(rule('alc_beer_lager_pale')).toBe('пиво'); expect(rule('coffee_ground_turkish')).toBe('кава зернова'); });
+  it('томатна паста — свій рядок, не паста і не консерви', () => { expect(rule('tomato_paste')).toBe('томатна паста'); });
+  it('панірувальні сухарі — свій рядок 365/120 (слово не перше в назві); крем-суп сухий — сухі суміші, не «готове»', () => {
+    expect(rule('breadcrumbs')).toBe('панірувальні'); expect(shelfOpenDays('breadcrumbs', 'dry')).toBe(120);
+    expect(rule('pea_mushroom_soup_mix')).toBe('желе'); expect(shelfSealedDays('pea_mushroom_soup_mix', 'dry')).toBe(540);
+  });
+  it('пармезан — твердий сир; кефір — кисломолочне; морожений лосось — заморожене, не риба', () => {
+    expect(rule('parmesan')).toBe('твердий сир'); expect(rule('dairy_kefir_1')).toBe('кисломолочне'); expect(rule('salmon_portioned_frozen')).toBe('заморожене');
+  });
+});
+
+describe('клітинки таблиці: групи зон, порожнє = зона не для цього', () => {
+  it('полиця = fresh + dry + spices + drinks; холодильник і морозилка окремо', () => {
+    expect(['fresh', 'dry', 'spices', 'drinks'].map((z) => shelfGroupOf(z as never))).toEqual(['shelf', 'shelf', 'shelf', 'shelf']);
+    expect(shelfGroupOf('fridge')).toBe('fridge'); expect(shelfGroupOf('freezer')).toBe('freezer');
+  });
+  it('молоко пастеризоване: холодильник 10 запечатане / 3 відкрите; на полиці й у морозилці — числа нема', () => {
+    expect(shelfSealedDays('milk_cow_25', 'fridge')).toBe(10);
+    expect(shelfOpenDays('milk_cow_25', 'fridge')).toBe(3);
+    expect(shelfSealedDays('milk_cow_25', 'dry')).toBeUndefined();
+    expect(shelfSealedDays('milk_cow_25', 'freezer')).toBeUndefined();
+  });
+  it('консерви: запечатані 730 на полиці; відкриті — 3 дні лише в холодильнику; відкрита на полиці — числа нема', () => {
+    expect(shelfSealedDays('tuna_canned', 'dry')).toBe(730);
+    expect(shelfOpenDays('tuna_canned', 'fridge')).toBe(3);
+    expect(shelfOpenDays('tuna_canned', 'dry')).toBeNull();
+  });
+  it('олія: 540 запечатана / 90 відкрита — колишній «363» від дефолту зони зник', () => {
+    expect(shelfSealedDays('sunflower_oil', 'spices')).toBe(540);
+    expect(shelfOpenDays('sunflower_oil', 'spices')).toBe(90);
+  });
+  it('поправки власника: картопля 60 на кухні, твердий сир 45/10, цитрусові 14, хлібці відкриті 60', () => {
+    expect(shelfSealedDays('potato', 'fresh')).toBe(60);
+    expect(shelfSealedDays('parmesan', 'fridge')).toBe(45); expect(shelfOpenDays('parmesan', 'fridge')).toBe(10);
+    expect(shelfOpenDays('bread_crispbread_rye', 'dry')).toBe(60);
+  });
+  it('не псується: сіль — null і запечатана, і відкрита; вино — запечатане ∞, відкрите 14 (не підтверджено власником)', () => {
+    expect(shelfSealedDays('spice_salt_table', 'spices')).toBeNull(); expect(shelfOpenDays('spice_salt_table', 'spices')).toBeNull();
+    expect(shelfSealedDays('alc_wine_white_dry', 'drinks')).toBeNull(); expect(shelfOpenDays('alc_wine_white_dry', 'fridge')).toBe(14);
+    expect(shelfOpenDays('alc_wine_white_dry', 'drinks')).toBeNull();   // відкрите — у холодильник
+  });
+  it('яйця: відкритого стану нема — opened порожній', () => {
+    expect(shelfSealedDays('eggs_chicken', 'fridge')).toBe(28);
+    expect(shelfOpenDays('eggs_chicken', 'fridge')).toBeNull();
+  });
+});
+
+describe('арбітр — лише проти хибного ключа', () => {
+  it('свіжі помідори, зрезолвлені в пелаті (консерви, dry), у fresh числа не дістають; сама консерва в dry — 730, у холодильнику — теж', () => {
+    expect(shelfSealedDays('pomodori_pelati', 'dry')).toBe(730);
     expect(shelfSealedDays('pomodori_pelati', 'fresh')).toBeUndefined();
+    expect(shelfSealedDays('pomodori_pelati', 'fridge')).toBeUndefined();   // клітинки fridge для консервів нема
   });
-
-  it('переміщення в зберігальну зону не скорочує життя', () => {
-    // Виміряно на проді: у `fridge` лежить десяток позицій, чий каталожний
-    // `zone_default` інший, — оливки (dry), гірчиця (spices), пиво (drinks),
-    // вʼялені томати (dry). Усі вони «не псуються» у своїй зоні, а через
-    // розбіжність падали на ZONE_SHELF_DAYS.fridge = 21 день і за тиждень-два
-    // наповнювали б зріз «скоро зіпсується» гірчицею.
-    //
-    // Холодильник і морозилка — найприродніше місце, куди кладуть банку з
-    // сухої шафи. Фізика тут однозначна: холод життя не коротшає.
-    expect(shelfSealedDays('olives_black_kalamata', 'fridge')).toBeNull();   // каталог: dry
-    expect(shelfSealedDays('mustard', 'fridge')).toBeNull();                 // каталог: spices
-    expect(shelfSealedDays('spice_salt_table', 'freezer')).toBeNull();
-
-    // Але тільки для «не псується». Мовчазні випадки лишаються на таблиці
-    // зон: там ми справді не знаємо, і 21 день — чесний дефолт.
-    expect(shelfSealedDays('bread_baguette', 'fridge')).toBeUndefined();
-
-    // І тільки для зберігальних зон. `fresh` не зберігальна — над нею арбітр
-    // діє повністю, інакше свіжі помідори, резолвлені в пелаті, мовчали б.
-    expect(shelfSealedDays('pomodori_pelati', 'fresh')).toBeUndefined();
+  it('зберігальна зона ключ не спростовує: гірчиця (spices) у холодильнику — 365, оливки в холодильнику — 540', () => {
+    expect(shelfSealedDays('mustard', 'fridge')).toBe(365);
+    expect(shelfSealedDays('olives_green', 'fridge')).toBe(540);
   });
-
-  it('правило знає зону, де партія ЛЕЖИТЬ, — беремо його, а не таблицю зон', () => {
-    // Досі будь-яка розбіжність зон виходила на таблицю зон, хоч `ShelfMap`
-    // часто має запис саме для тієї зони, де партія лежить, — і ми його
-    // викидали. Содова в холодильнику діставала 21 день замість 180, які
-    // правило вже знало.
-    //
-    // `Швепс` і `Квас` живуть у `drinks`; правило напоїв має `fridge: 180`.
-    expect(shelfSealedDays('drink_schweppes', 'fridge')).toBe(180);
-    // `Песто` живе у `spices`; правило соусів має `fridge: 180`.
-    expect(shelfSealedDays('pesto', 'fridge')).toBe(180);
-
-    // Напрям при хибному ключі стає «коротше, ніж треба» — хибна тривога, не
-    // мовчання: `Лосось охолоджений` (fridge) у морозилці дає 180 замість 270.
-    expect(shelfSealedDays('salmon_fresh', 'freezer')).toBe(180);
-
-    // Правило мовчить про цю зону — лишається таблиця зон. `Шпинат свіжий`
-    // має записи лише для `fresh` і `fridge`.
-    expect(shelfSealedDays('veg_spinach_fresh', 'freezer')).toBeUndefined();
+  it('цибуля (fresh) у сухій шафі — та сама полиця, число є', () => {
+    expect(shelfSealedDays('onion_yellow', 'dry')).toBe(45);
   });
-
-  it('головний випадок не зламано: свіжі помідори в пелаті так само гасяться', () => {
-    // Правило «консерви» — це `days: null`, тобто запису для `fresh` у ньому
-    // немає взагалі. Тож нове читання зони на нього не поширюється, арбітр
-    // спрацьовує як раніше й строк дає зона.
-    expect(shelfSealedDays('pomodori_pelati', 'fresh')).toBeUndefined();
-    expect(shelfSealedDays('pomodori_pelati', 'dry')).toBeNull();
-  });
-
-  it('сирокопчена ковбаска не рахується як свіже мʼясо', () => {
-    // Кабанос має `categories: снеки, ковбаски, мʼясо, свинина`. Токена
-    // «ковбаски» в правилі копченого не було — тільки «ковбаса», — тож
-    // запечатана ковбаска падала в правило мʼяса й діставала чотири дні.
-    expect(shelfSealedDays('r2sn_grill_kabanosy', 'fridge')).toBe(30);
-  });
-
-  it('дитяча суміш — суха пачка, а не йогурт', () => {
-    // `суміш дитяча` несе й `молочне`, і `дитяче харчування`. Молочне правило
-    // стояло вище, тож суха пачка діставала fridge: 10 як йогурт.
-    //
-    // Лікується не токеном у чужому правилі, а порядком: «дитяче харчування» —
-    // підмножина молочного, і за конвенцією файлу підмножина стоїть ВИЩЕ.
-    // Токен обійшов би конвенцію, і наступний свіп знайшов би те саме вдруге.
-    expect(shelfSealedDays('baby_formula_starter', 'dry')).toBe(540);
-  });
-
-  it('рослинний йогурт псується так само, як молочний', () => {
-    // Таблиця про строки, не про склад: на `fasting` і алергени вона не
-    // впливає. Раніше жодне правило його не ловило — падав на таблицю зон.
-    expect(shelfSealedDays('yog_coconut', 'fridge')).toBe(10);
-  });
-
-  it('водорості розрізняє зона: сухі довго, охолоджені кілька днів', () => {
-    // Спокуса поставити блокове «не псується» на всю категорію велика — під
-    // нею суха норі, ламінарія, вакаме, спіруліна. Але там же `Салат чука`,
-    // а це охолоджений салат на кілька днів: блокове null зробило б його
-    // вічним, тобто рівно те мовчання, від якого ми йшли весь раунд.
-    //
-    // Мапа по зонах для цього й існує.
-    expect(shelfSealedDays('seafood_nori', 'dry')).toBe(540);
-    expect(shelfSealedDays('seafood_chuka', 'freezer')).toBe(180);
-    expect(shelfSealedDays('seafood_chuka', 'fridge')).toBe(5);
-  });
-
-  it('хлібці й сухарики — суха бакалія, а не свіжий батон', () => {
-    // 27 позицій під «хліб»/«випічка» сиділи з трьома днями: хлібці, сухарики,
-    // панірувальні сухарі, крекери. Напрям безпечний — хибна тривога, не
-    // мовчання, — але це рівно той шум, який робить зріз «скоро зіпсується»
-    // недовірчим, а вся ця робота робилась заради протилежного.
-    //
-    // Правило стоїть ВИЩЕ за хліб, за тією ж конвенцією підмножини, що вже
-    // тримає «дитяче харчування» над молочним.
-    expect(shelfSealedDays('r2bk_crispbread_wheat', 'dry')).toBe(270);
-    expect(shelfSealedDays('r2bk_crouton_garlic', 'dry')).toBe(270);
-    // Заморожений напівфабрикат у паніровці лишається морозильному правилу —
-    // токена «панірування» в сухій бакалії немає навмисно.
-    expect(shelfSealedDays('frz_schnitzel', 'freezer')).toBe(270);
-
-    // І не забирає свіжу випічку: тостовий хліб і бублик — це справжній хліб.
-    expect(shelfSealedDays('bread_toast', 'dry')).toBe(3);
-    expect(shelfSealedDays('bread_bublik', 'dry')).toBe(3);
-    expect(shelfSealedDays('bread_baguette', 'dry')).toBe(3);
-  });
-
-  it('мікрозелень і паростки живуть менше, ніж обіцяла зона', () => {
-    // Перше, що показав гейт: 15 позицій, де розрив у НЕБЕЗПЕЧНИЙ бік —
-    // мікрозелень живе 3-5 днів, а зона `fresh` обіцяла сім. Решта списку
-    // помиляється в бік тривоги; ці два токени — ні.
-    expect(shelfSealedDays('r2gl_microgreen_radish', 'fresh')).toBe(3);
-    expect(shelfSealedDays('r2gl_broccoli_sprouts', 'fresh')).toBe(3);
-    // `Мікрозелень гороху` ловилась правилом бобових, у якого немає запису для
-    // `fresh`, — тобто мовчазно падала на ті самі сім днів.
-    expect(shelfSealedDays('r2gl_microgreen_pea', 'fresh')).toBe(3);
-
-    // Морозилки в правилі немає навмисно: мікрозелень не морозять, хай падає
-    // на таблицю зон, а не вдає, ніби ми про це щось знаємо.
-    expect(shelfSealedDays('r2gl_microgreen_radish', 'freezer')).toBeUndefined();
-
-    // НАСІННЯ для пророщування несе той самий токен, але це суха бакалія на
-    // рік. Правило стоїть нижче за «насіння» саме тому — і не чіпає його.
-    expect(shelfSealedDays('r2gl_radish_seeds_sprouting', 'dry')).toBe(365);
-    // Те, що вже ловилось «зеленню», лишається їй: fridge 6, не 5.
-    expect(shelfSealedDays('veg_microgreen_sunflower', 'fridge')).toBe(6);
-  });
-
   it('невідомий ключ і порожній ключ — мовчання, а не здогад', () => {
+    expect(shelfSealedDays('nope', 'fridge')).toBeUndefined();
     expect(shelfSealedDays(null, 'fridge')).toBeUndefined();
-    expect(shelfSealedDays('такого_ключа_немає', 'fridge')).toBeUndefined();
-  });
-
-  it('цибуля живе місяцями, хліб — дні, хоч обидва в «своїх» зонах', () => {
-    expect(shelfSealedDays('onion_yellow', 'fresh')).toBe(120);
-    expect(shelfSealedDays('bread_baguette', 'dry')).toBe(3);
+    expect(shelfOpenDays(null, 'fridge')).toBeNull();
   });
 });

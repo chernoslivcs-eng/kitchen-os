@@ -333,8 +333,10 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       // Б1 у запечатаної партії колонка порожня, і строк живе розрахунком.
       // Тобто помідор, якому за зоною лишився день, від відкриття знову
       // почав би жити стільки, скільки живе щойно відкритий.
+      // v2 (21.09): число тепер лише з таблиці за категорією — тому ключ
+      // (сливки на полиці: 7 днів), без нього строку не було б узагалі.
       const seeded = await seedFarsh(ctx.repo, ctx.household_id, 'помідори', {
-        zone: 'fresh',                                  // 7 днів за таблицею
+        zone: 'fresh', catalog_key: 'veg_tomato_plum',   // 7 днів за таблицею
         added_at: new Date(Date.now() - 6 * 86_400_000).toISOString(),
         best_before_opened_days: 5,
       });
