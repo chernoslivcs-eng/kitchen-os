@@ -745,6 +745,8 @@
  * ширини, окремо від питання про кількість колонок (DEBT §30). Слот 64,
  * 13 muted, праворуч (Components). */
 .qty { white-space: nowrap; width: 64px; text-align: right; font-size: 13px; color: var(--muted); font-family: var(--font-body); }
+/* Упаковане (PR 4): вага одиниці dim за штуками — «4 шт · 400 г». */
+.qty-pack { color: var(--muted); opacity: .75; }
 
 /* 2c: трійка причин списання в підвалі картки. Замість confirm() і «Прибрати»
  * без причини. «Зіпсувалось» — danger, бо саме воно й є метрикою, заради якої

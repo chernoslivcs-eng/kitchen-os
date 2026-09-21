@@ -187,6 +187,29 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
     return hint ?? { key: null, zone: pantryAddZone(label) };
   });
 
+  // Упаковане (строки v2, PR 4): вага однієї одиниці — на ПРОДУКТІ, застосовується
+  // до всіх його партій (списання зі штучної партії бере її звідси). null — прибрати.
+  app.patch<{ Params: { id: string }; Body: { pack_size?: number | null; pack_unit?: 'g' | 'ml' | null } }>(
+    '/v1/products/:id',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { household_id } = requireUser(req);
+      const prod = await repo.getProduct(req.params.id);
+      if (!prod || prod.household_id !== household_id) return reply.code(404).send({ error: 'product not found' });
+      const { pack_size, pack_unit } = req.body ?? {};
+      if (pack_size === undefined) return reply.code(400).send({ error: 'pack_size required' });
+      if (pack_size === null) {
+        await repo.updateProduct(prod.id, { pack_size: null, pack_unit: null });
+        return { ok: true, product: { ...prod, pack_size: null, pack_unit: null } };
+      }
+      if (!Number.isFinite(pack_size) || pack_size <= 0) return reply.code(400).send({ error: 'pack_size must be > 0' });
+      const unit = pack_unit ?? prod.pack_unit ?? (prod.unit === 'ml' ? 'ml' : 'g');
+      if (unit !== 'g' && unit !== 'ml') return reply.code(400).send({ error: 'pack_unit must be g|ml' });
+      await repo.updateProduct(prod.id, { pack_size, pack_unit: unit });
+      return { ok: true, product: { ...prod, pack_size, pack_unit: unit } };
+    },
+  );
+
   app.patch<{
     Params: { id: string };
     Body: {

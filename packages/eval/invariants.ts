@@ -1417,6 +1417,29 @@ export function resolve(name: string): Invariant {
       return m?.[1] === arg ? pass(arg) : fail(`kind ${m?.[1] ?? '—'}, чекали ${arg}`);
     };
   }
+  // PR 4 (21.09): «pack-op:томат=4:400g» — add-оп із label, що містить фрагмент, несе qty і pack {v,u};
+  // «pack-op:сир=none» — такий оп БЕЗ qty/pack (вагове), але з value/unit.
+  if (base === 'pack-op') {
+    const spec = name.slice(base.length + 1);
+    const [frag, rest] = spec.split('=');
+    return (out) => {
+      const card = out.card as { type?: string; ops?: Record<string, unknown>[] } | null;
+      const frags = (frag ?? '').toLowerCase().split('|');
+      const op = (card?.ops ?? []).find((o) => o.op === 'add' && frags.some((f) => `${String(o.label ?? '')} ${String(o.product ?? '')}`.toLowerCase().includes(f)));
+      if (!op) return fail(`нема add-опа з «${frag}»: ${(card?.ops ?? []).map((o) => o.label).join(', ')}`);
+      const pack = op.pack as { v?: number; u?: string } | undefined;
+      if (rest === 'none') {
+        if (op.qty != null || pack) return fail(`вагове, а несе qty/pack: ${JSON.stringify(op)}`);
+        return op.value != null && op.unit ? pass(`${op.value} ${op.unit}`) : fail(`вагове без value/unit: ${JSON.stringify(op)}`);
+      }
+      const [qtyS, packS] = (rest ?? '').split(':');
+      const m = /^(\d+)(g|ml)$/.exec(packS ?? '');
+      const bad: string[] = [];
+      if (Number(op.qty) !== Number(qtyS)) bad.push(`qty ${String(op.qty)} ≠ ${qtyS}`);
+      if (!pack || Number(pack.v) !== Number(m?.[1]) || pack.u !== m?.[2]) bad.push(`pack ${JSON.stringify(pack)} ≠ ${packS}`);
+      return bad.length ? fail(bad.join(' · ')) : pass(`qty ${String(op.qty)} · pack ${pack!.v} ${pack!.u}`);
+    };
+  }
   // 20.09: «attachment-intent:add» / «attachment-intent:ask» — поле intent у відповіді розбору.
   if (base === 'attachment-intent') {
     return (out) => {

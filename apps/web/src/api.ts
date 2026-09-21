@@ -356,6 +356,8 @@ export interface HouseholdProduct {
   variant: string | null;
   unit: 'g' | 'ml' | 'pcs' | null;
   pack_size: number | null;
+  /** Упаковане (PR 4, 21.09): одиниця pack_size — g | ml. */
+  pack_unit?: 'g' | 'ml' | null;
   tags: Record<string, unknown>;
   search_terms?: string[];
 }
@@ -714,6 +716,9 @@ export const api = {
     // (обовʼязкова, ⚠3); з плашки після ✕ — окремим запитом на вже списану
     // партію (необовʼязкова). Доти тип цього поля не пропускав, і роут, який
     // причину приймає з першого дня, не отримував її ніколи.
+    // Упаковане (PR 4): вага однієї одиниці — на продукті, для всіх його партій; null — прибрати.
+    setPack: (product_id: string, pack_size: number | null, pack_unit?: 'g' | 'ml') =>
+      req<{ ok: true; product: HouseholdProduct }>(`/v1/products/${product_id}`, { method: 'PATCH', body: JSON.stringify({ pack_size, ...(pack_unit ? { pack_unit } : {}) }) }),
     update: (id: string, patch: Partial<Pick<PantryBatch, 'label' | 'value' | 'unit' | 'zone' | 'state' | 'expires_at'>> & { reason?: DepletedReason }) =>
       req<{ updated: boolean; batch: PantryBatch }>(`/v1/pantry/${id}`, {
         method: 'PATCH',

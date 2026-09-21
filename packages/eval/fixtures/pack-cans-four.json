@@ -1,0 +1,12 @@
+{
+  "id": "pack-cans-four",
+  "description": "Чотири однакові банки пелаті по 400 г → qty 4, pack 400 g (не 4 pcs без ваги).",
+  "call": "attachment_parse",
+  "attachment": {
+    "kind": "image",
+    "path": "photo-pack-cans-four.png"
+  },
+  "invariants": [
+    "pack-op:пелаті|томат=4:400g"
+  ]
+}

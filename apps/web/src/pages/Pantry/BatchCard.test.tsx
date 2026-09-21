@@ -54,10 +54,10 @@ describe('BatchCard', () => {
     }));
   });
   afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); });
-  async function mount(batch: PantryBatch, over: { onRemove?: (reason: DepletedReason) => Promise<void> } = {}) {
+  async function mount(batch: PantryBatch, over: { onRemove?: (reason: DepletedReason) => Promise<void>; product?: Parameters<typeof BatchCard>[0]['product'] } = {}) {
     host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
     const onChanged = vi.fn(async () => {});
-    await act(async () => { root!.render(<BatchCard batch={batch} product={null} onChanged={onChanged} onRemove={over.onRemove ?? (async () => {})} />); });
+    await act(async () => { root!.render(<BatchCard batch={batch} product={over.product ?? null} onChanged={onChanged} onRemove={over.onRemove ?? (async () => {})} />); });
     return onChanged;
   }
   const input = (label: string) => host!.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
@@ -181,4 +181,17 @@ describe('BatchCard', () => {
     expect(host!.textContent).not.toContain('Прибрати з комори');
   });
   });
+
+  it('упаковане: поле «Вага одиниці» лише для штучної партії з продуктом; blur → PATCH /v1/products/:id', async () => {
+    const product = { id: 'p1', product: 'тунець', brand: null, variant: null, unit: 'pcs' as const, pack_size: null, pack_unit: null, tags: {} };
+    await mount(b({ unit: 'pcs', value: 2, product_id: 'p1' }), { product });
+    expect(host!.querySelector('[data-pack-field]')).not.toBeNull();
+    await setValue(input('Вага одиниці'), '185');
+    await act(async () => { input('Вага одиниці').focus(); input('Вага одиниці').blur(); });
+    expect(calls.at(-1)).toMatchObject({ url: '/v1/products/p1', method: 'PATCH', body: { pack_size: 185, pack_unit: 'g' } });
+    // вагова партія — поля нема
+    await mount(b({ unit: 'g', value: 500, product_id: 'p1' }), { product });
+    expect(host!.querySelector('[data-pack-field]')).toBeNull();
+  });
 });
+

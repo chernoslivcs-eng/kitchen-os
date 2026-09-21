@@ -1,0 +1,12 @@
+{
+  "id": "pack-cheese",
+  "description": "Шматок пармезану з ваговою наліпкою 0,312 кг → v ≈312 g, без qty/pack.",
+  "call": "attachment_parse",
+  "attachment": {
+    "kind": "image",
+    "path": "photo-pack-cheese.png"
+  },
+  "invariants": [
+    "pack-op:пармезан=none"
+  ]
+}

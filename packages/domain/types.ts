@@ -72,7 +72,11 @@ export type IntakeOp =
   | { op: 'add'; label: string; value?: number; unit?: Unit; zone?: Zone; confidence?: number; evidence?: string; catalog_key?: string; batch_id?: string;
       product?: string; brand?: string; variant?: string; tags?: import('./product.js').ProductTags;
       // «(початке)» в інвентарі: партія народжується вже відкритою.
-      state?: 'sealed' | 'opened' }
+      state?: 'sealed' | 'opened';
+      // Упаковане (PR 4, 21.09): qty — скільки одиниць (ціле), pack — вага/обʼєм
+      // ОДНІЄЇ одиниці. Одна банка «кукурудза 340 г» → qty 1 + pack {340, g},
+      // не «value 340 g» (штуки губились) і не «4 pcs» без ваги (вага губилась).
+      qty?: number; pack?: { v: number; u: 'g' | 'ml' } }
   // batch_id і тут — коли той, хто складає операцію, ЗНАЄ позицію. Списання
   // після готування знає: рецепт тримає палець на партії (ing.p). Раніше цей
   // палець перетворювався на назву, а назва шукалась findBatchByLabel — перший

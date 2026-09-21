@@ -1,0 +1,14 @@
+{
+  "id": "pack-receipt",
+  "description": "Чек: «Пелаті Metro Chef 400г 2 x» → qty 2, pack 400 g; молоко 0,95л → qty 1, pack 950 ml; ваговий сир — v/u.",
+  "call": "attachment_parse",
+  "attachment": {
+    "kind": "text",
+    "path": "receipt-pack-lines.txt"
+  },
+  "invariants": [
+    "pack-op:пелаті=2:400g",
+    "pack-op:молоко=1:950ml",
+    "pack-op:пармезан=none"
+  ]
+}

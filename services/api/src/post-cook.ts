@@ -178,7 +178,11 @@ export async function buildWriteoffOps(
 /** Вага/обʼєм однієї одиниці штучної партії (г або мл), якщо відома. */
 async function unitWeightOf(repo: Repo, batch: PantryBatch, base: 'g' | 'ml'): Promise<number | null> {
   const product = batch.product_id ? await repo.getProduct(batch.product_id) : null;
-  if (product?.pack_size != null && (product.unit === base || product.unit == null)) return product.pack_size;
+  // PR 4: pack_size з pack_unit — перше джерело; без pack_unit (старі рядки) — за одиницею продукту.
+  if (product?.pack_size != null) {
+    if (product.pack_unit) { if (product.pack_unit === base) return product.pack_size; }
+    else if (product.unit === base || product.unit == null) return product.pack_size;
+  }
   const key = batch.catalog_key ?? product?.catalog_key ?? null;
   const item = key ? BY_KEY.get(key) : undefined;
   if (base === 'g' && item?.unit_weight) return item.unit_weight;
