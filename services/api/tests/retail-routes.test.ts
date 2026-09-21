@@ -332,7 +332,13 @@ describe('retail routes · silpo', () => {
     expect(body.card.total).toBe(260); // вода 200 + лосось 200грн/кг × 0.3кг
     const rows = body.card.rows as Array<{ label: string; product: { name: string; quantity: number } | null }>;
     expect(rows.find((x) => x.label === 'кунжут')?.product).toBeNull();
-    // Ваговий лосось: 300 г → 0.3 кг у кошику мережі.
+    // 21.09: збірка — чернетка, у Сільпо нічого не поїхало; по «Оформити» — обидва хіти одним пакетом,
+    // ваговий лосось: 300 г → 0.3 кг.
+    expect(cartAdds).toHaveLength(0);
+    expect(body.card.committed).toBe(false);
+    const commit = await app.inject({ method: 'POST', url: '/v1/retail/cart/commit', headers: { cookie: me.cookie }, payload: { card_id: body.card_id } });
+    expect(commit.statusCode).toBe(200);
+    expect(commit.json().card.committed).toBe(true);
     expect(cartAdds.find((a) => a.productId === 'id-Стейк лосося')?.quantity).toBeCloseTo(0.3);
     expect(cartAdds).toHaveLength(2);
 
@@ -436,7 +442,7 @@ describe('retail routes · silpo', () => {
       payload: { card_id: body.card_id, row_index: 0, alt_index: 0 },
     });
     expect(swap.statusCode).toBe(200);
-    expect(cartAdds.map((a) => a.productId)).toEqual(['id-rice']);
+    expect(cartAdds).toHaveLength(0);                                 // 21.09: заміна — лише чернетка
     const patched = swap.json().card;
     expect(patched.rows[0].product).toMatchObject({ name: 'Рис круглозернистий «Хуторок»' });
     expect(patched.rows[0].alternatives).toMatchObject([{ name: 'Рис басматі', price: 145 }]);

@@ -51,6 +51,9 @@ describe('retail: обсягове рахує кількість пляшок в
     // ceil(1000/330) = 4 — 3 пляшки (990мл) не покрили б заявлений літр.
     expect(row.product.quantity).toBe(4);
     expect(row.product.package_ml).toBe(330);
+    // 21.09: чернетка — у Сільпо нічого не їде до «Оформити» (POST /v1/retail/cart/commit).
+    expect(cartAdds).toEqual([]);
+    await app.inject({ method: 'POST', url: '/v1/retail/cart/commit', headers: { cookie: me.cookie }, payload: { card_id: r.json().card_id } });
     expect(cartAdds).toEqual([{ productId: 'id-tonic', companyId: 'c1', branchId: 'b1', quantity: 4 }]);
   });
 
@@ -89,6 +92,8 @@ describe('retail: обсягове рахує кількість пляшок в
     // ceil(2000/330) = 7 — 6 банок (1980мл) не покрили б заявлені 2л.
     expect(row.product.quantity).toBe(7);
     expect(row.product.package_ml).toBe(330);
+    expect(cartAdds).toEqual([]);
+    await app.inject({ method: 'POST', url: '/v1/retail/cart/commit', headers: { cookie: me.cookie }, payload: { card_id: r.json().card_id } });
     expect(cartAdds).toEqual([{ productId: 'id-schweppes', companyId: 'c1', branchId: 'b1', quantity: 7 }]);
   });
 

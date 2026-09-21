@@ -170,7 +170,7 @@ function makeRealRefresh(clientId: string) {
 export interface RetailCartAttempt {
   ok: boolean;
   card?: CartCard;
-  error?: 'not_connected' | 'empty_list' | 'retail_auth';
+  error?: 'not_connected' | 'empty_list' | 'retail_auth' | 'cart_committed';
 }
 
 // 01.09: «що є в наявності по X» — read-only пошук, не замовлення. products
@@ -499,11 +499,10 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     // і пише за card-rules.md («2 літри молока» → v:2, u:"l"), applyShoppingOp
     // це свідомо НЕ конвертує (щоб список показував людські «2 л»). Тому тут,
     // на споживанні, приводимо і «ml», і «l» до мл для розрахунку пляшок.
-    // Пошук (3 фази) і addToCart — В ОДНОМУ withRetailAuth-виклику: якщо
-    // токен протух, refresh стається до першого мережевого запиту в
-    // переважній більшості випадків (findBatch іде першим), і весь блок
-    // повторюється з новим токеном без подвійного addToCart. Побічний ефект
-    // (запис у кошик) лишається останнім кроком навмисно.
+    // 21.09 (рішення власника): ЛИШЕ пошук (3 фази), жодного addToCart — картка
+    // є чернеткою, у кошик мережі все їде одним пакетом по «Оформити»
+    // (POST /v1/retail/cart/commit). Раніше збірка одразу писала в Сільпо, і
+    // «передумав» лишало там сміття, бо видаляти ми не вміємо.
     let rows: CartCardRow[];
     try {
       rows = await withRetailAuth(conn, async (provider) => {
@@ -549,15 +548,11 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
           it: (typeof items)[number]; hit: RetailProduct | null; quantity: number;
           rawAlts: RetailProduct[];
         }> = [];
-        const toAdd: Array<{ productId: string; companyId: string; branchId: string; quantity: number }> = [];
         for (const it of items) {
           const foundRow = found.get(it.label);
           const hit = foundRow?.product ?? null;
           let quantity = 0;
-          if (hit) {
-            quantity = qtyFor(hit, it);
-            toAdd.push({ productId: hit.id, companyId: hit.companyId, branchId: hit.branchId, quantity });
-          }
+          if (hit) quantity = qtyFor(hit, it);
           const altRow = hit ? null : altFound.get(it.label);
           // 01.09 рівень 1: candidates — усі знайдені варіанти того самого
           // пошуку (findBatch і так їх повертає, product — просто перший).
@@ -627,19 +622,18 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
             })
             .map((c) => ({
               product_id: c.id, company_id: c.companyId, branch_id: c.branchId,
-              name: c.name, price: c.price, weighted: c.weighted, quantity: qtyFor(c, it),
+              name: c.name, price: c.price, weighted: c.weighted, quantity: qtyFor(c, it), slug: c.slug ?? null,
             }));
           return {
             label: it.label, item_id: it.id, v: it.value, u: it.unit,
             product: hit ? {
               product_id: hit.id, company_id: hit.companyId, branch_id: hit.branchId,
-              name: hit.name, price: hit.price, weighted: hit.weighted, quantity,
+              name: hit.name, price: hit.price, weighted: hit.weighted, quantity, slug: hit.slug ?? null,
               package_ml: hit.weighted ? null : parsePackageMl(hit.name),
             } : null,
             alternatives,
           };
         });
-        if (toAdd.length) await provider.addToCart(toAdd);
         return outRows;
       });
     } catch (e) {
@@ -656,6 +650,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       // Не /cart: мережа прибрала цю сторінку (404 «Отакої»), кошик у них
       // живе попапом на будь-якій сторінці — ведемо на головну.
       cart_url: 'https://silpo.ua',
+      committed: false, committed_at: null,
     };
     return { ok: true, card };
   }
@@ -677,8 +672,13 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     return { card, card_id };
   });
 
-  // Тап «замінити» на бурштиновому рядку: альтернатива їде в кошик мережі,
-  // картка правиться в БД — заміна переживає перезавантаження.
+  // 21.09: картка до «Оформити» — чернетка. Заміна, кількість, «ще й це» правлять
+  // лише картку в БД, без мережі; після commit усе заблоковано (409 cart_committed),
+  // бо видаляти з кошика Сільпо ми не вміємо.
+  const committedGuard = (card: CartCard) => !!card.committed;
+
+  // Тап «замінити» на рядку: альтернатива стає product у ЧЕРНЕТЦІ — картка
+  // правиться в БД, заміна переживає перезавантаження; у Сільпо нічого не їде.
   app.post<{ Body: { card_id?: string; row_index?: number; alt_index?: number } }>(
     '/v1/retail/silpo/cart-swap',
     { preHandler: [authenticated(repo), limitCheck] },
@@ -693,25 +693,14 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       const msg = await repo.getMessage(card_id);
       const card = msg?.card;
       if (!card || card.type !== 'cart') return reply.code(404).send({ error: 'cart_not_found' });
+      if (committedGuard(card)) return reply.code(409).send({ error: 'cart_committed' });
       const row = card.rows[row_index];
-      // 01.09: тап-заміна дозволена і на хіт-рядку (людина явно попросила
-      // «переключити позицію, яку запропонував ЛЛМ»). Наша інтеграція вміє
-      // лише addToCart, без видалення — стара позиція технічно може лишитись
-      // у живому кошику Сільпо; попередження про це — відповідальність UI.
       const a = row?.alternatives?.[alt_index];
       if (!a) return reply.code(409).send({ error: 'no_alternative' });
 
-      try {
-        await withRetailAuth(conn, (provider) => provider.addToCart([
-          { productId: a.product_id, companyId: a.company_id, branchId: a.branch_id, quantity: a.quantity },
-        ]));
-      } catch (e) {
-        if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
-        throw e;
-      }
       row.product = {
         product_id: a.product_id, company_id: a.company_id, branch_id: a.branch_id,
-        name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity,
+        name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity, slug: a.slug ?? null,
         package_ml: a.weighted ? null : parsePackageMl(a.name),
       };
       // Решта кандидатів того самого пошуку лишається — тепер уже
@@ -724,10 +713,57 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     },
   );
 
+  // 21.09: «Оформити в Сільпо» — єдине місце, де чернетка їде в кошик мережі.
+  // Усі rows з product одним пакетом (quantity/weighted як у чернетці). Якщо
+  // пакет відбило — по одному, щоб знати, що саме не поїхало: failed = label-и.
+  // Ідемпотентно: повторний commit на committed-картці нічого не додає, ok.
+  app.post<{ Body: { card_id?: string } }>(
+    '/v1/retail/cart/commit',
+    { preHandler: [authenticated(repo), limitCheck] },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const { card_id } = req.body ?? {};
+      if (!card_id) return reply.code(400).send({ error: 'card_id required' });
+      const msg = await repo.getMessage(card_id);
+      const card = msg?.card;
+      if (!card || card.type !== 'cart') return reply.code(404).send({ error: 'cart_not_found' });
+      if (card.committed) return { ok: true, card, card_id, failed: card.failed ?? [], already: true };
+      const conn = await repo.getRetailConnection(user_id, 'silpo');
+      if (!conn || conn.status !== 'active') return reply.code(409).send({ error: 'not_connected' });
+
+      const rows = card.rows.filter((r) => r.product);
+      const toItem = (r: CartCardRow) => ({ productId: r.product!.product_id, companyId: r.product!.company_id, branchId: r.product!.branch_id, quantity: r.product!.quantity });
+      const failed: string[] = [];
+      try {
+        await withRetailAuth(conn, async (provider) => {
+          if (!rows.length) return;
+          try {
+            await provider.addToCart(rows.map(toItem));
+          } catch (e) {
+            if (e instanceof RetailAuthError) throw e;
+            // Пакет не пройшов — по одному: що не поїхало, те в failed.
+            req.log.warn({ err: String(e), card_id }, 'retail-cart-commit-batch-failed');
+            for (const r of rows) {
+              try { await provider.addToCart([toItem(r)]); }
+              catch (e2) { if (e2 instanceof RetailAuthError) throw e2; failed.push(r.label); }
+            }
+          }
+        });
+      } catch (e) {
+        if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
+        throw e;
+      }
+      card.committed = true;
+      card.committed_at = new Date().toISOString();
+      card.failed = failed;
+      await repo.updateMessageCard(card_id, card);
+      return { ok: true, card, card_id, failed };
+    },
+  );
+
   // 01.09 картка v2: степер кількості на рядку кошика (до «Оформити»).
   // quantity округлюється за типом товару — вагове: крок 0.1, мінімум 0.1;
-  // кількісне/обсягове: ціле, мінімум 1. Той самий productId у addToCart
-  // ОНОВЛЮЄ кількість у живому кошику Сільпо (add_or_update), не дублює.
+  // кількісне/обсягове: ціле, мінімум 1. 21.09: правиться лише чернетка.
   app.post<{ Body: { card_id?: string; row_index?: number; quantity?: number } }>(
     '/v1/retail/silpo/cart-update-qty',
     { preHandler: [authenticated(repo), limitCheck] },
@@ -742,6 +778,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       const msg = await repo.getMessage(card_id);
       const card = msg?.card;
       if (!card || card.type !== 'cart') return reply.code(404).send({ error: 'cart_not_found' });
+      if (committedGuard(card)) return reply.code(409).send({ error: 'cart_committed' });
       const row = card.rows[row_index];
       if (!row?.product) return reply.code(409).send({ error: 'no_product' });
 
@@ -749,15 +786,6 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       const min = row.product.weighted ? 0.1 : 1;
       const rounded = Math.max(min, Math.round(quantity / step) * step);
       const newQuantity = row.product.weighted ? Math.round(rounded * 100) / 100 : Math.round(rounded);
-
-      try {
-        await withRetailAuth(conn, (provider) => provider.addToCart([
-          { productId: row.product!.product_id, companyId: row.product!.company_id, branchId: row.product!.branch_id, quantity: newQuantity },
-        ]));
-      } catch (e) {
-        if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
-        throw e;
-      }
       row.product.quantity = newQuantity;
       card.total = cartTotal(card.rows);
       await repo.updateMessageCard(card_id, card);
@@ -767,7 +795,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
 
   // 01.09: «замовляю літр швепса, і раптом бачу банановий швепс серед
   // альтернатив — хочу замовити ще й його». НЕ заміна: оригінальний рядок
-  // не чіпається, альтернатива їде окремим НОВИМ рядком (і в кошик мережі).
+  // не чіпається, альтернатива стає окремим НОВИМ рядком чернетки.
   app.post<{ Body: { card_id?: string; row_index?: number; alt_index?: number } }>(
     '/v1/retail/silpo/cart-add-alt',
     { preHandler: [authenticated(repo), limitCheck] },
@@ -782,24 +810,17 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       const msg = await repo.getMessage(card_id);
       const card = msg?.card;
       if (!card || card.type !== 'cart') return reply.code(404).send({ error: 'cart_not_found' });
+      if (committedGuard(card)) return reply.code(409).send({ error: 'cart_committed' });
       const row = card.rows[row_index];
       const a = row?.alternatives?.[alt_index];
       if (!a) return reply.code(409).send({ error: 'no_alternative' });
 
-      try {
-        await withRetailAuth(conn, (provider) => provider.addToCart([
-          { productId: a.product_id, companyId: a.company_id, branchId: a.branch_id, quantity: a.quantity },
-        ]));
-      } catch (e) {
-        if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
-        throw e;
-      }
       row.alternatives = (row.alternatives ?? []).filter((_, i) => i !== alt_index);
       card.rows.push({
         label: a.name, item_id: null, v: null, u: null,
         product: {
           product_id: a.product_id, company_id: a.company_id, branch_id: a.branch_id,
-          name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity,
+          name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity, slug: a.slug ?? null,
           package_ml: a.weighted ? null : parsePackageMl(a.name),
         },
         alternatives: [],
@@ -883,6 +904,8 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     const msg = await repo.getMessage(card_id);
     const card = msg?.card;
     if (!card || card.type !== 'cart') return { ok: false, error: 'empty_list' };
+    // 21.09: після «Оформити» дописувати в картку нема куди — вона вже в Сільпо.
+    if (card.committed) return { ok: false, error: 'cart_committed' };
 
     const wanted = items.map((s) => s.trim()).filter(Boolean);
     if (!wanted.length) return { ok: false, error: 'empty_list' };
@@ -891,16 +914,10 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     try {
       found = await withRetailAuth(conn, async (provider) => {
         const rows = await provider.findBatch(wanted);
-        const hits = rows
+        // 21.09: лише пошук — рядок дописується в чернетку, у Сільпо поїде по «Оформити».
+        return rows
           .map((r) => (r.product ? { label: r.query, p: r.product } : null))
           .filter((x): x is { label: string; p: RetailProduct } => x !== null);
-        if (hits.length) {
-          await provider.addToCart(hits.map(({ p }) => ({
-            productId: p.id, companyId: p.companyId, branchId: p.branchId,
-            quantity: qtyFor(p, { unit: null, value: null }),
-          })));
-        }
-        return hits;
       });
     } catch (e) {
       if (e instanceof RetailAuthError) return { ok: false, error: 'retail_auth' };
@@ -913,7 +930,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
         label, item_id: null, v: null, u: null,
         product: {
           product_id: p.id, company_id: p.companyId, branch_id: p.branchId,
-          name: p.name, price: p.price, weighted: p.weighted, quantity,
+          name: p.name, price: p.price, weighted: p.weighted, quantity, slug: p.slug ?? null,
           package_ml: p.weighted ? null : parsePackageMl(p.name),
         },
         alternatives: [],

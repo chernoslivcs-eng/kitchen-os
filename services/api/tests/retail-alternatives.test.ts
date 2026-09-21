@@ -124,14 +124,16 @@ describe('retail: інші варіанти того самого пошуку (
       method: 'POST', url: '/v1/retail/silpo/build-cart', headers: { cookie: me.cookie },
     });
     const { card_id } = build.json();
-    expect(cartAdds).toHaveLength(1);
+    expect(cartAdds).toHaveLength(0);                                 // 21.09: чернетка
 
     const swap = await app.inject({
       method: 'POST', url: '/v1/retail/silpo/cart-swap', headers: { cookie: me.cookie },
       payload: { card_id, row_index: 0, alt_index: 0 },
     });
     expect(swap.statusCode).toBe(200);
-    expect(cartAdds.map((a) => a.productId)).toEqual(['id-tonic', 'id-pink']);
+    expect(cartAdds).toHaveLength(0);                                 // заміна — без мережі
+    await app.inject({ method: 'POST', url: '/v1/retail/cart/commit', headers: { cookie: me.cookie }, payload: { card_id } });
+    expect(cartAdds.map((a) => a.productId)).toEqual(['id-pink']);    // по «Оформити» — лише замінений, без старого
     const row = swap.json().card.rows[0];
     expect(row.product).toMatchObject({ name: 'Напій Schweppes Pink Tonic' });
     // Обраний варіант зникає зі списку "ще є" — решта лишається.
@@ -168,13 +170,15 @@ describe('retail: інші варіанти того самого пошуку (
       method: 'POST', url: '/v1/retail/silpo/build-cart', headers: { cookie: me.cookie },
     });
     const { card_id } = build.json();
-    expect(cartAdds).toHaveLength(1);
+    expect(cartAdds).toHaveLength(0);
 
     const add = await app.inject({
       method: 'POST', url: '/v1/retail/silpo/cart-add-alt', headers: { cookie: me.cookie },
       payload: { card_id, row_index: 0, alt_index: 0 },
     });
     expect(add.statusCode).toBe(200);
+    expect(cartAdds).toHaveLength(0);
+    await app.inject({ method: 'POST', url: '/v1/retail/cart/commit', headers: { cookie: me.cookie }, payload: { card_id } });
     expect(cartAdds.map((a) => a.productId)).toEqual(['id-tonic', 'id-banana']);
     const card = add.json().card;
     expect(card.rows).toHaveLength(2);
