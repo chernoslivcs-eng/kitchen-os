@@ -13,7 +13,9 @@ describe('HELP_TOPICS_TG', () => {
     }
     expect(HELP_TOPICS_TG[0]!.text).toContain('**Профіль**');
     expect(HELP_TOPICS_TG[1]!.text).toContain('**/pantry**');
-    expect(HELP_TOPICS_TG[1]!.text).toContain('натисни /web');
+    expect(HELP_TOPICS_TG[1]!.text).toContain('Натисни /web');
+    expect(HELP_TOPICS_TG[1]!.text).toContain('/digest off');   // 21.09: вечірнє нагадування, лінк на добу
+    expect(HELP_TOPICS_TG[1]!.text).not.toContain('15 хвилин');
   });
   it('helpTopicById(id, "telegram") → TG-варіант; за замовчуванням — веб', () => {
     expect(helpTopicById('list', 'telegram')?.text).toContain('додай у список вершки');
