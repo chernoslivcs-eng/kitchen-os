@@ -18,7 +18,6 @@ import { useNavigate } from 'react-router-dom';
 import { api, ApiError, type ProfileV2Response, type ProfileFieldV2, type ProfileNoteV2, type InviteInfo, type InviteCreated, type AccountConflict } from '../../api';
 import { PROFILE_ROWS, SECTION, PLAN_LABEL, TELEGRAM, MERGE, type ProfileRowCopy } from '../../lib/profile-copy';
 import { TABLET_MIN } from '../../lib/device';
-import { plural } from '../../lib/plural';
 import { KIT_DEFAULTS, type ProfileFieldKey } from '@kitchen/domain/profile-fields';
 import { useAuth } from '../../store/auth';
 import { themeSetting, setThemeSetting, type ThemeSetting } from '../../theme';
@@ -385,17 +384,6 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     setRetailBusy(true);
     try { await api.retail.reconnect(); setRetail('active'); } catch { /* nop */ } finally { setRetailBusy(false); }
   }
-  // «Пости й сезони · N підписок ›» → /calendar (§7: є в кадрі, дешево). Число —
-  // з підписок дому; поки не приїхало або впало — рядок без числа.
-  const [subsCount, setSubsCount] = useState<number | null>(null);
-  useEffect(() => {
-    let alive = true;
-    api.occasions.subscriptions()
-      .then((r) => { if (alive) setSubsCount(r.subscriptions.filter((s) => s.enabled).length); })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, []);
-
   // ----- Акаунт -----------------------------------------------------------
   // Тема · Світла / Темна / Авто; без вибору — Світла (рішення власника 13.09).
   const [theme, setTheme] = useState<ThemeSetting>(() => (typeof document === 'undefined' ? 'light' : themeSetting()));
@@ -513,11 +501,6 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
           <span className={styles.netState}>без підключення</span>
         </div>
       )}
-      <button type="button" className={`${styles.netRow} ${styles.netLink}`} data-tap data-seasons onClick={() => navigate('/calendar')}>
-        <span className={styles.netName}>{SECTION.seasons}</span>
-        {subsCount != null && <span className={styles.netState}>{subsCount} {plural(subsCount, ['підписка', 'підписки', 'підписок'])}</span>}
-        <Icon name="sys.next" size={16} inherit decorative />
-      </button>
     </section>
   );
 

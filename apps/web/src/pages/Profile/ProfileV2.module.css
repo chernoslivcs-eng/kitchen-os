@@ -286,9 +286,6 @@
 .netRow:first-of-type { border-top: 0; }
 .netName { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .netState { font-size: 12px; color: var(--dim); white-space: nowrap; }
-.netLink { width: 100%; border-left: 0; border-right: 0; border-bottom: 0; background: transparent; font-family: var(--font-body); text-align: left; cursor: pointer; color: var(--ink); }
-.netLink > [data-icon] { color: var(--dim); }
-.netLink:hover .netName { color: var(--sage); }
 
 /* Акаунт. */
 .accRow { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 3px 0; border-top: 1px solid var(--line); font-size: 15px; }
