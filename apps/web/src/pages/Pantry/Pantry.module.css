@@ -296,6 +296,55 @@
   }
 }
 
+/* v2 (21.09), «Партії»: рядок-продукт — шеврон замість ✕ (слот той самий 44,
+   без стрибка ширини), обертається на 90° розгорнуто — той самий патерн, що
+   Календар (chev/chev-open, Р190). Підрядок — компактний, без слотів безпеки
+   й походження: партії одного продукту йому не потрібні вдруге. */
+.row-chev {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: color var(--dur-fast);
+}
+@media (hover: hover) {
+  .row-chev:hover { color: var(--ink); background: var(--bg); }
+}
+.row-chev-icon { display: inline-flex; transition: transform var(--dur-fast) var(--ease-standard); }
+.row-chev[aria-expanded="true"] .row-chev-icon { transform: rotate(90deg); }
+
+.row-sub {
+  padding-left: 28px;
+  min-height: 38px;
+}
+.row-sub .row-main { padding: 0; cursor: pointer; }
+.sub-label {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Підрядок не має свайпу — ✕ завжди видима й на місці (не в базовому
+   слоті-по-наведенню, не в 96px, що свайп відкриває): без цього ✕ ховалась
+   би назавжди на тач-пристрої (hover:none ставить її абсолютно за краєм). */
+.row-sub .row-x {
+  opacity: 1;
+  position: static;
+  width: 36px;
+  height: 36px;
+  pointer-events: auto;
+}
+.row-sub .row-x-hover { display: inline-grid; place-items: center; }
+.row-sub .row-x-swipe { display: none; }
+
 /* Моушн-кіт §03: флеш зміненого рядка — тінт шавлії 16%, гасне 700ms. */
 .row-flash {
   animation: row-flash var(--dur-flash) var(--ease-standard, ease) both;

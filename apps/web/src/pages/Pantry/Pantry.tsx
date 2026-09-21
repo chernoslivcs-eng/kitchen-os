@@ -2,9 +2,9 @@
 // Порядок зон — з брифу §01: свіже → холодильник → морозилка → комора → спеції → напої.
 // Тап на партію → sheet із деталями, звідки можна відредагувати або прибрати.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
-import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, ZONE_ORDER, ZONE_LABEL, applyFilter, toggleKind, toggleState, resetFilter, shortDate, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
+import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, ZONE_ORDER, ZONE_LABEL, applyFilter, toggleKind, toggleState, resetFilter, shortDate, productGroupKey, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
 import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch, type PantryResolveHint } from '../../api';
 import { loadPantry } from '../../store/pantryList';
@@ -26,6 +26,9 @@ import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 
+// v2 (21.09), «Партії»: слово стану в підрядку («2 шт · запечатано · ≈ ще 540
+// дн») — безособова форма, без родового узгодження з кількістю.
+const STATE_WORD: Record<PantryBatch['state'], string> = { sealed: 'запечатано', opened: 'відкрито', depleted: 'списано' };
 
 export function PantryPage() {
   const openNav = useNavStore((st) => st.setOpen);
@@ -50,6 +53,15 @@ export function PantryPage() {
   // Крок 1 (things-v3, Screens «Комора · збірка»): чіп зони звужує екран до
   // однієї зони; «Усе» повертає всі. Це не зріз фільтра — рейки його не знають.
   const [zoneFocus, setZoneFocus] = useState<PantryBatch['zone'] | null>(null);
+  // v2 (21.09), «Партії»: рядок-продукт із підрядками розгортається шевроном;
+  // ключ — productGroupKey (product_id чи нормалізована назва), не id партії —
+  // інакше стан розгортання губився б, коли найближча партія міняється.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpanded = (key: string) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
   const colsRef = useRef<HTMLDivElement>(null);
   const cols = useZoneColumns(colsRef);
   // Крок О1а: який зріз людина справді вмикає. Тільки назва зрізу — вмісту комори тут не буває.
@@ -231,23 +243,34 @@ export function PantryPage() {
   const view = applyFilter(hiddenIds.size ? batches.filter((b) => !hiddenIds.has(b.id)) : batches, filter, { productsById, receiptAt: lastReceiptAt });
   const q = filter.q.trim().toLowerCase();
   // Крок 1 (Screens «Комора · збірка»): чіпи зон рахують усю комору, не зріз —
-  // «Холодильник 31» лишається 31 і під фільтром; звужує лише чіп.
+  // «Холодильник 31» лишається 31 і під фільтром; звужує лише чіп. v2 (21.09):
+  // по ПРОДУКТАХ (те, що бачить людина), не по партіях.
   const zoneCounts = new Map<PantryBatch['zone'], number>();
-  for (const b of batches) zoneCounts.set(b.zone, (zoneCounts.get(b.zone) ?? 0) + 1);
+  const zoneKeys = new Map<PantryBatch['zone'], Set<string>>();
+  for (const b of batches) {
+    const set = zoneKeys.get(b.zone) ?? new Set<string>();
+    set.add(productGroupKey(b));
+    zoneKeys.set(b.zone, set);
+  }
+  for (const [z, set] of zoneKeys) zoneCounts.set(z, set.size);
   const zoneChips = ZONE_ORDER.filter((z) => zoneCounts.has(z));
   const groups = view.groups.filter((g) => !zoneFocus || g.zone === zoneFocus);
   const list = view.list.filter((r) => !zoneFocus || r.it.zone === zoneFocus);
   // Банер «N розрахунків скінчились» (Screens): партії, чий строк за каталогом
   // минув — у рядку це «−N дн» тоном danger. Підрядок — три найтерміновіші
-  // (прострочені й ті, що добігають), решта «нижче за свіжістю».
+  // (прострочені й ті, що добігають), решта «нижче за свіжістю». v2: рядки вже
+  // згруповані по продукту — банер і хот-список теж рахують продукти.
   const allRows = view.grouped ? view.groups.flatMap((g) => g.items) : view.list;
+  // Підрядки видимих (розгорнутих) груп — беруть участь у FLIP і в списках
+  // «горить» так само, як прості рядки.
+  const visibleSub = allRows.flatMap((r) => (r.sub && expanded.has(productGroupKey(r.it)) ? r.sub : []));
   // 12.09 (ANSWERS B7): порядок у зоні — за строком; після правки рядок їде на
   // нове місце рухом 240 (--dur-base), а не стрибає. Ключ — id партії.
-  useFlipRows(allRows.map((r) => r.it.id), (id) => `batch-${id}`);
+  useFlipRows([...allRows, ...visibleSub].map((r) => r.it.id), (id) => `batch-${id}`);
   const ended = allRows.filter((r) => r.timeTone === 'danger');
   const urgent = allRows.filter((r) => r.scale && r.it.days != null && (r.timeTone === 'danger' || r.timeTone === 'amber'))
     .sort((a, b) => (a.it.days ?? 0) - (b.it.days ?? 0));
-  const overdue = batches.filter((b) => b.days != null && b.days < 0 && b.catalog_key).length;
+  const overdue = new Set(batches.filter((b) => b.days != null && b.days < 0 && b.catalog_key).map(productGroupKey)).size;
   // Емфаза за правилом ⚠1 (Screens: «на 18 видимих рядках 600 + колір мають
   // три: стейк, помідори, фует») — три найтерміновіші, решта звичайним 500.
   const hot = new Set(urgent.slice(0, 3).map((r) => r.it.id));
@@ -259,59 +282,108 @@ export function PantryPage() {
     lastReceiptAt ? `чек ${shortDate(lastReceiptAt)}` : '',
   ].filter(Boolean);
 
-  const renderRow = (r: RowView, flat: boolean) => {
-    const b = r.it;
+  // v2 (21.09), «Партії»: підрядок — одна партія групи, компактним рядком
+  // «кількість · стан · строк» (тап відкриває картку саме цієї партії, ✕
+  // списує саме її — на відміну від рядка-продукту, де ✕ немає навмисно).
+  const renderSubRow = (m: RowView) => {
+    const b = m.it;
+    const label = [m.qty, STATE_WORD[b.state], m.time].filter(Boolean).join(' · ');
     return (
-      /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
-         ✕ праворуч списує одним дотиком (з «Повернути» внизу). 12.09 (§8):
-         на десктопі ✕ видно при наведенні (слот 44 постійний, лише opacity),
-         на тачі — свайп рядка вліво відкриває «Списати»; у картці «Списати»
-         завжди. */
-      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flat ? '' : styles['row-grouped']} ${hot.has(b.id) ? styles['row-hot'] : ''} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''} ${editing?.id === b.id ? styles['row-open'] : ''} ${swipe.openId === b.id ? styles['row-swiped'] : ''}`} data-open={editing?.id === b.id || undefined} data-swiped={swipe.openId === b.id || undefined}>
-        <button className={styles['row-main']} {...swipe.handlers(b.id)} onClick={() => { if (!swipe.swallowTap(b.id)) setEditing(b); }}>
-          {/* Назва двома ярусами: «наше імʼя» і паспортна нижче, тихо. */}
-          <span className={`${styles.name} ${flat ? styles['name-flat'] : ''}`}>
-            <span className={styles['name-text']} title={r.name}>{r.name}</span>
-            {r.passport && <span className={styles.passport}>{r.passport}</span>}
-            {flat && <span className={styles['meta-line']}><span className={styles['zone-tag']}>{r.zone}</span></span>}
-          </span>
-          {/* Слот безпеки. Обмеження людини — слива: контур на «не їм»,
-              заливка зі знаком на «не можна» (tokens-v3 · Слоти рядка). */}
-          {r.safety && (
-            <span className={`${styles.safety} ${r.safety === 'не можна' ? styles['safety-hard'] : ''}`} data-safety={r.safety}>
-              {r.safety === 'не можна' && <Icon name="cook.ban" size={12} inherit decorative />}
-              {r.safety}
-            </span>
-          )}
-          {/* Слот походження. Іконка 12 без тексту — підпис несе aria. */}
-          {r.origin && (
-            <span className={styles.origin} data-origin={r.origin} title={r.originTitle} aria-label={r.originTitle}>
-              <Icon name={ORIGIN_ICON[r.origin]} size={12} inherit />
-            </span>
-          )}
-          {/* Слот часу — крапка 6 несе колір стану, слово — зміст (Components
-              «ROW ANATOMY»). Четверте слово («−9 дн») сюди й приходить. Без
-              каталожного ключа шкали немає (PLAN §2) — місце тримаємо. */}
-          <span className={`${styles.time} ${styles[`tone-${r.timeTone}`]}`} data-time>
-            {r.scale ? <FreshIcon fresh={r.fresh} /> : <span className={styles['mark-none']} aria-hidden />}
-            {r.time}
-          </span>
-          {r.qty && <span className={`${styles.qty} ${flat ? styles['qty-flat'] : ''}`}>{r.qty}</span>}
-          {/* №5 (рішення власника): число порядку («≈24 г», «120 ккал») —
-              останнім стовпчиком, після кількості; підпис шкали стоїть над
-              ним по тому ж краю. Назва — першою, як у порядку «за місцем». */}
-          {flat && <span className={`${styles.val} ${styles[`tone-${r.valTone}`]}`} data-val>{r.val}</span>}
+      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} data-subrow className={`${styles.row} ${styles['row-sub']} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''} ${editing?.id === b.id ? styles['row-open'] : ''}`} data-open={editing?.id === b.id || undefined}>
+        <button className={styles['row-main']} onClick={() => setEditing(b)}>
+          <span className={styles['sub-label']} title={b.label}>{label}</span>
         </button>
         <button
           className={styles['row-x']}
           aria-label={`Списати «${b.label}»`}
           title="Закінчилось? Прибрати"
-          onClick={() => { swipe.close(); void quickRemove(b); }}
+          onClick={() => void quickRemove(b)}
         >
           <span className={styles['row-x-hover']}><Icon name="sys.close" size={16} inherit decorative /></span>
-          <span className={styles['row-x-swipe']}><Icon name="sys.trash" size={16} inherit decorative />Списати</span>
         </button>
       </div>
+    );
+  };
+
+  const renderRow = (r: RowView, flat: boolean) => {
+    const b = r.it;
+    // v2 (21.09), «Партії»: rядок-продукт — партії того самого product_id
+    // (чи назви) згорнуті в один рядок. count>1 без sub — суцільно однакові,
+    // сума й найближчий строк; count>1 із sub — партії різняться (стан,
+    // строк >30 дн, зона), рядок розгортається шевроном на підрядки.
+    const groupKey = r.count > 1 ? productGroupKey(b) : null;
+    const expandable = !!r.sub && r.sub.length > 0;
+    const open = groupKey != null && expandable && expanded.has(groupKey);
+    return (
+      <Fragment key={b.id}>
+        {/* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
+           ✕ праворуч списує одним дотиком (з «Повернути» внизу). 12.09 (§8):
+           на десктопі ✕ видно при наведенні (слот 44 постійний, лише opacity),
+           на тачі — свайп рядка вліво відкриває «Списати»; у картці «Списати»
+           завжди. v2: рядок-продукт (count>1) не має ✕ — не списати три банки
+           замість однієї; групі з реально різними партіями — шеврон замість ✕. */}
+        <div id={`batch-${b.id}`} data-batch={b.label} data-count={r.count} data-product={groupKey ?? undefined} className={`${styles.row} ${flat ? '' : styles['row-grouped']} ${r.count > 1 ? styles['row-product'] : ''} ${hot.has(b.id) ? styles['row-hot'] : ''} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''} ${editing?.id === b.id ? styles['row-open'] : ''} ${swipe.openId === b.id ? styles['row-swiped'] : ''}`} data-open={editing?.id === b.id || undefined} data-swiped={swipe.openId === b.id || undefined}>
+          <button className={styles['row-main']} {...(r.count > 1 ? {} : swipe.handlers(b.id))} onClick={() => { if (!swipe.swallowTap(b.id)) setEditing(b); }}>
+            {/* Назва двома ярусами: «наше імʼя» і паспортна нижче, тихо. */}
+            <span className={`${styles.name} ${flat ? styles['name-flat'] : ''}`}>
+              <span className={styles['name-text']} title={r.name}>{r.name}</span>
+              {r.passport && <span className={styles.passport}>{r.passport}</span>}
+              {flat && <span className={styles['meta-line']}><span className={styles['zone-tag']}>{r.zone}</span></span>}
+            </span>
+            {/* Слот безпеки. Обмеження людини — слива: контур на «не їм»,
+                заливка зі знаком на «не можна» (tokens-v3 · Слоти рядка). */}
+            {r.safety && (
+              <span className={`${styles.safety} ${r.safety === 'не можна' ? styles['safety-hard'] : ''}`} data-safety={r.safety}>
+                {r.safety === 'не можна' && <Icon name="cook.ban" size={12} inherit decorative />}
+                {r.safety}
+              </span>
+            )}
+            {/* Слот походження. Іконка 12 без тексту — підпис несе aria. */}
+            {r.origin && (
+              <span className={styles.origin} data-origin={r.origin} title={r.originTitle} aria-label={r.originTitle}>
+                <Icon name={ORIGIN_ICON[r.origin]} size={12} inherit />
+              </span>
+            )}
+            {/* Слот часу — крапка 6 несе колір стану, слово — зміст (Components
+                «ROW ANATOMY»). Четверте слово («−9 дн») сюди й приходить. Без
+                каталожного ключа шкали немає (PLAN §2) — місце тримаємо. */}
+            <span className={`${styles.time} ${styles[`tone-${r.timeTone}`]}`} data-time>
+              {r.scale ? <FreshIcon fresh={r.fresh} /> : <span className={styles['mark-none']} aria-hidden />}
+              {r.time}
+            </span>
+            {r.qty && <span className={`${styles.qty} ${flat ? styles['qty-flat'] : ''}`}>{r.qty}</span>}
+            {/* №5 (рішення власника): число порядку («≈24 г», «120 ккал») —
+                останнім стовпчиком, після кількості; підпис шкали стоїть над
+                ним по тому ж краю. Назва — першою, як у порядку «за місцем». */}
+            {flat && <span className={`${styles.val} ${styles[`tone-${r.valTone}`]}`} data-val>{r.val}</span>}
+          </button>
+          {r.count === 1 && (
+            <button
+              className={styles['row-x']}
+              aria-label={`Списати «${b.label}»`}
+              title="Закінчилось? Прибрати"
+              onClick={() => { swipe.close(); void quickRemove(b); }}
+            >
+              <span className={styles['row-x-hover']}><Icon name="sys.close" size={16} inherit decorative /></span>
+              <span className={styles['row-x-swipe']}><Icon name="sys.trash" size={16} inherit decorative />Списати</span>
+            </button>
+          )}
+          {r.count > 1 && expandable && groupKey != null && (
+            <button
+              type="button"
+              className={styles['row-chev']}
+              aria-expanded={open}
+              aria-label={open ? 'Згорнути партії' : `Показати партії (${r.count})`}
+              data-chev
+              onClick={() => toggleExpanded(groupKey)}
+            >
+              <span className={styles['row-chev-icon']}><Icon name="sys.next" size={16} inherit decorative /></span>
+            </button>
+          )}
+          {r.count > 1 && !expandable && <span className={styles['row-x']} aria-hidden />}
+        </div>
+        {open && r.sub!.map((m) => renderSubRow(m))}
+      </Fragment>
     );
   };
 

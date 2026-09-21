@@ -204,6 +204,10 @@ export interface RowView {
   /** Підпис слота походження — з відсотком для домисленого. */
   originTitle: string;
   val: string; valTone: Tone;
+  /** v2 (21.09), «Партії»: скільки партій згорнуто в цей рядок (1 — не групований). */
+  count: number;
+  /** Підрядки-партії — лише коли партії групи реально відрізняються (стан, строк >30 дн, зона). */
+  sub: RowView[] | null;
 }
 
 /**
@@ -263,6 +267,95 @@ function emptyReason(active: CutDef[], all: PantryBatch[]): string {
   return byKind ? 'Можна докупити.' : 'Добре.';
 }
 
+// ----- v2 (21.09), «Партії»: групування рядків комори по продукту (PR 3) -----
+//
+// Ключ групи — product_id (трійка продукту); без нього — нормалізована назва
+// партії. НЕ catalog_key: він ширший за конкретний продукт (дві різні марки
+// кетчупу можуть мати один catalog_key, але це різні речі, куплені окремо).
+function normalizeGroupName(label: string): string {
+  return label.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+export function productGroupKey(b: Pick<PantryBatch, 'product_id' | 'label'>): string {
+  return b.product_id ? `p:${b.product_id}` : `n:${normalizeGroupName(b.label)}`;
+}
+
+const DIVERGE_DAYS = 30;
+
+/** Партії групи «реально відрізняються» — показуємо підрядки, а не суму. */
+function batchesDiverge(rows: RowView[]): boolean {
+  if (rows.length < 2) return false;
+  if (new Set(rows.map((r) => r.it.zone)).size > 1) return true;
+  if (new Set(rows.map((r) => r.it.state)).size > 1) return true;
+  const days = rows.map((r) => r.it.days).filter((d): d is number => d != null);
+  if (days.length > 0 && days.length < rows.length) return true; // одні знають строк, інші ні
+  if (days.length >= 2 && Math.max(...days) - Math.min(...days) > DIVERGE_DAYS) return true;
+  return false;
+}
+
+function pickNearest(rows: RowView[]): RowView {
+  return [...rows].sort((a, b) => (a.it.days ?? Number.POSITIVE_INFINITY) - (b.it.days ?? Number.POSITIVE_INFINITY))[0]!;
+}
+
+function worstSafety(rows: RowView[]): RowView['safety'] {
+  if (rows.some((r) => r.safety === 'не можна')) return 'не можна';
+  if (rows.some((r) => r.safety === 'не їм')) return 'не їм';
+  return null;
+}
+
+/** Сума кількості групи: однакові одиниці — одне число, різні — через « · ». */
+function sumQty(rows: RowView[]): string {
+  const byUnit = new Map<string, number>();
+  const order: string[] = [];
+  for (const r of rows) {
+    const b = r.it;
+    if (b.value == null) continue;
+    const u = b.unit ?? '';
+    if (!byUnit.has(u)) { byUnit.set(u, 0); order.push(u); }
+    byUnit.set(u, byUnit.get(u)! + b.value);
+  }
+  return order.map((u) => formatQty(byUnit.get(u)!, u || null)).join(' · ');
+}
+
+/**
+ * Один рядок на продукт (v2 «Партії»): партії того самого product_id (чи
+ * нормалізованої назви) згортаються в один рядок із сумою; підрядки — лише
+ * коли партії групи реально відрізняються (batchesDiverge).
+ */
+export function groupRows(rows: RowView[]): RowView[] {
+  const byKey = new Map<string, RowView[]>();
+  const order: string[] = [];
+  for (const r of rows) {
+    const key = productGroupKey(r.it);
+    if (!byKey.has(key)) { byKey.set(key, []); order.push(key); }
+    byKey.get(key)!.push(r);
+  }
+  return order.map((key) => {
+    const members = byKey.get(key)!;
+    if (members.length === 1) return members[0]!;
+    const nearest = pickNearest(members);
+    const base: RowView = { ...nearest, qty: sumQty(members), safety: worstSafety(members), count: members.length, sub: null };
+    return batchesDiverge(members) ? { ...base, sub: members } : base;
+  });
+}
+
+function sortRows(rows: RowView[], sort: SortDef): RowView[] {
+  if (!sort.by) return rows;
+  const by = sort.by;
+  return [...rows].sort((a, b) => {
+    const x = by(a.it), y = by(b.it);
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return x - y;
+  });
+}
+
+function byTermThenNameRow(a: RowView, b: RowView): number {
+  const da = a.it.days ?? Number.POSITIVE_INFINITY;
+  const db = b.it.days ?? Number.POSITIVE_INFINITY;
+  return (da - db) || a.name.localeCompare(b.name, 'uk');
+}
+
 export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { productsById: Map<string, HouseholdProduct>; receiptAt?: string | null }): FilterView {
   const sort = SORTS.find((s) => s.key === st.sort) ?? SORTS[0]!;
   const active = CUTS.filter((c) => st.cuts.includes(c.key));
@@ -305,6 +398,7 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
       origin: it.origin?.kind ?? (it.receipt ? 'receipt' : null),
       originTitle: originTitle(it.origin ?? (it.receipt ? { kind: 'receipt' } : null)),
       val: sort.val ? sort.val(it) : '', valTone: sort.color ? sort.color(it) : 'fg',
+      count: 1, sub: null,
     };
   };
   const grouped = sort.key === 'zone';
@@ -314,21 +408,29 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
   const narrowed = active.length > 0 || !!q;
   const empty = dirty && shown.length === 0 && !q;
   const last = active[active.length - 1];
+  // v2 (21.09), «Партії»: рядки — по продукту, не по партії; лічильник теж
+  // («187» мало значити те, що бачить людина — 113 продуктів, не 187 партій).
+  const passedRows = items.filter(pass).map(row);
+  const distinctProducts = (arr: PantryBatch[]) => new Set(arr.map(productGroupKey)).size;
   return {
     sort, shown, dirty,
     // Етап 1.6: капс знято й тут — він був вписаний у самі рядки, не лише в CSS.
     // Крок 1 things-v3 (Screens «Комора · збірка» / «мобайл»): лічильник —
     // голе число «113»; хвіст «· 10 прострочено · чек 7 вер» додає сторінка.
-    meta: narrowed ? `${shown.length} з ${items.length}` : `${items.length}`,
+    meta: narrowed ? `${distinctProducts(shown)} з ${distinctProducts(items)}` : `${distinctProducts(items)}`,
     grouped: grouped && !empty,
     // Ф2а: усередині групи порядок стабільний — новіші за added_at зверху,
     // однакова дата — за назвою; не за порядком з сервера (терміновість/updated_at),
-    // щоб рядки не стрибали після правки.
+    // щоб рядки не стрибали після правки. v2: групування партій по продукту —
+    // ДО сортування (інакше партії того самого продукту з різним строком
+    // розсипались би по різних місцях списку).
     groups: grouped
-      ? ZONE_ORDER.map((z) => ({ zone: z, label: ZONE_LABEL[z], items: shown.filter((it) => it.zone === z).sort(byTermThenName) }))
-        .filter((g) => g.items.length).map((g) => ({ zone: g.zone, label: g.label, count: g.items.length, items: g.items.map(row) }))
+      ? ZONE_ORDER.map((z) => {
+          const rows = groupRows(passedRows.filter((r) => r.it.zone === z)).sort(byTermThenNameRow);
+          return { zone: z, label: ZONE_LABEL[z], count: rows.length, items: rows };
+        }).filter((g) => g.items.length > 0)
       : [],
-    list: grouped ? [] : shown.map(row),
+    list: grouped ? [] : sortRows(groupRows(passedRows), sort),
     flatLabel: sort.head ?? '', unitLabel: sort.unit ?? '', unitShort: sort.unitShort ?? sort.unit ?? '',
     empty,
     emptyTitle: empty ? (last ? EMPTY_TITLE[last.key] ?? 'Нічого' : 'Порожньо') : '',

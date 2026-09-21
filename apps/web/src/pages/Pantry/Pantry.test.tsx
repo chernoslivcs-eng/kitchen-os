@@ -321,6 +321,77 @@ describe('№36 · ✕ — оптимістично', () => {
   });
 });
 
+// v2 (21.09), «Партії» (PR 3): рядок-продукт замість рядка-партії — UI-рівень
+// (логіка групування — тести в filter.test.ts). Своя фікстура: кукурудза ×3
+// однакові (без підрядків), кетчуп 2 партії різного стану (з підрядками).
+describe('v2 (21.09), «Партії»: рядок-продукт у Коморі', () => {
+  const GROUPED = [
+    b('Кукурудза', { id: 'c1', value: 1, unit: 'pcs', days: 400 }),
+    b('Кукурудза', { id: 'c2', value: 1, unit: 'pcs', days: 410 }),
+    b('Кукурудза', { id: 'c3', value: 1, unit: 'pcs', days: 395 }),
+    b('Кетчуп', { id: 'k1', state: 'sealed', days: 300 }),
+    b('Кетчуп', { id: 'k2', state: 'opened', days: 5 }),
+  ];
+  const mountGrouped = async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const json = (o: unknown) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } });
+      if (url.startsWith('/v1/pantry')) return json({ household_id: 'h1', count: GROUPED.length, batches: GROUPED, products: [], last_receipt_at: null });
+      if (url.startsWith('/v1/shopping')) return json({ count: 0, items: [] });
+      return json({});
+    }));
+    await mount();
+  };
+
+  it('однакові партії — один рядок, сума в кількості, без ✕ і без шеврона (нема що розгортати)', async () => {
+    await mountGrouped();
+    const row = host!.querySelector<HTMLElement>('[data-batch="Кукурудза"]')!;
+    expect(row.dataset.count).toBe('3');
+    expect(host!.querySelectorAll('[data-batch="Кукурудза"]').length).toBe(1);
+    expect(row.querySelector('[aria-label^="Списати"]')).toBeNull();
+    expect(row.querySelector('[data-chev]')).toBeNull();
+    expect(row.textContent).toContain('3 шт');
+  });
+
+  it('партії різного стану — шеврон розгортає підрядки; ✕ лише на підрядку; тап по підрядку — картка саме цієї партії', async () => {
+    await mountGrouped();
+    const row = host!.querySelector<HTMLElement>('[data-batch="Кетчуп"]')!;
+    expect(row.dataset.count).toBe('2');
+    expect(row.querySelector('[aria-label^="Списати"]'), 'на груповому рядку ✕ немає').toBeNull();
+    const chev = row.querySelector<HTMLButtonElement>('[data-chev]')!;
+    expect(chev.getAttribute('aria-expanded')).toBe('false');
+    expect(host!.querySelectorAll('[data-subrow]').length).toBe(0);
+
+    await click(chev);
+    expect(chev.getAttribute('aria-expanded')).toBe('true');
+    const subs = [...host!.querySelectorAll<HTMLElement>('[data-subrow]')];
+    expect(subs.length).toBe(2);
+    expect(subs.every((s) => !!s.querySelector('[aria-label^="Списати"]')), 'кожен підрядок має власний ✕').toBe(true);
+
+    const subK2 = subs.find((s) => s.id === 'batch-k2')!;
+    usePanelStore.setState({ artifacts: [], active: null });
+    await click(subK2.querySelector('button')!);
+    expect(usePanelStore.getState().active).toBe('batch:k2');
+
+    await click(chev);
+    expect(chev.getAttribute('aria-expanded')).toBe('false');
+    expect(host!.querySelectorAll('[data-subrow]').length).toBe(0);
+  });
+
+  it('тап по рядку-продукту (не розгорнутому) відкриває картку партії, найближчої за строком', async () => {
+    await mountGrouped();
+    usePanelStore.setState({ artifacts: [], active: null });
+    await click(host!.querySelector<HTMLButtonElement>('[data-batch="Кетчуп"] button')!);
+    // k2 — відкрита, 5 днів — найближча за строком з двох (k1 — 300).
+    expect(usePanelStore.getState().active).toBe('batch:k2');
+  });
+
+  it('шапка й чіп зони рахують продукти, не партії: 2 продукти з 5 партій', async () => {
+    await mountGrouped();
+    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('2');
+    expect(host!.querySelector('[data-zone-chip="fridge"]')!.textContent).toBe('Холодильник2');
+  });
+});
+
 // 12.09 (ANSWERS §8): на тачі ✕ відкривається свайпом рядка вліво; тап по
 // тілу відкритого рядка закриває його, а не картку.
 describe('✕ у рядку: свайп на тачі', () => {

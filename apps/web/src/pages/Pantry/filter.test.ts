@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { applyFilter, toggleKind, toggleState, resetFilter, stateFull, freshness, INITIAL, shortDate, type FilterState } from './filter';
+import { applyFilter, toggleKind, toggleState, resetFilter, stateFull, freshness, productGroupKey, INITIAL, shortDate, type FilterState } from './filter';
 import type { PantryBatch, HouseholdProduct } from '../../api';
 
 // Раунд 5, крок Ф1: логіка фільтра зі спеки дизайну.
@@ -338,5 +338,84 @@ describe('колонки зон за контейнером', () => {
     expect(zoneColumns(1280)).toBe(2);
     expect(zoneColumns(704)).toBe(1);
     expect(zoneColumns(1500)).toBe(3);
+  });
+});
+
+// v2 (21.09), «Партії» (PR 3): групування рядків комори по продукту —
+// product_id, без нього нормалізована назва; НЕ catalog_key (два бренди
+// кетчупу можуть його ділити, це різні речі, куплені окремо).
+describe('групування партій по продукту (v2 «Партії»)', () => {
+  it('однакові партії — один рядок без підрядків, кількість зсумована', () => {
+    const items = [
+      b('Кукурудза', { id: 'c1', value: 1, unit: 'pcs', days: 400 }),
+      b('Кукурудза', { id: 'c2', value: 1, unit: 'pcs', days: 410 }),
+      b('Кукурудза', { id: 'c3', value: 1, unit: 'pcs', days: 395 }),
+    ];
+    const v = applyFilter(items, INITIAL, ctx);
+    const rows = v.groups.find((g) => g.zone === 'fridge')!.items;
+    expect(rows.length).toBe(1);
+    expect(rows[0]!.count).toBe(3);
+    expect(rows[0]!.sub).toBeNull();
+    expect(rows[0]!.qty).toBe('3 шт');
+    // строк — найближчий серед партій
+    expect(rows[0]!.it.id).toBe('c3');
+  });
+
+  it('підрядки — коли партії того самого продукту в різному стані', () => {
+    const items = [
+      b('Кетчуп', { id: 'k1', state: 'sealed', days: 300 }),
+      b('Кетчуп', { id: 'k2', state: 'opened', days: 5 }),
+    ];
+    const v = applyFilter(items, INITIAL, ctx);
+    const row = v.groups.find((g) => g.zone === 'fridge')!.items[0]!;
+    expect(row.count).toBe(2);
+    expect(row.sub?.map((s) => s.it.id).sort()).toEqual(['k1', 'k2']);
+    // рядок-продукт — найгірший/найближчий строк (партія, що відкрита)
+    expect(row.it.id).toBe('k2');
+  });
+
+  it('розбіжність строків: 31 день — підрядки, 29 — без них', () => {
+    const diverging = [
+      b('Масло', { id: 'm1', days: 100 }),
+      b('Масло', { id: 'm2', days: 131 }),
+    ];
+    const stable = [
+      b('Масло', { id: 'm1', days: 100 }),
+      b('Масло', { id: 'm2', days: 129 }),
+    ];
+    const rowOf = (items: PantryBatch[]) => applyFilter(items, INITIAL, ctx).groups.find((g) => g.zone === 'fridge')!.items[0]!;
+    expect(rowOf(diverging).sub).not.toBeNull();
+    expect(rowOf(diverging).sub!.length).toBe(2);
+    expect(rowOf(stable).sub).toBeNull();
+  });
+
+  it('сума одиниць: однакові — одне число, різні — через « · »', () => {
+    const sameUnit = [
+      b('Рис', { id: 'r1', value: 500, unit: 'g' }),
+      b('Рис', { id: 'r2', value: 300, unit: 'g' }),
+    ];
+    const mixedUnit = [
+      b('Йогурт', { id: 'y1', value: 2, unit: 'pcs' }),
+      b('Йогурт', { id: 'y2', value: 200, unit: 'g' }),
+    ];
+    const qtyOf = (items: PantryBatch[]) => applyFilter(items, INITIAL, ctx).groups.find((g) => g.zone === 'fridge')!.items[0]!.qty;
+    expect(qtyOf(sameUnit)).toBe('800 г');
+    expect(qtyOf(mixedUnit)).toBe('2 шт · 200 г');
+  });
+
+  it('лічильники — по продуктах, не по партіях: шапка й чіп зони', () => {
+    const items = [
+      b('Кукурудза', { id: 'c1' }),
+      b('Кукурудза', { id: 'c2' }),
+      b('Огірки', { id: 'o1', zone: 'fresh' }),
+    ];
+    const v = applyFilter(items, INITIAL, ctx);
+    expect(v.meta).toBe('2');
+    expect(v.groups.find((g) => g.zone === 'fridge')!.count).toBe(1);
+  });
+
+  it('productGroupKey: за product_id, без нього — за нормалізованою назвою', () => {
+    expect(productGroupKey({ product_id: 'p1', label: 'будь-що' })).toBe(productGroupKey({ product_id: 'p1', label: 'інше' }));
+    expect(productGroupKey({ product_id: null, label: '  Кава  ' })).toBe(productGroupKey({ product_id: null, label: 'кава' }));
   });
 });
