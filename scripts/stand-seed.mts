@@ -176,7 +176,30 @@ await run('pasta', { daysAgo: 9, hour: 19, minutes: 25, rating: 4 });
 console.log(`stand-seed: рецепт «Паста…» — /recipe/${recipeIds.pasta} · /r/${recipeIds.pasta}`);
 
 const store = new InMemoryStore();
-const app = buildApp(repo, store, new ConsoleMailer());
+// 21.09: стаб Сільпо для показу чернетки кошика власнику — пошук віддає по 1–2
+// вигаданих товари на будь-який запит, addToCart лише логує (нічого не їде в мережу).
+// Підключення — GET /v1/retail/silpo/connect (devAccessToken, поза production).
+const stubProduct = (q: string, i: number) => ({
+  id: `stub-${q}-${i}`, name: i === 0 ? `Сільпо: ${q}` : `Сільпо: ${q} (інший бренд)`, slug: `${q}-${i}`,
+  price: 40 + (q.length * 7 + i * 25) % 160, oldPrice: null, stock: true, available: true,
+  weighted: /м[ʼ']?яс|лосос|сир|ковбас|філе|стейк/i.test(q), step: 1, companyId: 'c1', branchId: 'b1',
+});
+const retailStub = {
+  silpo: {
+    clientId: 'stand', tokenSecret: 'stand-secret', devAccessToken: 'stand-dev-token',
+    makeProvider: () => ({
+      receipts: async () => [],
+      findBatch: async (queries: string[]) => queries.map((q) => {
+        const candidates = /кунжут|каперс/i.test(q) ? [] : [stubProduct(q, 0), stubProduct(q, 1)];
+        return { query: q, candidates, product: candidates[0] ?? null };
+      }),
+      addToCart: async (items: Array<{ productId: string; quantity: number }>) => {
+        console.log(`stand-seed: [Сільпо-стаб] addToCart ×${items.length}: ${items.map((i) => `${i.productId}×${i.quantity}`).join(', ')}`);
+      },
+    }),
+  },
+};
+const app = buildApp(repo, store, new ConsoleMailer(), { retail: retailStub });
 await app.listen({ port: PORT, host: '127.0.0.1' });
 // Р147/Р149: dev-бот polling'ом проти цього ж репозиторію в памʼяті (scripts/telegram-dev.mts);
 // хід чату — той самий, що /v1/chat (з моделлю, якщо ключ не затерто).
