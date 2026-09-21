@@ -272,7 +272,8 @@ export function renderCardText(card: Card | null | undefined): string | null {
     }
     case 'intake_diff': {
       const rows = card.ops.map((o) => {
-        if (o.op === 'add') return `+ ${o.label}${o.value != null ? ` · ${formatQty(o.value, o.unit)}` : ''}`;
+        // Упаковане (PR 4): «+ томати пелаті · 4 шт · 400 г» — штуки й вага одиниці, не лише назва.
+        if (o.op === 'add') return `+ ${o.label}${o.qty != null ? ` · ${o.qty} шт${o.pack ? ` · ${formatQty(o.pack.v, o.pack.u)}` : ''}` : o.value != null ? ` · ${formatQty(o.value, o.unit)}` : ''}`;
         if (o.op === 'deplete') return `− ${o.label}`;
         if (o.op === 'open') return `відкрито: ${o.label}`;
         if (o.op === 'rename') return `${o.label} → ${o.to}`;

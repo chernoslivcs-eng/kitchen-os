@@ -39,3 +39,18 @@ describe('E · next по типах карток', () => {
     expect(parsed.at(-1)).toContain(`Відкрити у вебі: ${APP}/app`);
   });
 });
+
+// PR 4: картка розбору показує штуки й вагу одиниці.
+describe('renderCardText · упаковане', () => {
+  it('«+ томати пелаті Metro Chef · 4 шт · 400 г»; qty 1 — «1 шт · 190 г»; вагове — як було', async () => {
+    const { renderCardText } = await import('../src/telegram.js');
+    const text = renderCardText({ type: 'intake_diff', ops: [
+      { op: 'add', label: 'томати пелаті Metro Chef', qty: 4, pack: { v: 400, u: 'g' } },
+      { op: 'add', label: 'песто Sacla', qty: 1, pack: { v: 190, u: 'g' } },
+      { op: 'add', label: 'сало', value: 500, unit: 'g' },
+    ] } as never)!;
+    expect(text).toContain('+ томати пелаті Metro Chef · 4 шт · 400 г');
+    expect(text).toContain('+ песто Sacla · 1 шт · 190 г');
+    expect(text).toContain('+ сало · 500 г');
+  });
+});

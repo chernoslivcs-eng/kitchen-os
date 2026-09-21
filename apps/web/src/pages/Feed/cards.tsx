@@ -61,6 +61,9 @@ type IntakeOp = {
   label?: string;
   value?: number;
   unit?: string;
+  /** Упаковане (PR 4): скільки одиниць і вага/обʼєм однієї. */
+  qty?: number;
+  pack?: { v?: number; u?: string };
   zone?: string;
   confidence?: number;
   evidence?: string;
@@ -321,6 +324,15 @@ function NonfoodGroup({
   );
 }
 
+/** Кількість рядка: упаковане — «4 шт · 400 г» (вага одиниці після «·»), інакше value/unit. */
+export function opQty(op: IntakeOp): string {
+  if (op.qty != null) {
+    const pack = op.pack?.v != null && op.pack.u ? formatQty(op.pack.v, op.pack.u) : '';
+    return `${op.qty} шт${pack ? ` · ${pack}` : ''}`;
+  }
+  return op.value != null && op.unit ? formatQty(op.value, op.unit) : '';
+}
+
 export function IntakeCard({ card, cardId, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo, shoppingLabels, onNonfoodToList }: CardProps) {
   // 01.09 картка v2: «уточнити» переносить рядок із source.unmatched у ops
   // на сервері — локальна копія картки віддзеркалює це без переходу в
@@ -490,8 +502,8 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                 {inList.has(i) && (
                   <span className={styles['rrow-inlist']} data-in-list><Icon name="sys.list" size={12} inherit decorative />у списку</span>
                 )}
-                {op.value != null && op.unit && (
-                  <span className={styles['rrow-qty']}>{formatQty(op.value, op.unit)}</span>
+                {opQty(op) && (
+                  <span className={styles['rrow-qty']}>{opQty(op)}</span>
                 )}
               </div>
             ))}
@@ -556,8 +568,8 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                 )}
                 {doubtLabel(op) && <span style={DOUBT_STYLE}>{doubtLabel(op)}</span>}
               </span>
-              {op.value != null && op.unit && (
-                <span className={styles['op-qty']}>{op.op === 'correct' ? <><Icon name="sys.next" size={12} inherit decorative /> </> : null}{formatQty(op.value, op.unit)}</span>
+              {opQty(op) && (
+                <span className={styles['op-qty']}>{op.op === 'correct' ? <><Icon name="sys.next" size={12} inherit decorative /> </> : null}{opQty(op)}</span>
               )}
             </div>
           ))}

@@ -93,7 +93,9 @@ export type IntakeOp =
   // `state` на correct — та сама пара, що на `add`: «сметана вже відкрита»
   // це виправлення стану, а не подія відкриття.
   | { op: 'correct'; label: string; batch_id?: string; value?: number; unit?: Unit; zone?: Zone;
-      state?: 'sealed' | 'opened'; tags?: import('./product.js').ProductTags };
+      state?: 'sealed' | 'opened'; tags?: import('./product.js').ProductTags;
+      // PR 4 (21.09): вага однієї одиниці штучної партії — на продукт, штуки не чіпає.
+      pack?: { v: number; u: 'g' | 'ml' } };
 
 // M13: рядок чека, який НЕ став op'ом — сірий «додати руками» (unmatched)
 // або згорнутий «не для комори» (nonfood). Живе в source картки, щоб стрічка
