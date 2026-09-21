@@ -9,9 +9,8 @@ import { shelfRuleFor, shelfSealedDays, shelfOpenDays, uncoveredCategories, SHEL
 
 // Стеля непокритих позицій. Число можна тільки ЗМЕНШУВАТИ: без правила позиція
 // тепер не має числа взагалі, і кожна така — мовчазна дірка.
-const UNCOVERED_MAX = 2;
+const UNCOVERED_MAX = 1;
 const UNCOVERED_TOP: [string, number][] = [
-  ['каша', 1],                // «Каша» без роду — дитяча каша має свій рядок, ця ні
   ['рисовий папір', 1],       // не хліб і не папір — обгортка для ролів, окремого рядка нема
 ];
 
@@ -43,6 +42,10 @@ describe('порядок правил — вужче вище', () => {
   it('гірчиця — банка, не вічна спеція (перше слово назви)', () => { expect(rule('mustard')).toBe('гірчиця'); });
   it('пиво — напій, не крупа (несе «ячмінь»); кава — кава, не напій', () => { expect(rule('alc_beer_lager_pale')).toBe('пиво'); expect(rule('coffee_ground_turkish')).toBe('кава зернова'); });
   it('томатна паста — свій рядок, не паста і не консерви', () => { expect(rule('tomato_paste')).toBe('томатна паста'); });
+  it('панірувальні сухарі — свій рядок 365/120 (слово не перше в назві); крем-суп сухий — сухі суміші, не «готове»', () => {
+    expect(rule('breadcrumbs')).toBe('панірувальні'); expect(shelfOpenDays('breadcrumbs', 'dry')).toBe(120);
+    expect(rule('pea_mushroom_soup_mix')).toBe('желе'); expect(shelfSealedDays('pea_mushroom_soup_mix', 'dry')).toBe(540);
+  });
   it('пармезан — твердий сир; кефір — кисломолочне; морожений лосось — заморожене, не риба', () => {
     expect(rule('parmesan')).toBe('твердий сир'); expect(rule('dairy_kefir_1')).toBe('кисломолочне'); expect(rule('salmon_portioned_frozen')).toBe('заморожене');
   });
