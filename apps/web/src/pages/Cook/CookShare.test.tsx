@@ -122,6 +122,26 @@ describe('О2 (3): «Поділитись результатом»', () => {
     expect(shareBtns().length).toBeGreaterThan(0);
   });
 
+  // Рішення власника 21.09: текстовий рядок «Поділитись результатом» під
+  // рядом (непомітний) став знаком-кнопкою в ТОМУ Ж ряду — .bottom, між
+  // «N · Далі: …» і «✓ Приготував», з aria-label/title замість видимого
+  // тексту (сам знак — decorative, ім'я кнопки несе лише aria-label).
+  it('знак у тому ж ряду, що «Назад»/«Приготував», з aria-label; видимого тексту нема', async () => {
+    await mountAtLastStep();
+    const share = shareBtns()[0]!;
+    expect(share.getAttribute('aria-label')).toBe('Поділитись результатом');
+    expect(share.getAttribute('title')).toBe('Поділитись результатом');
+    expect(share.textContent?.trim()).toBe('');
+    const bottom = host!.querySelector<HTMLElement>('[data-step-back]')!.parentElement!;
+    expect(bottom.contains(share)).toBe(true);
+    const kids = [...bottom.children];
+    const shareIdx = kids.indexOf(share);
+    const goIdx = kids.findIndex((k) => k.hasAttribute('data-finish'));
+    const nextHintIdx = kids.findIndex((k) => k.hasAttribute('data-next-hint'));
+    expect(nextHintIdx).toBeLessThan(shareIdx);
+    expect(shareIdx).toBeLessThan(goIdx);
+  });
+
   it('спершу записує готування, і лише потім веде на /share з рецептом', async () => {
     await mountAtLastStep();
     await act(async () => { shareBtns()[0]!.click(); });
