@@ -214,16 +214,18 @@
 }
 .go:hover:not(:disabled) { filter: brightness(0.96); }
 .go:disabled { opacity: .6; cursor: default; }
-/* Рішення власника 21.09: «Поділитись результатом» — знак-картка в тому ж
-   ряду, не текстовий рядок під ним (був непомітний). Квадрат висотою .go,
-   той самий рецепт card+тінь, що .back. */
+/* Рішення власника 21.09: «Поділитись результатом» — знак у тому ж ряду,
+   не текстовий рядок під ним (був непомітний). Квадрат висотою .go.
+   Уточнення власника 21.09 (після стенда): sage-заливка, як .go, не
+   card/тінь як .back — знак читається як частина пари «результат»
+   (той самий колір, що дія «Приготував»), а не як «Назад». */
 .share-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 64px; height: 64px; flex: none; border: 0; border-radius: 14px;
-  background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--muted); cursor: pointer;
+  background: var(--sage); color: var(--sage-on); cursor: pointer;
 }
-.share-btn:hover:not(:disabled) { color: var(--ink); }
-.share-btn:disabled { opacity: .4; cursor: default; }
+.share-btn:hover:not(:disabled) { filter: brightness(0.96); }
+.share-btn:disabled { opacity: .6; cursor: default; }
 
 /* ── Шторка кроків (390) ────────────────────────────────────────────────── */
 .scrim { position: fixed; inset: 0; z-index: 95; background: rgba(26, 28, 30, 0.28); }
