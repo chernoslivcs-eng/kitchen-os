@@ -58,7 +58,6 @@ function installFetch() {
       if (body?.email === 'taken@example.com') return json({ error: 'email_taken' }, 409);
       return json({ ok: true }, 202);
     }
-    if (url === '/v1/occasions/subscriptions') return json({ subscriptions: [{ occasion_id: 'a', enabled: true }, { occasion_id: 'b', enabled: true }, { occasion_id: 'c', enabled: false }] });
     if (url === '/v1/households/h1/invites' && method === 'GET') return json({ invites: [{ id: 'i1', email: 'guest@x.local', role: 'member', created_at: '2026-09-05T00:00:00.000Z', expires_at: '2036-01-01T00:00:00.000Z', consumed_at: null, revoked_at: null }] });
     if (url === '/v1/households/h1/invite' && method === 'POST') return json({ id: 'i2', household_id: 'h1', email: body.email, role: 'member', expires_at: '2036-01-01T00:00:00.000Z', link: 'http://x/invite?token=t', mail_sent: true });
     if (url === '/v1/invites/i1/revoke') return json(null);
@@ -338,8 +337,10 @@ describe('етап 4 · status — три різні форми, не тон (PL
 
 // Профіль за Prototype (рішення власника 13.09, PROFILE-LOGIC-0913.md §7):
 // «…» замість слів «Передати роль / Виключити» — меню з тими самими діями
-// й тим самим confirm; запрошення — «лінк діє N год»; «Пости й сезони · N
-// підписок ›» → /calendar; під «Видалити акаунт» — що лишиться дому.
+// й тим самим confirm; запрошення — «лінк діє N год»; під «Видалити
+// акаунт» — що лишиться дому. «Пости й сезони · N підписок ›» → /calendar
+// прибрано з «Мереж» (рішення власника 21.09) — це частина календаря
+// (каталог пакетів), «Мережі» лишаються лише про чеки/підключення.
 describe('профіль за Prototype · дім, мережі, акаунт', () => {
   const twoOfUs = () => useAuth.setState({
     status: 'signed_in',
@@ -374,16 +375,18 @@ describe('профіль за Prototype · дім, мережі, акаунт', 
     } finally { confirmSpy.mockRestore(); useAuth.setState({ status: 'idle', me: null }); }
   });
 
-  it('запрошення: «лінк діє N год» під поштою; «Пости й сезони · 2 підписки» веде в календар; текст під «Видалити акаунт» — про Олю', async () => {
+  it('запрошення: «лінк діє N год» під поштою; «Пости й сезони» більше нема в «Мережах» (переїхало в календар); текст під «Видалити акаунт» — про Олю', async () => {
     twoOfUs();
     try {
       await mount();
       await act(async () => { await Promise.resolve(); });
       const inv = host.querySelector('[data-invite="i1"]')!;
       expect(inv.textContent).toMatch(/лінк діє \d+ год/);
-      const seasons = host.querySelector('[data-seasons]')!;
-      expect(seasons.textContent).toContain('Пости й сезони');
-      expect(seasons.textContent).toContain('2 підписки');
+      // Рішення власника 21.09: «Пости й сезони · N підписок» — частина
+      // календаря (каталог пакетів), у профілі їй не місце. «Мережі»
+      // лишаються лише про чеки/підключення (Сільпо/Карпати).
+      expect(host.querySelector('[data-seasons]')).toBeNull();
+      expect(host.textContent).not.toContain('Пости й сезони');
       expect(host.querySelector('[data-delete-note]')!.textContent).toBe('Комора лишиться Оля — зникнуть лише твої дані.');
       expect(host.textContent).not.toContain('Підказка');
       expect(host.querySelector('[data-section="account"]')!.textContent).toContain('на цьому пристрої');
