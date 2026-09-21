@@ -1,0 +1,12 @@
+{
+  "id": "pack-bottle",
+  "description": "Пляшка вина 750 мл → qty 1, pack 750 ml.",
+  "call": "attachment_parse",
+  "attachment": {
+    "kind": "image",
+    "path": "photo-pack-bottle.png"
+  },
+  "invariants": [
+    "pack-op:шардоне|вино=1:750ml"
+  ]
+}

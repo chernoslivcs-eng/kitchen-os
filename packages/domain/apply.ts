@@ -537,12 +537,21 @@ async function applyIntakeOp(
   if (op.op === 'add') {
     const id = randomUUID();
     const provenance: Provenance = (op.evidence as Provenance) ?? 'user_statement';
-    const norm = normalizeUnit(op.value, op.unit);
+    // Упаковане (PR 4, 21.09): qty → штуки в партії; pack → вага одиниці на
+    // продукт (лише коли в продукту ще порожньо — непорожнє не перетираємо).
+    // Без qty (вагове без упаковки: сир шматком, філе, овочі) — value/unit як досі.
+    const qty = op.qty != null && Number.isFinite(op.qty) && op.qty > 0 ? Math.round(op.qty) : null;
+    const pack = op.pack && Number.isFinite(op.pack.v) && op.pack.v > 0 && (op.pack.u === 'g' || op.pack.u === 'ml') ? op.pack : null;
+    const norm = qty != null ? { value: qty, unit: (op.unit === 'pack' ? 'pack' : 'pcs') as Unit } : normalizeUnit(op.value, op.unit);
 
     // Черга Д (№2): партія показує на «продукт дому». Трійка з op (фолбек —
     // label як product).
     const triple = normalizeTriple({ product: op.product ?? op.label, brand: op.brand, variant: op.variant });
     const product = await ensureProduct(repo, household_id, triple, op.label, op.tags, norm.unit);
+    if (product && pack && product.pack_size == null) {
+      await repo.updateProduct(product.id, { pack_size: pack.v, pack_unit: pack.u });
+      product.pack_size = pack.v; product.pack_unit = pack.u;
+    }
     const state: PantryBatch['state'] = op.state === 'opened' ? 'opened' : 'sealed';
 
     // Партії v2 (21.09): нове надходження зливається з наявною партією ЛИШЕ

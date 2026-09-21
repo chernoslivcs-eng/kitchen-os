@@ -168,6 +168,7 @@ function rowToProduct(r: Row): HouseholdProduct {
     variant: (r.variant as string | null) ?? null,
     unit: (r.unit as HouseholdProduct['unit']) ?? null,
     pack_size: r.pack_size == null ? null : Number(r.pack_size),
+    pack_unit: (r.pack_unit as 'g' | 'ml' | null) ?? null,
     tags: (r.tags as HouseholdProduct['tags']) ?? {},
     catalog_key: (r.catalog_key as string | null) ?? null,
     created_at: new Date(r.created_at as string).toISOString(),
@@ -355,9 +356,9 @@ export class PostgresRepo implements Repo {
 
   async insertProduct(p: HouseholdProduct): Promise<void> {
     await this.pool.query(
-      `INSERT INTO household_product (id, household_id, product, brand, variant, unit, pack_size, tags, catalog_key, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [p.id, p.household_id, p.product, p.brand, p.variant, p.unit, p.pack_size, JSON.stringify(p.tags ?? {}), p.catalog_key, p.created_at],
+      `INSERT INTO household_product (id, household_id, product, brand, variant, unit, pack_size, pack_unit, tags, catalog_key, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [p.id, p.household_id, p.product, p.brand, p.variant, p.unit, p.pack_size, p.pack_unit ?? null, JSON.stringify(p.tags ?? {}), p.catalog_key, p.created_at],
     );
   }
 

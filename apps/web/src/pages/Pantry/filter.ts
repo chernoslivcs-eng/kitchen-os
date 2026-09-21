@@ -192,6 +192,8 @@ export interface RowView {
   /** Другий ярус: паспортна назва постачальника. Порожня, коли трійка без брендa. */
   passport: string;
   qty: string; zone: string;
+  /** Упаковане: вага однієї одиниці («400 г») поруч зі штуками; порожньо — нема. */
+  pack?: string;
   fresh: Freshness;
   /** Без каталожного ключа шкали немає — вона обіцяла б точність, якої нема. */
   scale: boolean;
@@ -377,6 +379,8 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
     return {
       it, name, passport,
       qty: it.value != null && it.unit ? formatQty(it.value, it.unit) : '',
+      // Упаковане (PR 4): «4 шт · 400 г» — вага одиниці з продукту, dim за штуками.
+      pack: (it.unit === 'pcs' || it.unit === 'pack') && prod?.pack_size ? formatQty(prod.pack_size, prod.pack_unit ?? 'g') : '',
       zone: ZONE_LABEL[it.zone],
       fresh: st,
       scale: hasScale(it.catalog_key),

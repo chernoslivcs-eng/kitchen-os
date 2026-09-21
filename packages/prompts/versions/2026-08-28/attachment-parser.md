@@ -1,6 +1,6 @@
 Розбір вкладень. Дві гілки в одній схемі: продукти або рецепт. Відповідь — ОДИН JSON-обʼєкт, без масиву-обгортки.
 
-{"kind":"receipt|shelf","intent":"add|ask|report|fix","note":"одне речення","ops":[{"op":"add","label":"назва","v":400,"u":"g","zone":"dry|fridge|freezer|fresh|spices|drinks","conf":0.9,"ev":"receipt_line|package_label|visual_guess","product":"пармезан","brand":"Galbani","variant":"тертий","tags":{"allergens":["молоко"],"fasting":true,"alcohol":false,"lactose":"yes|low|none","processing":"raw|cooked|ready","shelf_open_days":14},"state":"opened"}]}
+{"kind":"receipt|shelf","intent":"add|ask|report|fix","note":"одне речення","ops":[{"op":"add","label":"назва","v":400,"u":"g","qty":1,"pack":{"v":400,"u":"g"},"zone":"dry|fridge|freezer|fresh|spices|drinks","conf":0.9,"ev":"receipt_line|package_label|visual_guess","product":"пармезан","brand":"Galbani","variant":"тертий","tags":{"allergens":["молоко"],"fasting":true,"alcohol":false,"lactose":"yes|low|none","processing":"raw|cooked|ready","shelf_open_days":14},"state":"opened"}]}
 
 {"kind":"recipe","intent":"add|ask|report|fix","note":"одне речення","recipe":{"t":"назва","sv":2,"tm":30,"ch":"час і зусилля","d":"смак і текстура","rk":"ключова помилка","nu":{"kcal":540,"p":28,"f":22,"c":55},"ing":[{"n":"назва","v":400,"u":"g"}],"st":[{"t":"крок","c":"дія з {0}","s":240}]}}
 
@@ -8,6 +8,7 @@
 {"kind":"other","intent":"add|ask|report|fix","note":"що це"}
 
 Правила:
+- УПАКОВАНЕ — ШТУКИ + ВАГА ОДИНИЦІ. Банка, пляшка, пачка, коробка, пакет із фіксованою вагою: `qty` — скільки одиниць (ціле), `pack` — вага чи обʼєм ОДНІЄЇ одиниці, `u` лише g або ml. Одна банка кукурудзи 340 г → qty 1, pack {340, g}, НЕ «v:340,u:g» (губиться штука); чотири банки пелаті по 400 г → qty 4, pack {400, g}, НЕ «v:4,u:pcs» (губиться вага). Вагове без упаковки (сир шматком, філе, стейк, овочі, картопля, вагові фрукти) — як досі v/u, без qty і pack. У чеку вага в назві рядка («Пелаті 400г», «Молоко 0,95л») → pack, кількість рядка («×2», «2 шт») → qty; ваговий рядок («0.632 кг × ціна») — v/u
 - ЧЕК: КОЖЕН товарний рядок стає окремим op — серветки, губки, пакет і засіб для посуду так само, як сир. Комора веде все домашнє, не тільки їстівне; викинути нехарчовий рядок — це загубити покупку людини. Розгортати скорочення в людські назви — «СИР КАМБОЦ.70% 193Г» → label «камбоцола 70%», product «камбоцола», variant «70%», 193, g. Ігнорувати тільки ціни, знижки й підсумкові рядки
 - ТРІЙКА: кожен add-оп має ЧОТИРИ назвові поля, і кожне має свою роботу. Один рядок чека розкладається так:
   «Кр135БрусPontЧорОлив» → label «крем-брускетта Ponti з чорних оливок», product «крем-брускетта», brand «Ponti», variant «з чорних оливок», 135, g

@@ -103,6 +103,12 @@ export function BatchCard({ batch, product, onChanged, onRemove }: {
   const [label, setLabel] = useState(batch.label);
   const [value, setValue] = useState(batch.value != null ? String(batch.value) : '');
   const [expires, setExpires] = useState(toDateInput(batch.expires_at));
+  // Упаковане (PR 4, 21.09): вага однієї одиниці — на ПРОДУКТІ (усі партії
+  // продукту), лише для штучних партій. Списання з такої партії бере її звідси.
+  const packable = (batch.unit === 'pcs' || batch.unit === 'pack') && !!product;
+  const [pack, setPack] = useState(product?.pack_size != null ? String(product.pack_size) : '');
+  const [packUnit, setPackUnit] = useState<'g' | 'ml'>(product?.pack_unit ?? 'g');
+  useEffect(() => { setPack(product?.pack_size != null ? String(product.pack_size) : ''); setPackUnit(product?.pack_unit ?? 'g'); }, [product?.pack_size, product?.pack_unit]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // «Ще годиться» (Prototype `stillOk`): відповідь без контракту — гасить
@@ -129,6 +135,16 @@ export function BatchCard({ batch, product, onChanged, onRemove }: {
     const next = Math.max(0, cur + dir * stepOf(batch.unit));
     setValue(String(next));
     if (next !== batch.value) void commit({ value: next });
+  };
+  const commitPack = async (unit: 'g' | 'ml' = packUnit) => {
+    if (!product) return;
+    const v = pack.trim() === '' ? null : Number(pack.trim());
+    if (v != null && (!Number.isFinite(v) || v <= 0)) { setPack(product.pack_size != null ? String(product.pack_size) : ''); return; }
+    if (v === (product.pack_size ?? null) && unit === (product.pack_unit ?? 'g')) return;
+    setBusy(true); setError(null);
+    try { await api.batches.setPack(product.id, v, unit); await onChanged(); }
+    catch { setError('Не збереглось. Спробуй ще раз.'); }
+    finally { setBusy(false); }
   };
   const commitExpires = (d: string) => {
     setExpires(d);
@@ -208,6 +224,23 @@ export function BatchCard({ batch, product, onChanged, onRemove }: {
           </div>
         </div>
       </div>
+
+      {packable && (
+        <div className={styles['card-field']} data-pack-field>
+          <span className={styles['card-label']}>Вага одиниці</span>
+          <div className={styles['card-qty']}>
+            <input className={styles['card-qty-input']} inputMode="decimal" enterKeyHint="done" value={pack} aria-label="Вага одиниці" disabled={busy}
+              placeholder="—" onChange={(e) => setPack(e.target.value)} onBlur={() => void commitPack()} onKeyDown={onEnter} />
+            <label className={styles['card-unit']}>
+              <span>{packUnit === 'ml' ? 'мл' : 'г'}</span><Icon name="sys.open" size={12} inherit decorative />
+              <select className={styles['card-unit-select']} value={packUnit} aria-label="Одиниця ваги" disabled={busy}
+                onChange={(e) => { const u = e.target.value as 'g' | 'ml'; setPackUnit(u); if (pack.trim()) void commitPack(u); }}>
+                <option value="g">г</option><option value="ml">мл</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      )}
 
       {/* Строк — вісь часу блоком: плашка (danger / бурштин / тихо), дві
           відповіді на простроченому (необовʼязково), дата з пачки. «Був у

@@ -351,7 +351,7 @@ export function PantryPage() {
               {r.scale ? <FreshIcon fresh={r.fresh} /> : <span className={styles['mark-none']} aria-hidden />}
               {r.time}
             </span>
-            {r.qty && <span className={`${styles.qty} ${flat ? styles['qty-flat'] : ''}`}>{r.qty}</span>}
+            {r.qty && <span className={`${styles.qty} ${flat ? styles['qty-flat'] : ''}`}>{r.qty}{r.pack && !r.sub ? <span className={styles['qty-pack']} data-pack> · {r.pack}</span> : null}</span>}
             {/* №5 (рішення власника): число порядку («≈24 г», «120 ккал») —
                 останнім стовпчиком, після кількості; підпис шкали стоїть над
                 ним по тому ж краю. Назва — першою, як у порядку «за місцем». */}

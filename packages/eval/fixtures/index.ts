@@ -277,6 +277,11 @@ export function loadFixtures(): Fixture[] {
     ...['photo-product-plain', 'photo-product-ask', 'photo-product-more'].map((id) => readJson(`${id}.json`)),
     // F (20.09): рід dish × намір — питання про страву не губиться, звіт і без підпису — report/add.
     ...['photo-dish-ask', 'photo-dish-report', 'photo-dish-plain'].map((id) => readJson(`${id}.json`)),
+    // PR 4 (21.09): упаковане — qty + pack (вага одиниці); вагове без упаковки — v/u.
+    ...['pack-can-one', 'pack-cans-four', 'pack-bottle', 'pack-cheese', 'pack-receipt'].map((id) => {
+      const fx = readJson(`${id}.json`);
+      return fx.attachment?.kind === 'text' ? { ...fx, attachment: { ...fx.attachment, content: readText(fx.attachment.path) } } : fx;
+    }),
     // Вечірнє нагадування (spec 2026-09-20): серверна команда digestRequest у user-turn, по одній фікстурі на форму.
     // Порожній дім — без моделі (pickForm → null), тому фікстури нема.
     ...['digest-voice-list', 'digest-voice-event', 'digest-voice-burning', 'digest-voice-dish'].map((id) => {

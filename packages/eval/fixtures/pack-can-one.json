@@ -1,0 +1,12 @@
+{
+  "id": "pack-can-one",
+  "description": "Одна банка кукурудзи 340 г → qty 1, pack 340 g (не v 340 g).",
+  "call": "attachment_parse",
+  "attachment": {
+    "kind": "image",
+    "path": "photo-pack-can-one.png"
+  },
+  "invariants": [
+    "pack-op:кукурудз=1:340g"
+  ]
+}

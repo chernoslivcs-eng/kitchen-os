@@ -419,3 +419,17 @@ describe('групування партій по продукту (v2 «Парт
     expect(productGroupKey({ product_id: null, label: '  Кава  ' })).toBe(productGroupKey({ product_id: null, label: 'кава' }));
   });
 });
+
+// Упаковане (PR 4, 21.09): штучна партія з відомою вагою одиниці — «4 шт · 400 г».
+describe('рядок «4 шт · 400 г»', () => {
+  it('pack — вага одиниці з продукту; без продукту чи для вагового — порожньо', () => {
+    const products = new Map([['p1', { id: 'p1', product: 'томати пелаті', brand: 'Metro Chef', variant: null, unit: 'pcs' as const, pack_size: 400, pack_unit: 'g' as const, tags: {} }]]);
+    const items = [b('Томати пелаті', { unit: 'pcs', value: 4, product_id: 'p1', zone: 'dry' }), b('Сало', { unit: 'g', value: 500, zone: 'fridge' })];
+    const v = applyFilter(items, INITIAL, { productsById: products, receiptAt: null });
+    const rows = v.groups.flatMap((g) => g.items);
+    const pelati = rows.find((r) => r.name === 'томати пелаті')!;
+    expect(pelati.qty).toBe('4 шт'); expect(pelati.pack).toBe('400 г');
+    expect(rows.find((r) => r.name === 'Сало')!.pack).toBe('');
+  });
+});
+
