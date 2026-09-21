@@ -214,11 +214,16 @@
 }
 .go:hover:not(:disabled) { filter: brightness(0.96); }
 .go:disabled { opacity: .6; cursor: default; }
-.share-result {
-  align-self: flex-end; border: 0; background: transparent; padding: 4px 0;
-  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer;
+/* Рішення власника 21.09: «Поділитись результатом» — знак-картка в тому ж
+   ряду, не текстовий рядок під ним (був непомітний). Квадрат висотою .go,
+   той самий рецепт card+тінь, що .back. */
+.share-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 64px; height: 64px; flex: none; border: 0; border-radius: 14px;
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--muted); cursor: pointer;
 }
-.share-result:hover { color: var(--ink); }
+.share-btn:hover:not(:disabled) { color: var(--ink); }
+.share-btn:disabled { opacity: .4; cursor: default; }
 
 /* ── Шторка кроків (390) ────────────────────────────────────────────────── */
 .scrim { position: fixed; inset: 0; z-index: 95; background: rgba(26, 28, 30, 0.28); }
@@ -290,7 +295,7 @@
   .next-n { width: 26px; height: 26px; font-size: 12px; border-width: 1px; }
   .next-t { font-size: 14px; }
   .go { width: 240px; height: 60px; padding: 0; border-radius: 18px; font-size: 17px; gap: 10px; }
-  .share-result { padding: 0 0 12px; }
+  .share-btn { width: 60px; height: 60px; border-radius: 18px; }
 }
 
 /* ── <768 («Cook · 390») — за шириною попапа (№9) ─────────────────────── */
@@ -356,5 +361,5 @@
   .back { width: 56px; height: 56px; padding: 0; justify-content: center; border-radius: 16px; }
   .back-text { display: none; }
   .go { flex: 1; width: auto; height: 56px; border-radius: 16px; font-size: 17px; gap: 10px; }
-  .share-result { align-self: center; padding: 0 0 16px; }
+  .share-btn { width: 56px; height: 56px; border-radius: 16px; }
 }

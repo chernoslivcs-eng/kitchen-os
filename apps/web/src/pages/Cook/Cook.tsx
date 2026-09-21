@@ -564,8 +564,12 @@ export function CookOverlay() {
     </div>
   );
 
-  // Низ: «← Назад» · «N · Далі: …» · «✓ Крок готово» / «✓ Приготував».
-  // Дія: markDone() (№10 — відмічає крок, на якому стоїш) / finish().
+  // Низ: «← Назад» · «N · Далі: …» · [📷 Поділитись] · «✓ Крок готово» /
+  // «✓ Приготував». Дія: markDone() (№10 — відмічає крок, на якому стоїш) /
+  // finish(). Знак «Поділитись результатом» (рішення власника 21.09,
+  // раніше — текстовий рядок під рядом, непомітний) — тепер у ТОМУ Ж ряду,
+  // квадрат-картка зліва від головної дії (та сама робота, що «Приготував»,
+  // і лише потім /share — див. finish('share')); лише на останньому кроці.
   const bottomRow = (
     <div className={styles.bottom}>
       <button type="button" className={styles.back} onClick={() => goToStep(stepIdx - 1)} disabled={stepIdx === 0} aria-label="Назад" data-step-back>
@@ -575,18 +579,17 @@ export function CookOverlay() {
         <span className={styles['next-n']}>{Math.min(total, stepIdx + 2)}</span>
         <span className={styles['next-t']}>{nextLabel}</span>
       </div>
+      {isLast && (
+        <button type="button" className={styles['share-btn']} disabled={finishing} onClick={() => void finish('share')}
+          aria-label="Поділитись результатом" title="Поділитись результатом" data-share-result>
+          <Icon name="sys.photo" size={20} inherit decorative />
+        </button>
+      )}
       <button type="button" className={styles.go} disabled={stepLocked || finishing}
         onClick={isLast ? () => void finish() : markDone} data-step-done={isLast ? undefined : true} data-finish={isLast ? true : undefined}>
         <Icon name="sys.done" size={20} inherit decorative />{isLast ? (finishing ? 'Зберігаю…' : 'Приготував') : 'Крок готово'}
       </button>
     </div>
-  );
-  // Крок О2 (3): другий вихід «Поділитись результатом» — та сама робота, що
-  // «Приготував», і лише потім /share. Лише на останньому кроці, текстом.
-  const shareRow = isLast && (
-    <button type="button" className={styles['share-result']} disabled={finishing} onClick={() => void finish('share')} data-share-result>
-      Поділитись результатом
-    </button>
   );
 
   return (
@@ -668,7 +671,6 @@ export function CookOverlay() {
             <span className={styles['next-t']}>{nextLabel}</span>
           </div>
           {bottomRow}
-          {shareRow}
         </section>
       </div>
 
