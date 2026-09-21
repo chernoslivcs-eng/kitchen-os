@@ -1,0 +1,37 @@
+{
+  "id": "correct-pack-volume",
+  "description": "«Який обʼєм?» → «190» на партії 1 pcs → correct з pack {190, g}, штуки не чіпати.",
+  "call": "chat",
+  "now": "2026-09-21T12:00:00",
+  "pantry": [
+    {
+      "id": "b-pesto",
+      "label": "песто Sacla базилік",
+      "zone": "dry",
+      "v": 1,
+      "u": "pcs",
+      "state": "sealed"
+    },
+    {
+      "id": "b-rice",
+      "label": "рис басматі",
+      "zone": "dry",
+      "v": 900,
+      "u": "g",
+      "state": "sealed"
+    }
+  ],
+  "conversation": [
+    {
+      "role": "assistant",
+      "content": "Записав песто Sacla — одну банку. Який обʼєм на банці?"
+    },
+    {
+      "role": "user",
+      "content": "190"
+    }
+  ],
+  "invariants": [
+    "correct-pack:песто=190g"
+  ]
+}

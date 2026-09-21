@@ -277,6 +277,8 @@ export function loadFixtures(): Fixture[] {
     ...['photo-product-plain', 'photo-product-ask', 'photo-product-more'].map((id) => readJson(`${id}.json`)),
     // F (20.09): рід dish × намір — питання про страву не губиться, звіт і без підпису — report/add.
     ...['photo-dish-ask', 'photo-dish-report', 'photo-dish-plain'].map((id) => readJson(`${id}.json`)),
+    // PR 4, після живого прогону: правка штучної партії — грами/мл → pack, «їх 3» → value.
+    ...['correct-pack-volume', 'correct-pack-count'].map((id) => readJson(`${id}.json`)),
     // PR 4 (21.09): упаковане — qty + pack (вага одиниці); вагове без упаковки — v/u.
     ...['pack-can-one', 'pack-cans-four', 'pack-bottle', 'pack-cheese', 'pack-receipt'].map((id) => {
       const fx = readJson(`${id}.json`);

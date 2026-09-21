@@ -1417,6 +1417,27 @@ export function resolve(name: string): Invariant {
       return m?.[1] === arg ? pass(arg) : fail(`kind ${m?.[1] ?? '—'}, чекали ${arg}`);
     };
   }
+  // PR 4, правка штучної партії: «correct-pack:песто=190g» — correct на label з pack {190,g}, без value;
+  // «correct-count:песто=3» — correct value 3 unit pcs, без pack.
+  if (base === 'correct-pack' || base === 'correct-count') {
+    const [frag, want] = name.slice(base.length + 1).split('=');
+    return (out) => {
+      const card = out.card as { type?: string; ops?: Record<string, unknown>[] } | null;
+      if (!card || card.type !== 'intake_diff') return fail(`нема intake_diff: «${String(out.reply ?? '').slice(0, 100)}»`);
+      const op = (card.ops ?? []).find((o) => o.op === 'correct' && String(o.label ?? '').toLowerCase().includes((frag ?? '').toLowerCase()));
+      if (!op) return fail(`нема correct для «${frag}»: ${JSON.stringify(card.ops).slice(0, 160)}`);
+      const pack = op.pack as { v?: number; u?: string } | undefined;
+      if (base === 'correct-pack') {
+        const m = /^(\d+)(g|ml)$/.exec(want ?? '');
+        if (!pack || Number(pack.v) !== Number(m?.[1]) || pack.u !== m?.[2]) return fail(`pack ${JSON.stringify(pack)} ≠ ${want}: ${JSON.stringify(op)}`);
+        if (op.value != null && op.unit !== 'pcs') return fail(`штуки зачеплені: value ${String(op.value)} ${String(op.unit)}`);
+        return pass(`pack ${pack.v} ${pack.u}`);
+      }
+      if (Number(op.value) !== Number(want) || (op.unit && op.unit !== 'pcs')) return fail(`value ${String(op.value)} ${String(op.unit)} ≠ ${want} pcs`);
+      if (pack) return fail(`зайвий pack: ${JSON.stringify(pack)}`);
+      return pass(`${String(op.value)} pcs`);
+    };
+  }
   // PR 4 (21.09): «pack-op:томат=4:400g» — add-оп із label, що містить фрагмент, несе qty і pack {v,u};
   // «pack-op:сир=none» — такий оп БЕЗ qty/pack (вагове), але з value/unit.
   if (base === 'pack-op') {

@@ -689,7 +689,20 @@ async function applyIntakeOp(
     await repo.updateBatch(target.id, patch);
   } else if (op.op === 'correct') {
     const patch: Partial<PantryBatch> = { last_by: actor, last_action: 'correct' };
-    if (op.value !== undefined || op.unit !== undefined) {
+    // PR 4 (21.09, живий прогін): партія в штуках, а правка в грамах/мл — це ВАГА
+    // ОДИНИЦІ, не кількість: «190» на «1 шт» робило партію «190 г», штуки губились.
+    // Явний pack — теж сюди. Пишеться на продукт (усі партії), value/unit партії не чіпає.
+    const packFromUnits = (target.unit === 'pcs' || target.unit === 'pack') && op.value != null && op.unit
+      && WEIGHT_UNITS.has(op.unit) ? normalizeUnit(op.value, op.unit) : null;
+    const pack = op.pack && op.pack.v > 0 && (op.pack.u === 'g' || op.pack.u === 'ml') ? op.pack
+      : packFromUnits && packFromUnits.value != null && (packFromUnits.unit === 'g' || packFromUnits.unit === 'ml')
+        ? { v: packFromUnits.value, u: packFromUnits.unit } : null;
+    if (pack) {
+      if (target.product_id) {
+        const prod = await repo.getProduct(target.product_id);
+        if (prod) await repo.updateProduct(prod.id, { pack_size: pack.v, pack_unit: pack.u });
+      }
+    } else if (op.value !== undefined || op.unit !== undefined) {
       // Пропускаємо і value, і unit через normalizeUnit разом, щоб
       // конверсія «0.25 л» → 250 мл спрацювала і для correction теж.
       const norm = normalizeUnit(op.value, op.unit);

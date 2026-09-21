@@ -1,0 +1,37 @@
+{
+  "id": "correct-pack-count",
+  "description": "«їх 3» на партії 1 pcs → correct value 3 pcs, без pack.",
+  "call": "chat",
+  "now": "2026-09-21T12:00:00",
+  "pantry": [
+    {
+      "id": "b-pesto",
+      "label": "песто Sacla базилік",
+      "zone": "dry",
+      "v": 1,
+      "u": "pcs",
+      "state": "sealed"
+    },
+    {
+      "id": "b-rice",
+      "label": "рис басматі",
+      "zone": "dry",
+      "v": 900,
+      "u": "g",
+      "state": "sealed"
+    }
+  ],
+  "conversation": [
+    {
+      "role": "assistant",
+      "content": "Записав песто Sacla — одну банку."
+    },
+    {
+      "role": "user",
+      "content": "їх 3"
+    }
+  ],
+  "invariants": [
+    "correct-count:песто=3"
+  ]
+}
