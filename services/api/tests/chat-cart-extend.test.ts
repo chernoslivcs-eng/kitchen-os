@@ -92,16 +92,31 @@ describe('чат: «додай X» при відкритому кошику ро
     expect(carts).toHaveLength(1);
   });
 
-  it('кола летить у кошик мережі, але НЕ в список покупок', async () => {
-    await buildCart();
+  it('кола дописується в чернетку кошика (у Сільпо — лише по «Оформити»), але НЕ в список покупок', async () => {
+    const { card_id } = await buildCart();
     added.length = 0;
-    await app.inject({
+    const r = await app.inject({
       method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
       payload: { text: 'додай колу' },
     });
-    expect(added.map((i) => i.productId)).toEqual(['p-cola']);
+    expect(added).toHaveLength(0);                                    // 21.09: чернетка
+    expect((r.json().card.rows as { product: { product_id: string } | null }[]).some((x) => x.product?.product_id === 'p-cola')).toBe(true);
     const list = await repo.listShoppingItems(me.household_id);
     expect(list.map((i) => i.label)).toEqual(['кунжут']);
+    await app.inject({ method: 'POST', url: '/v1/retail/cart/commit', headers: { cookie: me.cookie }, payload: { card_id } });
+    expect(added.map((i) => i.productId)).toContain('p-cola');
+  });
+
+  it('після «Оформити» «додай колу» не дописує в закриту картку — збирається нова чернетка', async () => {
+    const { card_id } = await buildCart();
+    await app.inject({ method: 'POST', url: '/v1/retail/cart/commit', headers: { cookie: me.cookie }, payload: { card_id } });
+    added.length = 0;
+    const r = await app.inject({ method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie }, payload: { text: 'додай колу' } });
+    expect(r.json().card?.type).toBe('cart');
+    expect(r.json().card_id).not.toBe(card_id);
+    expect(added).toHaveLength(0);
+    const closed = await repo.getMessage(card_id);
+    expect((closed?.card as { committed?: boolean }).committed).toBe(true);
   });
 
   it('без відкритого кошика «додай колу» кошика не чіпає — це список покупок', async () => {

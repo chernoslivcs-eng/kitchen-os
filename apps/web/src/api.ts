@@ -426,11 +426,12 @@ export interface CartRow {
     product_id: string; company_id: string; branch_id: string;
     name: string; price: number; weighted: boolean; quantity: number;
     package_ml: number | null;
+    slug?: string | null;                // 21.09: лінк на silpo.ua/product/<slug>
   } | null;
   // 01.09 рівень 1: інші варіанти того самого пошуку. Хіт — інформаційно
   // («ще є: …», без тапу); проміс — кнопки «замінити» (в кошик їде тільки
   // тапом, index у масиві = alt_index для /cart-swap).
-  alternatives?: { name: string; price: number; weighted: boolean; quantity: number }[];
+  alternatives?: { name: string; price: number; weighted: boolean; quantity: number; slug?: string | null }[];
 }
 
 export type OccasionSet = Tradition | 'seasons';
@@ -517,6 +518,9 @@ export interface ChatCard {
   found?: number;                      // cart: скільки реально поїде
   of?: number;                         // cart: скільки було в списку
   cart_url?: string;                   // cart: «Оформити в Сільпо ↗»
+  committed?: boolean;                 // cart (21.09): чернетка → true після «Оформити»
+  committed_at?: string | null;
+  failed?: string[];                   // cart: що не поїхало при commit (label рядка)
   recipe?: Recipe;                     // тільки для type: 'recipe' — імпорт із вкладення
   run_id?: string;                     // cook_photo
   recipe_id?: string;                  // recipe_link
@@ -666,10 +670,16 @@ export const api = {
         method: 'POST', body: JSON.stringify({ card_id, row_index, alt_index }),
       }),
     // 01.09 картка v2: степер кількості на рядку — сервер округлює за типом
-    // (вагове/кількісне/обсягове), оновлює живий кошик Сільпо, рахує total.
+    // (вагове/кількісне/обсягове), рахує total. 21.09: лише чернетка, без мережі.
     cartUpdateQty: (card_id: string, row_index: number, quantity: number) =>
       req<{ card: ChatCard; card_id: string }>('/v1/retail/silpo/cart-update-qty', {
         method: 'POST', body: JSON.stringify({ card_id, row_index, quantity }),
+      }),
+    // 21.09: «Оформити в Сільпо» — єдине місце, де чернетка їде в кошик мережі одним
+    // пакетом. failed — що не додалось (label рядка); повторний виклик — ok без дублів.
+    cartCommit: (card_id: string) =>
+      req<{ ok: true; card: ChatCard; card_id: string; failed: string[]; already?: boolean }>('/v1/retail/cart/commit', {
+        method: 'POST', body: JSON.stringify({ card_id }),
       }),
     syncReceipts: () => req<{
       up_to_date: boolean;

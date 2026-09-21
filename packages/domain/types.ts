@@ -342,6 +342,8 @@ export interface CartCardRow {
     product_id: string; company_id: string; branch_id: string;
     name: string; price: number; weighted: boolean; quantity: number;
     package_ml: number | null;
+    /** 21.09: slug сторінки товару на silpo.ua/product/<slug> — лінк із картки. */
+    slug?: string | null;
   } | null;
   // 01.09 рівень 1: інші знайдені варіанти по тому самому пошуку (Сільпо й
   // так їх повертає — раніше просто відкидались). Значення поля залежить
@@ -355,6 +357,7 @@ export interface CartCardRow {
   alternatives?: {
     product_id: string; company_id: string; branch_id: string;
     name: string; price: number; weighted: boolean; quantity: number;
+    slug?: string | null;
   }[];
 }
 
@@ -367,6 +370,14 @@ export interface CartCard {
   found: number;
   of: number;
   cart_url: string;
+  // 21.09 (рішення власника): картка — ЧЕРНЕТКА. «Зібрати кошик» лише шукає, у
+  // Сільпо нічого не їде; заміна й кількість правлять тільки картку. В кошик
+  // мережі все їде одним пакетом по «Оформити» (POST /v1/retail/cart/commit) —
+  // тоді committed:true, далі рядки заблоковані (видаляти з кошика Сільпо ми не
+  // вміємо). failed — що не додалось при частковій невдачі (label рядка).
+  committed?: boolean;
+  committed_at?: string | null;
+  failed?: string[];
 }
 
 // M13: «людина явно попросила оформити список через мережу» — той самий

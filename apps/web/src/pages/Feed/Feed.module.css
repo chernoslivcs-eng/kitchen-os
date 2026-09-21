@@ -895,16 +895,6 @@ a.att-chip:hover { border-color: var(--sage); }
   font-size: 13px;
   line-height: 1;
 }
-.cart-alt-more {
-  align-self: flex-start;
-  padding: 6px 0 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--sage);
-}
 .cart-alt-warn {
   font-family: var(--font-body);
   font-size: 11px;

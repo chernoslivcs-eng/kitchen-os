@@ -45,7 +45,8 @@ describe('retail: cart-update-qty — степер міняє кількість
       method: 'POST', url: '/v1/retail/silpo/build-cart', headers: { cookie: me.cookie },
     });
     const { card_id } = build.json();
-    expect(cartAdds).toEqual([{ productId: 'id-rice', companyId: 'c1', branchId: 'b1', quantity: 1 }]);
+    // 21.09: чернетка — у Сільпо нічого не їде до «Оформити» (POST /v1/retail/cart/commit).
+    expect(cartAdds).toEqual([]);
 
     const upd = await app.inject({
       method: 'POST', url: '/v1/retail/silpo/cart-update-qty', headers: { cookie: me.cookie },
@@ -55,7 +56,10 @@ describe('retail: cart-update-qty — степер міняє кількість
     const card = upd.json().card;
     expect(card.rows[0].product.quantity).toBe(3);
     expect(card.total).toBe(120); // 40₴ × 3
-    expect(cartAdds.at(-1)).toEqual({ productId: 'id-rice', companyId: 'c1', branchId: 'b1', quantity: 3 });
+    expect(cartAdds).toEqual([]);                                   // степер — без мережі
+    const commit = await app.inject({ method: 'POST', url: '/v1/retail/cart/commit', headers: { cookie: me.cookie }, payload: { card_id } });
+    expect(commit.statusCode).toBe(200);
+    expect(cartAdds).toEqual([{ productId: 'id-rice', companyId: 'c1', branchId: 'b1', quantity: 3 }]);   // поїхала кількість зі степера
   });
 
   it('вагове округлюється до кроку 0.1, мінімум 0.1', async () => {
