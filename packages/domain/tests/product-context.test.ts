@@ -62,13 +62,15 @@ describe('serializePantry × продукт дому', () => {
     // моделі читати «!Nдн» як «саме стільки днів». Строк, порахований із зони
     // й дати завантаження, такої точності не має — видати його за точний
     // означало б збрехати рівно так, як робило «все свіже» в розборі чека.
+    // v2 (21.09): число — з таблиці за категорією, тому ключ; без нього строку нема.
     const b = batch({
-      label: 'помідори', zone: 'fresh',
+      label: 'помідори', zone: 'fresh', catalog_key: 'veg_tomato_plum',
       added_at: new Date(NOW - 5 * DAY).toISOString(),
     });
     const out = serializePantry([b], NOW, false, 'none');
     expect(out).toContain('~строк≈2дн');
     expect(out).not.toContain('!2дн');
+    expect(serializePantry([batch({ label: 'помідори', zone: 'fresh', added_at: b.added_at })], NOW, false, 'none')).not.toContain('строк');
   });
 
   it('ручна дата лишається точною навіть там, де зона порахувала б інакше', () => {
@@ -153,7 +155,8 @@ describe('serializePantry: кеп і відбір', () => {
     //
     // Тест не вимагає це полагодити — він фіксує, що поведінка саме така, щоб
     // наступний, хто це побачить, не шукав причину в строках.
-    const bs = many(130, (i) => ({ zone: 'fridge' as const, added_at: new Date(NOW - i * DAY).toISOString() }));
+    // v2: без категорії строку нема — ярус «за свіжістю» потребує числа, тому ключ (кефір, fridge 21 — як колишній дефолт зони).
+    const bs = many(130, (i) => ({ zone: 'fridge' as const, catalog_key: 'dairy_kefir_1', added_at: new Date(NOW - i * DAY).toISOString() }));
     const out = serializePantry(bs, NOW, false, 'none', 120, []);
     expect(out).not.toContain('продукт 0 ·');      // найсвіжіша випала
     expect(out).toContain('продукт 129');          // найстаріша лишилась

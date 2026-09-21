@@ -199,7 +199,7 @@ export function serializePantry(
     // видати його за точний означало б збрехати рівно так, як робив зразок
     // «все свіже» в розборі вкладення.
     const zoneApprox = days == null && openApprox == null
-      ? daysLeft(effectiveExpiry(b, prod?.catalog_key ?? null, now), now)
+      ? daysLeft(effectiveExpiry(b, prod?.catalog_key ?? b.catalog_key ?? null, now), now)
       : null;
     const approxDays = openApprox ?? zoneApprox;
     const ageDays = Math.floor((now - new Date(b.added_at).getTime()) / 86_400_000);
