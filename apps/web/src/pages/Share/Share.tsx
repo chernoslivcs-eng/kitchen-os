@@ -16,7 +16,20 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '../../components/Icon/Icon';
 import type { Recipe } from '../../api';
 import { plural } from '../../lib/plural';
+import { captureClientIncident } from '../../lib/sentry';
 import styles from './Share.module.css';
+
+// Баг з проду (iPhone, Chrome): navigator.share/завантаження мовчки нічого
+// не робили. Причина — user activation: `await toPngBlob()` (redraw +
+// canvas.toBlob) ПЕРЕД navigator.share/a.click() зʼїдав жест користувача,
+// iOS кидав NotAllowedError (ковтався catch), iOS-Chrome ігнорував a.click()
+// після await. Фікс: PNG готуємо ЗАЗДАЛЕГІДЬ (після кожного redraw), share()/
+// download() читають готовий blob СИНХРОННО — жодного await до
+// navigator.share()/a.click(). Функція, не константа модуля: `navigator`
+// читається лише в браузерному рантаймі виклику, не при імпорті файла.
+function isIOSChrome(): boolean {
+  return typeof navigator !== 'undefined' && /CriOS\//.test(navigator.userAgent);
+}
 
 interface State { recipe?: Recipe; photoUrl?: string | null; recipeId?: string | null }
 
@@ -53,11 +66,18 @@ export function SharePage() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(state?.photoUrl ?? null);
   const [format, setFormat] = useState<Format>('story');
   const [template, setTemplate] = useState<Template>('A');
-  const [busy, setBusy] = useState<'share' | 'download' | null>(null);
+  const [busy, setBusy] = useState<'share' | null>(null);
   const [copied, setCopied] = useState(false);
+  // PNG готовий заздалегідь (не в момент кліку) — див. коментар нагорі файла.
+  const [ready, setReady] = useState(false);
+  const [shareError, setShareError] = useState(false);
+  const [downloadHint, setDownloadHint] = useState(false);
+  const blobRef = useRef<Blob | null>(null);
+  const fileRef = useRef<File | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const photoRef = useRef<HTMLImageElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const downloadBtnRef = useRef<HTMLButtonElement>(null);
 
   const r = recipe;
   const total = r?.ing.length ?? 0;
@@ -98,7 +118,17 @@ export function SharePage() {
     DRAW[template](ctx, w, h, d);
   }, [r, format, template, fromPantry, total]);
 
-  useEffect(() => { void redraw(); }, [redraw, photoUrl]);
+  // PNG готовий ЗАЗДАЛЕГІДЬ — після кожного redraw (зміна формату/шаблону/
+  // фото), не в момент кліку «Поділитись»/«Завантажити». Кнопки лишаються
+  // disabled/«Готую…», поки `ready` не стане true — сам клік тоді бере
+  // готовий blob СИНХРОННО, без жодного await, що зʼїв би user activation.
+  useEffect(() => {
+    let cancelled = false;
+    setReady(false);
+    void regenerate().then(() => { if (!cancelled) setReady(true); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- regenerate зі стабільного замикання (той самий r/redraw), той самий перелік залежностей, що й раніше
+  }, [redraw, photoUrl]);
 
   useEffect(() => {
     return () => { if (photoUrl) URL.revokeObjectURL(photoUrl); };
@@ -115,22 +145,37 @@ export function SharePage() {
     );
   }
 
-  function onPickPhoto(files: FileList | null) {
-    if (!files?.length) return;
-    const url = URL.createObjectURL(files[0]!);
-    const img = new Image();
-    img.onload = () => { photoRef.current = img; void redraw(); };
-    img.src = url;
-    setPhotoUrl(url);
-  }
-
   function fileName() {
     return `kitchen-os-${r!.t.toLowerCase().replace(/\s+/g, '-')}.png`;
   }
 
-  async function toPngBlob(): Promise<Blob | null> {
+  // Перемальовує canvas і одразу готує blob/File з нього — той самий крок,
+  // що ефект нагорі виконує на зміну формату/шаблону; тут викликається ще й
+  // напряму з onPickPhoto (img.onload не проходить через ефект — фото
+  // приходить асинхронно, і без цього виклику .rval лишався б заставкою,
+  // поки не мінявся б формат/шаблон удруге).
+  async function regenerate(): Promise<void> {
     await redraw();
-    return new Promise((res) => canvasRef.current?.toBlob((b) => res(b), 'image/png') ?? res(null));
+    const canvas = canvasRef.current;
+    if (!r || !canvas) return;
+    await new Promise<void>((resolve) => {
+      canvas.toBlob((b) => {
+        if (b) {
+          blobRef.current = b;
+          fileRef.current = new File([b], fileName(), { type: 'image/png' });
+        }
+        resolve();
+      }, 'image/png');
+    });
+  }
+
+  function onPickPhoto(files: FileList | null) {
+    if (!files?.length) return;
+    const url = URL.createObjectURL(files[0]!);
+    const img = new Image();
+    img.onload = () => { photoRef.current = img; setReady(false); void regenerate().then(() => setReady(true)); };
+    img.src = url;
+    setPhotoUrl(url);
   }
 
   function caption(): string {
@@ -141,36 +186,56 @@ export function SharePage() {
 
   const canSystemShare = typeof navigator.canShare === 'function';
 
-  async function share() {
-    setBusy('share');
-    try {
-      const blob = await toPngBlob();
-      if (!blob) return;
-      const file = new File([blob], fileName(), { type: 'image/png' });
-      if (navigator.canShare?.({ files: [file] })) {
-        // text не додаємо: Інстаграм ігнорує його, а деякі шити через нього
-        // ховають файл. Підпис — окремою кнопкою в буфер.
-        await navigator.share({ files: [file] }).catch(() => {/* скасував — ок */});
-      } else {
-        downloadBlob(blob);
-      }
-    } finally {
-      setBusy(null);
+  // Баг з проду: НЕ async, жодного await до navigator.share() — blob/File
+  // уже готові (blobRef/fileRef, ефект/regenerate вище), беремо синхронно
+  // в тому самому тіку, що клік, інакше iOS зʼїдає user activation і кидає
+  // NotAllowedError (раніше ковтався порожнім catch — людина не бачила
+  // нічого, ні шита, ні помилки).
+  function share() {
+    setShareError(false);
+    const file = fileRef.current;
+    const blob = blobRef.current;
+    if (!file || !blob) return; // кнопка й так disabled, поки !ready — про всяк
+    if (!navigator.canShare?.({ files: [file] })) {
+      downloadBlob(blob);
+      return;
     }
+    setBusy('share');
+    // text не додаємо: Інстаграм ігнорує його, а деякі шити через нього
+    // ховають файл. Підпис — окремою кнопкою в буфер.
+    navigator.share({ files: [file] })
+      .then(() => setBusy(null))
+      .catch((err: unknown) => {
+        setBusy(null);
+        const name = (err as { name?: string } | null)?.name;
+        if (name === 'AbortError') return; // сам скасував — тихо, не помилка
+        captureClientIncident('share-failed', { name, message: (err as Error | null)?.message });
+        console.error('share failed', err);
+        setShareError(true);
+        downloadBtnRef.current?.focus();
+      });
   }
 
-  async function download() {
-    setBusy('download');
-    try {
-      const blob = await toPngBlob();
-      if (blob) downloadBlob(blob);
-    } finally {
-      setBusy(null);
-    }
+  // Той самий принцип — синхронно з готового blobRef, без await.
+  function download() {
+    const blob = blobRef.current;
+    if (!blob) return;
+    downloadBlob(blob);
   }
 
   function downloadBlob(blob: Blob) {
     const url = URL.createObjectURL(blob);
+    // iOS-Chrome (CriOS) ігнорує `download` на blob-посиланнях — a.click()
+    // після await мовчки нічого не робив (та сама причина, що й share:
+    // тут не було await, але сам браузер не підтримує механізм узагалі).
+    // window.open синхронно відкриває PNG нативним переглядачем — людина
+    // зберігає довгим тапом.
+    if (isIOSChrome()) {
+      window.open(url, '_blank');
+      setDownloadHint(true);
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      return;
+    }
     const a = document.createElement('a');
     a.href = url;
     a.download = fileName();
@@ -241,20 +306,22 @@ export function SharePage() {
 
         <div className={styles.actions}>
           {primaryShare ? (
-            <button type="button" className={styles.share} onClick={share} disabled={busy !== null} data-share>
-              <Icon name="sys.share" size={16} inherit decorative />{busy === 'share' ? 'Готую…' : 'Поділитись'}
+            <button type="button" className={styles.share} onClick={share} disabled={busy !== null || !ready} data-share>
+              <Icon name="sys.share" size={16} inherit decorative />{!ready || busy === 'share' ? 'Готую…' : 'Поділитись'}
             </button>
           ) : (
-            <button type="button" className={styles.share} onClick={download} disabled={busy !== null} data-share>
-              <Icon name="sys.import" size={16} inherit decorative />{busy === 'download' ? 'Готую…' : 'Завантажити PNG'}
+            <button type="button" className={styles.share} onClick={download} disabled={!ready} data-share>
+              <Icon name="sys.import" size={16} inherit decorative />{!ready ? 'Готую…' : 'Завантажити PNG'}
             </button>
           )}
           {primaryShare && (
-            <button type="button" className={styles.download} onClick={download} disabled={busy !== null} aria-label="Завантажити PNG" title="Завантажити PNG" data-download>
+            <button ref={downloadBtnRef} type="button" className={styles.download} onClick={download} disabled={!ready} aria-label="Завантажити PNG" title="Завантажити PNG" data-download>
               <Icon name="sys.import" size={16} inherit decorative />
             </button>
           )}
         </div>
+        {shareError && <div className={styles.hint} data-share-error>Не вдалось відкрити меню — збережи PNG</div>}
+        {downloadHint && <div className={styles.hint} data-download-hint>Відкрив PNG — збережи довгим тапом</div>}
         <button type="button" className={styles.caption} onClick={copyCaption}>{copied ? 'Скопійовано' : 'Скопіювати підпис'}</button>
         {shareUrl && <div className={styles.hint}>Хто відкриє лінк — побачить той самий рецепт і зможе готувати в себе.</div>}
         <div className={styles.hint}>Це радше памʼять про вечерю, ніж звіт про неї. Що приготував і скільки вже було вдома — цього достатньо.</div>
