@@ -13,11 +13,13 @@ import type { ChatCard } from '../../api';
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root | undefined; let host: HTMLDivElement | undefined;
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
-const product = (id: string, name: string, price: number) => ({ product_id: id, company_id: 'c1', branch_id: 'b1', name, price, weighted: false, quantity: 1, package_ml: null });
+const product = (id: string, name: string, price: number, slug: string | null = null) => ({ product_id: id, company_id: 'c1', branch_id: 'b1', name, price, weighted: false, quantity: 1, package_ml: null, slug });
 const draft = (): ChatCard => ({
   type: 'cart', provider: 'silpo', list_label: null, cart_url: 'https://silpo.ua', committed: false,
   rows: [
-    { label: 'рис', item_id: null, v: null, u: null, product: product('id-rice', 'Рис круглий', 40), alternatives: [{ ...product('id-basmati', 'Рис басматі', 90) }] },
+    { label: 'рис', item_id: null, v: null, u: null, product: product('id-rice', 'Рис круглий', 40, 'rys-kruhlyi-1'), alternatives: [
+      { ...product('id-basmati', 'Рис басматі', 90, 'rys-basmati-2') }, { ...product('id-a3', 'Рис жасмін', 95) }, { ...product('id-a4', 'Рис дикий', 120, 'rys-dykyi-4') }, { ...product('id-a5', 'Рис бурий', 70) },
+    ] },
     { label: 'лосось', item_id: null, v: null, u: null, product: product('id-salmon', 'Лосось', 500), alternatives: [] },
   ],
   total: 540, found: 2, of: 2,
@@ -76,5 +78,27 @@ describe('RetailCartCard · чернетка → commit', () => {
     expect(host!.querySelector('[data-cart-failed]')?.textContent).toContain('лосось');
     expect(host!.querySelectorAll('[data-row-failed]').length).toBe(1);
     expect(host!.textContent).toContain('Лосось — не поїхало');
+  });
+
+  it('slug → назва товару і альтернативи — лінк silpo.ua/product/<slug> (_blank, noopener); без slug — текст', async () => {
+    await mount(draft());
+    const main = host!.querySelector<HTMLAnchorElement>('[data-product-link]')!;
+    expect(main.getAttribute('href')).toBe('https://silpo.ua/product/rys-kruhlyi-1');
+    expect(main.getAttribute('target')).toBe('_blank');
+    expect(main.getAttribute('rel')).toContain('noopener');
+    expect(host!.querySelectorAll('[data-product-link]').length).toBe(1);   // лосось без slug — текст
+    await click('[aria-expanded]');
+    const alts = [...host!.querySelectorAll('[data-product-link]')].map((a) => a.getAttribute('href'));
+    expect(alts).toEqual(['https://silpo.ua/product/rys-kruhlyi-1', 'https://silpo.ua/product/rys-basmati-2', 'https://silpo.ua/product/rys-dykyi-4']);
+  });
+
+  it('«ЗАМІНИТИ 4 ›» розкриває всі 4 одразу, кнопки «Ще» нема; повторний тап згортає', async () => {
+    await mount(draft());
+    expect(host!.querySelector('[aria-expanded]')!.textContent).toContain('ЗАМІНИТИ 4');
+    await click('[aria-expanded]');
+    expect(host!.querySelectorAll('[aria-label^="замінити на"]').length).toBe(4);
+    expect(host!.textContent).not.toMatch(/ЩЕ \d/);
+    await click('[aria-expanded]');
+    expect(host!.querySelectorAll('[aria-label^="замінити на"]').length).toBe(0);
   });
 });

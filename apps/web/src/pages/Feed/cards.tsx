@@ -1165,9 +1165,10 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
   const [justSwapped, setJustSwapped] = useState<number | null>(null);
   // 01.09 рівень 1: альтернативи показують перші кілька, решта — під тапом.
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  // V3: розкритий список показує три найближчі, решта — під «ще N ▾».
-  // Два стани, а не один: «відкрито взагалі» і «відкрито повністю».
-  const [showAllAlts, setShowAllAlts] = useState<Set<number>>(new Set());
+  // 21.09 (рішення власника): розкритий список показує ВСІ альтернативи одразу;
+  // розкриття/згортання — лише самим «ЗАМІНИТИ N», без «Ще N» і внутрішнього скролу.
+  // Лінк на сторінку товару — silpo.ua/product/<slug> (шаблон перевірено на живому slug).
+  const productHref = (slug?: string | null) => (slug ? `https://silpo.ua/product/${encodeURIComponent(slug)}` : null);
   const rows = card.rows ?? [];
   // 21.09 (рішення власника): картка — чернетка, у Сільпо їде по «Оформити» одним
   // пакетом. Після commit степер/заміна заблоковані — видаляти з кошика мережі ми
@@ -1330,14 +1331,29 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                   природою; ріжеться саме паспортна назва, а повна лишається
                   в title і в розкритому списку. */}
               <div className={styles['cart-item-sub']}>
-                <span
-                  className={styles['cart-passport']}
-                  style={p && !failed.has(r.label) ? undefined : { color: 'var(--amber)' }}
-                  title={p ? p.name : undefined}
-                  data-row-failed={failed.has(r.label) ? '' : undefined}
-                >
-                  {failed.has(r.label) ? `${p?.name ?? r.label} — не поїхало` : p ? p.name : 'немає в цій філії'}
-                </span>
+                {p && productHref(p.slug) ? (
+                  <a
+                    href={productHref(p.slug)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles['cart-passport']}
+                    style={failed.has(r.label) ? { color: 'var(--amber)' } : undefined}
+                    title={p.name}
+                    data-row-failed={failed.has(r.label) ? '' : undefined}
+                    data-product-link
+                  >
+                    {failed.has(r.label) ? `${p.name} — не поїхало` : p.name} <Icon name="sys.out" size={12} inherit decorative />
+                  </a>
+                ) : (
+                  <span
+                    className={styles['cart-passport']}
+                    style={p && !failed.has(r.label) ? undefined : { color: 'var(--amber)' }}
+                    title={p ? p.name : undefined}
+                    data-row-failed={failed.has(r.label) ? '' : undefined}
+                  >
+                    {failed.has(r.label) ? `${p?.name ?? r.label} — не поїхало` : p ? p.name : 'немає в цій філії'}
+                  </span>
+                )}
                 {committed && p && (
                   <span className={styles['cart-swap-link']} style={{ color: 'var(--muted)' }} data-cart-locked>уже в кошику Сільпо</span>
                 )}
@@ -1368,9 +1384,15 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                   два різні продукти в одному вікні. */}
               {isExpanded && alts.length > 0 && (
                 <div className={styles['cart-alts']}>
-                  {(showAllAlts.has(i) ? alts : alts.slice(0, 3)).map((a, ai) => (
+                  {alts.map((a, ai) => (
                     <div key={ai} className={styles['cart-alt']}>
-                      <span className={styles['cart-alt-name']} title={a.name}>{a.name}</span>
+                      {productHref(a.slug) ? (
+                        <a href={productHref(a.slug)!} target="_blank" rel="noopener noreferrer" className={styles['cart-alt-name']} title={a.name} data-product-link>
+                          {a.name} <Icon name="sys.out" size={12} inherit decorative />
+                        </a>
+                      ) : (
+                        <span className={styles['cart-alt-name']} title={a.name}>{a.name}</span>
+                      )}
                       <span className={styles['cart-alt-price']}>{Math.round(a.price * a.quantity)}₴</span>
                       <button
                         type="button"
@@ -1398,15 +1420,6 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                       >+</button>
                     </div>
                   ))}
-                  {alts.length > 3 && !showAllAlts.has(i) && (
-                    <button
-                      type="button"
-                      className={styles['cart-alt-more']}
-                      onClick={() => setShowAllAlts((prev) => new Set(prev).add(i))}
-                    >
-                      ЩЕ {alts.length - 3} ▾
-                    </button>
-                  )}
                 </div>
               )}
             </div>

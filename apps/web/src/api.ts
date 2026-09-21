@@ -426,11 +426,12 @@ export interface CartRow {
     product_id: string; company_id: string; branch_id: string;
     name: string; price: number; weighted: boolean; quantity: number;
     package_ml: number | null;
+    slug?: string | null;                // 21.09: лінк на silpo.ua/product/<slug>
   } | null;
   // 01.09 рівень 1: інші варіанти того самого пошуку. Хіт — інформаційно
   // («ще є: …», без тапу); проміс — кнопки «замінити» (в кошик їде тільки
   // тапом, index у масиві = alt_index для /cart-swap).
-  alternatives?: { name: string; price: number; weighted: boolean; quantity: number }[];
+  alternatives?: { name: string; price: number; weighted: boolean; quantity: number; slug?: string | null }[];
 }
 
 export type OccasionSet = Tradition | 'seasons';

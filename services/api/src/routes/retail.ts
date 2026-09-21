@@ -622,13 +622,13 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
             })
             .map((c) => ({
               product_id: c.id, company_id: c.companyId, branch_id: c.branchId,
-              name: c.name, price: c.price, weighted: c.weighted, quantity: qtyFor(c, it),
+              name: c.name, price: c.price, weighted: c.weighted, quantity: qtyFor(c, it), slug: c.slug ?? null,
             }));
           return {
             label: it.label, item_id: it.id, v: it.value, u: it.unit,
             product: hit ? {
               product_id: hit.id, company_id: hit.companyId, branch_id: hit.branchId,
-              name: hit.name, price: hit.price, weighted: hit.weighted, quantity,
+              name: hit.name, price: hit.price, weighted: hit.weighted, quantity, slug: hit.slug ?? null,
               package_ml: hit.weighted ? null : parsePackageMl(hit.name),
             } : null,
             alternatives,
@@ -700,7 +700,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
 
       row.product = {
         product_id: a.product_id, company_id: a.company_id, branch_id: a.branch_id,
-        name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity,
+        name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity, slug: a.slug ?? null,
         package_ml: a.weighted ? null : parsePackageMl(a.name),
       };
       // Решта кандидатів того самого пошуку лишається — тепер уже
@@ -820,7 +820,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
         label: a.name, item_id: null, v: null, u: null,
         product: {
           product_id: a.product_id, company_id: a.company_id, branch_id: a.branch_id,
-          name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity,
+          name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity, slug: a.slug ?? null,
           package_ml: a.weighted ? null : parsePackageMl(a.name),
         },
         alternatives: [],
@@ -930,7 +930,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
         label, item_id: null, v: null, u: null,
         product: {
           product_id: p.id, company_id: p.companyId, branch_id: p.branchId,
-          name: p.name, price: p.price, weighted: p.weighted, quantity,
+          name: p.name, price: p.price, weighted: p.weighted, quantity, slug: p.slug ?? null,
           package_ml: p.weighted ? null : parsePackageMl(p.name),
         },
         alternatives: [],
