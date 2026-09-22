@@ -891,10 +891,13 @@ export const api = {
     // /v1/attachments/:id/bytes йому не доступний.
     // Сервер сам пише подію app_event 'share' {via:'telegram'} — клієнт її не дублює.
     async telegram(png: Blob, recipe_id: string, frame: 'poster' | 'vertical' | 'clean'): Promise<{ ok: true }> {
+      // Порядок полів важливий: сервер читає recipe_id/frame з file.fields
+      // під час req.file() — у стрімінговому multipart вони мусять стояти
+      // ДО png, інакше ще не розібрані (400 recipe_id required).
       const fd = new FormData();
-      fd.append('png', png, 'share.png');
       fd.append('recipe_id', recipe_id);
       fd.append('frame', frame);
+      fd.append('png', png, 'share.png');
       const res = await fetch('/v1/share/telegram', { method: 'POST', body: fd, credentials: 'include' });
       const text = await res.text();
       const payload: unknown = text ? safeParse(text) : null;
