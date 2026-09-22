@@ -3,7 +3,7 @@
 // unmatched — каталог не впізнав, людина вирішує сама («додати руками»).
 // Тут навмисно немає евристик поверх каталогу: що не впізнали — показуємо, не вгадуємо.
 import type { IntakeOp, Unit } from '@kitchen/domain';
-import { normalize, refineSpecies, refineFrozen } from '@kitchen/catalog';
+import { normalize, refineSpecies, refineFrozen, refineKind } from '@kitchen/catalog';
 import { CATALOG, BY_KEY, type CatalogItem } from '@kitchen/catalog/seed';
 
 export interface ReceiptLine {
@@ -64,7 +64,13 @@ export function resolveReceiptKey(name: string): string | null {
   // 15.09, правило (а): вид після родової голови («СИР КАМБОЦОЛА» — не «Сир»).
   // Те саме правило, що в resolveLabel, — щоб два резолвери давали один ключ.
   // Р161, PR 2: маркер заморозки в рядку → заморожена пара (той самий крок, що в resolveLabel).
-  return best ? refineFrozen(refineSpecies(best.item, words), normalize(name)).key : null;
+  // Етап 3: вид/стан із назви («темний», «сухе», «швидкого приготування», «з
+  // сиром», «безалкогольне») — теж той самий крок, і він може сказати «нема
+  // такої позиції», бо хибний ключ гірший за відсутній.
+  if (!best) return null;
+  const norm = normalize(name);
+  const kind = refineKind(refineSpecies(best.item, words), norm);
+  return kind ? refineFrozen(kind, norm).key : null;
 }
 
 export function receiptLinesToIntake(lines: ReceiptLine[]): ReceiptIntake {
