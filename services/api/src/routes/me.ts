@@ -11,11 +11,12 @@ import { COOKIE_NAME } from './auth.js';
 export function meRoute(app: FastifyInstance, repo: Repo) {
   app.get('/v1/me', { preHandler: authenticated(repo) }, async (req, reply) => {
     const { user_id, household_id, session_id } = requireUser(req);
-    const [user, household, members, role] = await Promise.all([
+    const [user, household, members, role, telegram] = await Promise.all([
       repo.getUser(user_id),
       repo.getHousehold(household_id),
       repo.listMembersOfHousehold(household_id),
       repo.roleOf(household_id, user_id),
+      repo.getTelegramByUser(user_id),
     ]);
     if (!user || !household) return reply.code(404).send({ error: 'user or household missing' });
     return {
@@ -32,6 +33,8 @@ export function meRoute(app: FastifyInstance, repo: Repo) {
         })),
       },
       session_id,
+      // Шерінг v3: «Надіслати в Telegram» на /share — лише коли є жива привʼязка (для всіх, не лише без пошти).
+      telegram_linked: !!telegram && !telegram.revoked_at,
     };
   });
 

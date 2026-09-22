@@ -2,7 +2,7 @@
 // і polling (стенд, scripts/telegram-dev.mts) — той самий бот. Поки хід думає —
 // «typing» кожні 4 с (Telegram тримає індикатор ~5 с); відповідь — одним
 // повідомленням HTML, довше за 4096 — двома-трьома.
-import { Bot, InlineKeyboard, Keyboard, type BotConfig, type Context } from 'grammy';
+import { Bot, InlineKeyboard, InputFile, Keyboard, type BotConfig, type Context } from 'grammy';
 import { Agent, fetch as undiciFetch } from 'undici';
 import { handleTelegramText, handleTelegramFile, handleTelegramVoice, handleTelegramCallback, handleQuickCallback, audioContentTypeOf, type TelegramDeps, type TelegramReply } from './telegram.js';
 
@@ -23,6 +23,16 @@ export function botInfoFor(token: string, username?: string | null): BotConfig<n
   const id = Number(token.split(':')[0]);
   if (!username || !Number.isFinite(id)) return undefined;
   return { id, is_bot: true, first_name: 'Kitchen OS', username, can_join_groups: false, can_read_all_group_messages: false, supports_inline_queries: false, can_connect_to_business: false, has_main_web_app: false, has_topics_enabled: false, allows_users_to_create_topics: false, can_manage_bots: false, supports_join_request_queries: false };
+}
+
+/** Шерінг v3: перший випадок, коли бот шле ФОТО — кадр із /share у чат людини.
+ *  Окремий лінивий Bot без polling; той самий telegramFetch (IPv4-пастка Vercel). */
+export function makeSendPhoto(token: string): (chat_id: number, png: Buffer, caption: string) => Promise<void> {
+  let bot: Bot | null = null;
+  return async (chat_id, png, caption) => {
+    bot ??= new Bot(token, { botInfo: botInfoFor(token, process.env.TELEGRAM_BOT_USERNAME), client: { fetch: telegramFetch as never } });
+    await bot.api.sendPhoto(chat_id, new InputFile(png, 'kitchen-os.png'), { caption });
+  };
 }
 
 export function makeTelegramBot(token: string, deps: TelegramDeps): Bot {
@@ -119,7 +129,9 @@ export function makeTelegramBot(token: string, deps: TelegramDeps): Bot {
     if (!r) return;
     // Кнопки зникають, повідомлення редагується: список лишається, статус — унизу.
     const text = ctx.callbackQuery.message && 'text' in ctx.callbackQuery.message ? ctx.callbackQuery.message.text : '';
-    await ctx.editMessageText(text ? `${text}\n\n${r.status}` : r.status, { reply_markup: undefined }).catch(() => ctx.reply(r.status));
+    // Шерінг v3: після «Прикріпити до журналу» лишається url-кнопка «Поділитись у сторіз».
+    const kb = r.keyboard ? InlineKeyboard.from(r.keyboard.map((row) => row.map((b) => (b.url ? InlineKeyboard.url(b.text, b.url) : InlineKeyboard.text(b.text, b.data!))))) : undefined;
+    await ctx.editMessageText(text ? `${text}\n\n${r.status}` : r.status, { reply_markup: kb }).catch(() => ctx.reply(r.status, kb ? { reply_markup: kb } : undefined));
   });
   return bot;
 }

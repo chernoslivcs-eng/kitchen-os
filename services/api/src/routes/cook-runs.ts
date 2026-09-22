@@ -354,10 +354,13 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
     },
   );
 
-  app.get('/v1/cook-runs', { preHandler: authenticated(repo) }, async (req) => {
+  // Шерінг v3 (spec 2026-09-22): ?recipe_id= — лише записи цього рецепта (екран /share
+  // бере останній не-undone з фото). Без фільтра — як було.
+  app.get<{ Querystring: { recipe_id?: string } }>('/v1/cook-runs', { preHandler: authenticated(repo) }, async (req) => {
     const { user_id } = requireUser(req);
     const runs = await repo.listCookRuns(user_id, 30);
-    return { runs };
+    const rid = req.query.recipe_id;
+    return { runs: rid ? runs.filter((r) => r.recipe_id === rid) : runs };
   });
 
   // Розкат назад: партіям, що були депляцовані — повертаємо попередній стан;
