@@ -533,6 +533,10 @@
   .bar { display: flex; align-items: flex-start; justify-content: space-around; }
   :global(body.composer-focused) .bar,
   :global(body.sheet-open) .bar { transform: translateY(110%); }
+  /* Шерінг v3, фікс 4 (22.09): /share тепер під каркасом Shell (для 768+),
+     але на мобільному лишається повноекранним, як і був — без нижнього
+     таббара, якого раніше на цьому екрані не було. */
+  :global(body.share-full-mobile) .bar { display: none; }
   /* fix/ios-list-scroll: відступ body під бар знято — кожен екран каркаса
      скролить усередині (.screen = вʼюпорт) і резервує бар сам; з відступом
      документ мав зайві 64 px скролу, а на iOS з html/body 100% список не

@@ -55,6 +55,16 @@ export function SharePage() {
   const navigate = useNavigate();
   const isDark = useDarkTheme();
 
+  // Правка 22.09 (фікс 4): /share тепер під тим самим Shell, що /pantry —
+  // на ≥768 це й треба (сайдбар). На <768 Shell домальовує нижній таббар
+  // (TabBar.tsx `.bar`), якого тут раніше не було — «як є, повноекранно»
+  // для мобільного не про сайдбар, а саме про це; гасимо тільки .bar,
+  // лише на вузькому екрані (TabBar.module.css).
+  useEffect(() => {
+    document.body.classList.add('share-full-mobile');
+    return () => document.body.classList.remove('share-full-mobile');
+  }, []);
+
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [run, setRun] = useState<CookRunWithRecipe | null>(null);
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -277,6 +287,7 @@ export function SharePage() {
 
   const [busy, setBusy] = useState<'share' | 'telegram' | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const [shareError, setShareError] = useState(false);
   const [telegramSent, setTelegramSent] = useState(false);
   const [telegramError, setTelegramError] = useState(false);
@@ -323,13 +334,40 @@ export function SharePage() {
   function trackShare(via: 'share' | 'save' | 'telegram' | 'copy_link'): void {
     track('share', { frame: activeKind, via, photo: !!photoUrl, w: window.innerWidth });
   }
+  // Копіювання рядком execCommand — фолбек, коли navigator.clipboard відмовляє
+  // (NotAllowedError: не-https, iframe, стара Safari). Тимчасовий textarea
+  // поза екраном, виділити, execCommand('copy') — синхронний старий API,
+  // працює там, де Clipboard API нема чи заборонений.
+  function legacyCopy(text: string): boolean {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
   async function copyLink(): Promise<void> {
+    setCopyFailed(false);
+    let ok = false;
     try {
       await navigator.clipboard.writeText(shareUrl);
+      ok = true;
+    } catch {
+      ok = legacyCopy(shareUrl);
+    }
+    if (ok) {
       setCopied(true);
       trackShare('copy_link');
       setTimeout(() => setCopied(false), 2000);
-    } catch { /* deny — не проблема */ }
+    } else {
+      setCopyFailed(true);
+      setTimeout(() => setCopyFailed(false), 2000);
+    }
   }
   async function sendTelegram(): Promise<void> {
     const blob = blobRef.current;
@@ -436,8 +474,12 @@ export function SharePage() {
                 <Icon name="sys.share" size={16} inherit decorative />{!pngReady || busy === 'share' ? 'Готуємо кадр…' : 'Поділитись'}
               </button>
             ) : (
+              // Без navigator.canShare (десктопний Chrome, деякі Android) —
+              // єдина кнопка сама зберігає, тож підпис каже саме це, а не
+              // «Поділитись»: окремий квадрат «Завантажити» тут не показуємо
+              // (нижче), щоб не було двох однакових дій.
               <button type="button" className={styles.shareBtn} onClick={download} disabled={!pngReady} data-share>
-                <Icon name="sys.import" size={16} inherit decorative />{!pngReady ? 'Готуємо кадр…' : 'Поділитись'}
+                <Icon name="sys.import" size={16} inherit decorative />{!pngReady ? 'Готуємо кадр…' : 'Зберегти'}
               </button>
             )}
             {canSystemShare && (
@@ -473,6 +515,7 @@ export function SharePage() {
             <span className={styles.linkText}>{shareUrlDisplay}</span>
             <Icon name={copied ? 'sys.done' : 'sys.copy'} size={16} inherit decorative />
             {copied && <span className={styles.linkCopied}>Скопійовано ✓</span>}
+            {copyFailed && <span className={styles.linkFailed} data-copy-failed>Не скопіювалось — виділи й скопіюй</span>}
           </button>
         </div>
       </div>

@@ -66,6 +66,10 @@ beforeEach(() => {
   if (!('scrollIntoView' in Element.prototype)) {
     Object.defineProperty(Element.prototype, 'scrollIntoView', { value: () => {}, configurable: true, writable: true });
   }
+  // jsdom не має execCommand (legacyCopy — фолбек копіювання лінка).
+  if (!('execCommand' in document)) {
+    Object.defineProperty(document, 'execCommand', { value: () => false, configurable: true, writable: true });
+  }
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => fakeCtx());
   vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (this: HTMLCanvasElement, cb: BlobCallback) {
     // Той самий асинхронний характер, що справжній toBlob (черга мікрозадач).
@@ -189,6 +193,29 @@ describe('SharePage · дані й кадри', () => {
     expect(host!.textContent).toContain('Скопійовано');
   });
 
+  it('clipboard відмовляє (NotAllowedError) — фолбек execCommand спрацював тихо копіює', async () => {
+    (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockRejectedValueOnce(Object.assign(new Error('denied'), { name: 'NotAllowedError' }));
+    const execSpy = vi.spyOn(document, 'execCommand').mockReturnValue(true);
+    await mount();
+    const link = host!.querySelector<HTMLButtonElement>('[data-copy-link]')!;
+    await act(async () => { link.click(); await Promise.resolve(); await Promise.resolve(); });
+    expect(execSpy).toHaveBeenCalledWith('copy');
+    expect(host!.textContent).toContain('Скопійовано');
+    expect(host!.querySelector('[data-copy-failed]')).toBeNull();
+    execSpy.mockRestore();
+  });
+
+  it('і clipboard, і execCommand відмовляють — «Не скопіювалось — виділи й скопіюй»', async () => {
+    (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('denied'));
+    const execSpy = vi.spyOn(document, 'execCommand').mockReturnValue(false);
+    await mount();
+    const link = host!.querySelector<HTMLButtonElement>('[data-copy-link]')!;
+    await act(async () => { link.click(); await Promise.resolve(); await Promise.resolve(); });
+    expect(host!.querySelector('[data-copy-failed]')!.textContent).toBe('Не скопіювалось — виділи й скопіюй');
+    expect(host!.textContent).not.toContain('Скопійовано ✓');
+    execSpy.mockRestore();
+  });
+
   it('без recipe_id у параметрах — власний захист сторінки теж веде на /app (App.tsx для голого /share має свій Navigate; тут — той самий запобіжник усередині SharePage)', async () => {
     await mount('/no-id');
     expect(host!.querySelector('[data-landed="app"]')).not.toBeNull();
@@ -217,5 +244,13 @@ describe('SharePage · дані й кадри', () => {
     };
     await mount();
     expect(host!.querySelector('[data-send-telegram]')).not.toBeNull();
+  });
+
+  it('без navigator.canShare (десктопний Chrome/Android) — кнопка каже «Зберегти», без окремого квадрата завантаження', async () => {
+    Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true });
+    await mount();
+    expect(shareBtn().textContent).toContain('Зберегти');
+    expect(shareBtn().textContent).not.toContain('Поділитись');
+    expect(host!.querySelector('[data-download]')).toBeNull();
   });
 });

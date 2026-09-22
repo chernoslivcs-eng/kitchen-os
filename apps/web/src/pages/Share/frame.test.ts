@@ -2,9 +2,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   frameDate, frameDateWithWeekday, wrapLines, fitTitle, fitIngredients, fitDescription,
-  verticalFontSize, classifyBrightness, pickCookRun, type MeasureFn,
+  verticalFontSize, classifyBrightness, pickCookRun, frameDataOf, type MeasureFn,
 } from './frame';
-import type { CookRunWithRecipe } from '../../api';
+import type { CookRunWithRecipe, Recipe } from '../../api';
 
 // Фейковий вимірювач — ширина символу залежить від розміру шрифту (px у
 // рядку font), щоб fitTitle/verticalFontSize справді реагували на розмір.
@@ -182,5 +182,25 @@ describe('pickCookRun: run із query, інакше останній не-undone
   it('undone запис ігнорується', () => {
     const runs = [run({ id: 'a', photo_url: 'x', undone_at: '2026-09-02T00:00:00.000Z' })];
     expect(pickCookRun(runs, 'r1')).toBeNull();
+  });
+});
+
+// Баг з проду (перегляд на стенді, 22.09): кадр показував сирі одиниці з
+// payload моделі («600 g», «4 pcs») замість української форми, як у картці
+// рецепта в стрічці/на сторінці (formatQty з lib/units).
+describe('frameDataOf: одиниці інгредієнтів — той самий формат, що картка рецепта', () => {
+  const RECIPE: Recipe = {
+    t: 'Паста', sv: 2, tm: 20, ch: '', d: '', rk: '',
+    ing: [
+      { n: 'Спагеті', v: 600, u: 'g' },
+      { n: 'Яйця', v: 4, u: 'pcs' },
+      { n: 'Олія', v: 45, u: 'ml' },
+      { n: 'Сіль' },
+    ],
+    st: [],
+  };
+  it('«600 г», «4 шт», «45 мл» — не сирі g/pcs/ml', () => {
+    const data = frameDataOf(RECIPE, null);
+    expect(data.ingredients.map((i) => i.qty)).toEqual(['600 г', '4 шт', '45 мл', '—']);
   });
 });

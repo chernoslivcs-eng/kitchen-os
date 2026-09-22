@@ -302,5 +302,8 @@ export function drawClean(ctx: CanvasRenderingContext2D, data: FrameData, theme:
   const measure = measureFn(ctx);
   drawKickerRow(ctx, data.date, theme.sage, theme.muted, 'transparent');
   drawTopSection(ctx, data, measure, { title: theme.ink, label: theme.muted, value: theme.ink, shadow: 'transparent', ingSep: theme.line2 });
-  drawBottomSection(ctx, data, measure, { label: theme.sage, desc: theme.muted, logoText: theme.bg, ring: theme.ink, dot: theme.sage, shadow: 'transparent' });
+  // Баг з проду (0922): logoText: theme.bg малював «Kitchen OS» майже
+  // невидимим (світлий на світлому) — текст знака має бути ink, як обводка,
+  // не тон полотна.
+  drawBottomSection(ctx, data, measure, { label: theme.sage, desc: theme.muted, logoText: theme.ink, ring: theme.ink, dot: theme.sage, shadow: 'transparent' });
 }

@@ -122,6 +122,11 @@ export function App() {
             <Route path="/cooklog" element={<CookLogPage />} />
             <Route path="/recipes" element={<RecipesPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
+            {/* Шерінг v3 (правка після перегляду на стенді, 22.09): ≥768 —
+                той самий каркас (сайдбар), що /pantry чи /calendar; на 390
+                каркас нічого не додає (рейка — лише з 768px, tokens.css) —
+                свій екран лишається повноекранним, як і був. */}
+            <Route path="/share/:recipe_id" element={<SharePage />} />
           </Route>
           {/* Крок А2: адмінка вийшла з каркаса продукту й має власний.
               Навколо адмінських таблиць більше не видно Стрічки й Комори, а
@@ -136,7 +141,6 @@ export function App() {
             <Route path="/admin/beta" element={<BetaPage />} />
             <Route path="/admin/boom" element={<BoomPage />} />
           </Route>
-          <Route path="/share/:recipe_id" element={<RequireAuth><SharePage /></RequireAuth>} />
           {/* Шерінг v3: старий /share без recipe_id — редирект (spec §2). */}
           <Route path="/share" element={<Navigate to="/app" replace />} />
           {/* Знайомство з Семеном — поза каркасом: без табів і панелі, як /share. */}

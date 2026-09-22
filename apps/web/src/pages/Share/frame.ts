@@ -4,6 +4,7 @@
 // (вимірювач тексту — параметр, не ctx.measureText напряму).
 
 import type { CookRunWithRecipe, Recipe, RecipeIng } from '../../api';
+import { formatQty } from '../../lib/units';
 
 export type MeasureFn = (text: string, font: string) => number;
 
@@ -33,9 +34,11 @@ export interface FrameData {
   date: string;
 }
 
+// Той самий форматер, що картка рецепта в стрічці (cards.tsx/Recipe.tsx):
+// «600 г», «4 шт», «45 мл» — не сирий label з payload моделі («g»/«pcs»/«ml»).
 function ingredientQty(i: RecipeIng): string {
   if (i.v == null) return '—';
-  return i.u ? `${i.v} ${i.u}` : String(i.v);
+  return i.u ? formatQty(i.v, i.u) : String(i.v);
 }
 
 export function frameDataOf(recipe: Recipe, finishedAt: string | null | undefined): FrameData {
