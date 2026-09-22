@@ -7,7 +7,7 @@ import type { PantryBatch } from './types.js';
 import type { HouseholdProduct } from './product.js';
 import type { VetoRow } from './profile-text.js';
 import { matchVeto, type VetoScope } from './veto.js';
-import { kcalOf, isEstimate } from './nutrition.js';
+import { kcalOf, isEstimate, carbsForDisplay } from './nutrition.js';
 import { shelfSealedDays, openDaysFor } from './shelf-life.js';
 
 export type PantryNo = 'не їм' | 'не можна' | null;
@@ -183,7 +183,7 @@ export function pantryItemView(
     kcal: n ? kcalOf(n) : null,
     fat: n ? n.fat : null,
     prot: n ? n.protein : null,
-    carb: n ? n.carbs : null,
+    carb: n ? carbsForDisplay(n) : null,
     est: n ? isEstimate(n) : null,
     // Б1: строк рахується, а не читається з колонки. Ручна дата всередині
     // effectiveExpiry лишається сильнішою за таблицю зон.

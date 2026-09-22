@@ -9,18 +9,38 @@ import type { Nutrition } from '@kitchen/catalog';
 
 export type { Nutrition, NutritionSource } from '@kitchen/catalog';
 
-/** 4-4-9 (+7 на грам спирту, Н1а), округлення до цілого. */
-export function kcalOf(n: { protein: number; fat: number; carbs: number; alcohol?: number }): number {
-  return Math.round(n.protein * 4 + n.carbs * 4 + n.fat * 9 + (n.alcohol ?? 0) * 7);
+/**
+ * 4-4-9 (+7 на грам спирту, Н1а), округлення до цілого. Клітковина — окремо
+ * по 2 ккал/г, не по 4: вуглеводи USDA/CIQUAL «by difference» вже містять її
+ * (nutritionIssue поруч), тож без цього кожен грам клітковини рахувався б
+ * двічі — і в «вуглеводах», і мовчки в «жирах+білках+вуглеводах». Немає
+ * fiber (35 рядків бази з 677) — уся carbs по 4, як було раніше.
+ */
+export function kcalOf(n: { protein: number; fat: number; carbs: number; fiber?: number; alcohol?: number }): number {
+  const fiber = n.fiber ?? 0;
+  return Math.round(n.protein * 4 + (n.carbs - fiber) * 4 + fiber * 2 + n.fat * 9 + (n.alcohol ?? 0) * 7);
+}
+
+/**
+ * Вуглеводи, що йдуть НА ЕКРАН (комора, рецепт) — без клітковини, як на
+ * етикетці: `carbs` у базі — USDA/CIQUAL «by difference», уже містить fiber.
+ * Немає fiber — як є (те саме правило, що в kcalOf).
+ */
+export function carbsForDisplay(n: { carbs: number; fiber?: number }): number {
+  return n.fiber != null ? n.carbs - n.fiber : n.carbs;
 }
 
 export const isEstimate = (n: { source: string }): boolean => n.source === 'estimate';
 
 /**
  * Санітарна перевірка одного рядка: білки+жири+вуглеводи (+спирт) не більше
- * 100,5 г на 100 г продукту (Н1а: клітковина НЕ додається — вуглеводи USDA
- * «by difference» уже містять її; 0,5 — округлення дампу), жодного відʼємного
- * числа, ккал у межах 0–905 (чистий жир — 900 плюс запас). Повертає опис або null.
+ * 100,5 г на 100 г продукту (клітковина — частина «вуглеводів» у цій сумі,
+ * не окремий доданок: вона вже входить у carbs «by difference», а не
+ * додається зверху; 0,5 — округлення дампу), жодного відʼємного числа, ккал
+ * у межах 0–905 (чистий жир — 900 плюс запас). Межа 905 лишається безпечною
+ * і після переходу kcalOf на 2 ккал/г клітковини — це лише переносить частину
+ * ваги carbs із 4 ккал/г на 2, тобто ніколи не піднімає суму вище старої
+ * формули. Повертає опис або null.
  */
 export function nutritionIssue(n: Nutrition): string | null {
   const vals: [string, number | undefined][] = [
@@ -67,7 +87,7 @@ export function recipeNutrition(
   resolve: (ing: RecipeIngLike) => IngredientFacts | null,
 ): RecipeNutrition | null {
   const servings = recipe.sv && recipe.sv > 0 ? recipe.sv : 1;
-  let protein = 0, fat = 0, carbs = 0, alcohol = 0;
+  let protein = 0, fat = 0, carbs = 0, fiber = 0, alcohol = 0;
   let counted = 0, skipped = 0, approx = false;
   for (const ing of recipe.ing) {
     // «За смаком» (без кількості) — не пропуск, там нема чого рахувати.
@@ -87,15 +107,16 @@ export function recipeNutrition(
     protein += facts.nutrition.protein * k;
     fat += facts.nutrition.fat * k;
     carbs += facts.nutrition.carbs * k;
+    fiber += (facts.nutrition.fiber ?? 0) * k;
     alcohol += (facts.nutrition.alcohol ?? 0) * k;
     if (isEstimate(facts.nutrition)) approx = true;
     counted++;
   }
   if (!counted) return null;
   if (skipped) approx = true;
-  const per = { protein: protein / servings, fat: fat / servings, carbs: carbs / servings, alcohol: alcohol / servings };
+  const per = { protein: protein / servings, fat: fat / servings, carbs: carbs / servings, fiber: fiber / servings, alcohol: alcohol / servings };
   return {
-    per_serving: { kcal: kcalOf(per), protein: round1(per.protein), fat: round1(per.fat), carbs: round1(per.carbs) },
+    per_serving: { kcal: kcalOf(per), protein: round1(per.protein), fat: round1(per.fat), carbs: round1(carbsForDisplay(per)) },
     approx,
     skipped,
   };
