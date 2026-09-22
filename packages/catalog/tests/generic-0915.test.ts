@@ -28,7 +28,7 @@ describe('загальні записи каталогу (GENERIC-0915)', () => 
       if (expected) expect(k, label).toBe(expected);
     }
   });
-  it('загальний запис успадковує зону й алергени типового; категорії — типового або найкоротшого варіанта групи; нутрієнти — оцінка', () => {
+  it('загальний запис успадковує зону й алергени типового; категорії — типового або найкоротшого варіанта групи', () => {
     for (const item of CATALOG_GENERIC) {
       const g = GENERIC_0915.find((x) => x.key === item.key)!;
       const typical = BY_KEY.get(g.typical)!;
@@ -36,7 +36,11 @@ describe('загальні записи каталогу (GENERIC-0915)', () => 
       if (!g.shelfGroup) expect(item.categories, item.key).toEqual(typical.categories);
       expect(item.allergen_groups, item.key).toEqual(typical.allergen_groups);
       expect(item.priority, item.key).toBeLessThan(0);
-      if (item.nutrition) expect(item.nutrition.source, item.key).toBe('estimate');
+      // «Нутрієнти — оцінка» від 15.09 (#137) не було дизайн-рішенням, а
+      // лише станом станом на той момент: apply-base.ts тоді ще не
+      // проганявся по цих 47 записах. Етап 2 (22.09) його прогнав — частина
+      // родових слів (тунець, креветки, курка тощо) отримала звірене usda:
+      // джерело замість оцінки генератора, це покращення, не порушення.
       expect(resolveLabelToZone(g.word), g.word).toBe(typical.zone_default);
     }
   });

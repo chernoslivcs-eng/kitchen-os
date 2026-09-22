@@ -7678,7 +7678,7 @@ const CATALOG_3: CatalogItem[] = [
     categories: ['печериці', 'гриби', 'рослинне'],
     allergen_groups: [],
     zone_default: 'fresh',
-    nutrition: { protein: 3, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 3.09, fat: 0.34, carbs: 3.26, fiber: 1, sugars: 1.98, sodium_mg: 5, source: 'usda:169251' },
   },
   {
     key: 'mush_portobello',
@@ -8322,7 +8322,7 @@ const CATALOG_3: CatalogItem[] = [
     categories: ['смородина', 'ягоди', 'рослинне'],
     allergen_groups: [],
     zone_default: 'fresh',
-    nutrition: { protein: 1, fat: 0, carbs: 14, source: 'estimate' },
+    nutrition: { protein: 1.4, fat: 0.41, carbs: 15.38, sodium_mg: 2, source: 'usda:173963' },
   },
   {
     key: 'berry_gooseberry',
@@ -9159,7 +9159,7 @@ const CATALOG_3: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'fresh',
     unit_weight: 125,
-    nutrition: { protein: 3, fat: 0, carbs: 2, source: 'estimate' },
+    nutrition: { protein: 2.86, fat: 0.39, carbs: 3.63, fiber: 2.2, sugars: 0.42, sodium_mg: 79, source: 'usda:168462' },
   },
   {
     key: 'herb_herbs_pot',
@@ -32199,7 +32199,7 @@ const CATALOG_12: CatalogItem[] = [
     categories: ['броколі', 'цвітна капуста', 'капуста', 'овочі', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 3, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 2.82, fat: 0.37, carbs: 6.64, fiber: 2.6, sugars: 1.7, sodium_mg: 33, source: 'usda:170379' },
   },
   {
     key: 'r2fzb_tropical_fruit_mix_frozen',
@@ -32905,7 +32905,7 @@ const CATALOG_12: CatalogItem[] = [
     categories: ['вишня', 'кісточкові', 'фрукти', 'рослинне'],
     allergen_groups: [],
     zone_default: 'fresh',
-    nutrition: { protein: 1, fat: 0, carbs: 12, source: 'estimate' },
+    nutrition: { protein: 1, fat: 0.3, carbs: 12.18, fiber: 1.6, sugars: 8.49, sodium_mg: 3, source: 'usda:173954' },
   },
   {
     key: 'r2fr_peach_white',
@@ -32992,7 +32992,7 @@ const CATALOG_12: CatalogItem[] = [
     categories: ['вишня', 'кісточкові', 'фрукти', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 1, fat: 0, carbs: 12, source: 'estimate' },
+    nutrition: { protein: 1, fat: 0.3, carbs: 12.18, fiber: 1.6, sugars: 8.49, sodium_mg: 3, source: 'usda:173954' },
   },
   {
     key: 'r2fr_alycha_yellow',
@@ -33337,7 +33337,7 @@ const CATALOG_12: CatalogItem[] = [
     categories: ['смородина', 'ягоди', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 1, fat: 0, carbs: 14, source: 'estimate' },
+    nutrition: { protein: 1.4, fat: 0.41, carbs: 15.38, sodium_mg: 2, source: 'usda:173963' },
   },
   {
     key: 'r2fr_raspberry_yellow',
@@ -33346,7 +33346,7 @@ const CATALOG_12: CatalogItem[] = [
     categories: ['малина', 'ягоди', 'рослинне'],
     allergen_groups: [],
     zone_default: 'fresh',
-    nutrition: { protein: 1, fat: 1, carbs: 12, source: 'estimate' },
+    nutrition: { protein: 1.2, fat: 0.65, carbs: 11.94, fiber: 6.5, sugars: 4.42, sodium_mg: 1, source: 'usda:167755' },
   },
   {
     key: 'r2fr_blackberry_frozen',
@@ -33401,7 +33401,7 @@ const CATALOG_12: CatalogItem[] = [
     categories: ['полуниця', 'ягоди', 'рослинне'],
     allergen_groups: [],
     zone_default: 'fresh',
-    nutrition: { protein: 1, fat: 0, carbs: 8, source: 'estimate' },
+    nutrition: { protein: 0.67, fat: 0.3, carbs: 7.68, fiber: 2, sugars: 4.89, sodium_mg: 1, source: 'usda:167762' },
   },
   {
     key: 'r2fr_blackthorn_frozen',
@@ -33526,7 +33526,7 @@ const CATALOG_12: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'fresh',
     unit_weight: 200,
-    nutrition: { protein: 1, fat: 0, carbs: 16, source: 'estimate' },
+    nutrition: { protein: 0.82, fat: 0.38, carbs: 14.98, fiber: 1.6, sugars: 13.66, sodium_mg: 1, source: 'usda:169910' },
   },
   {
     key: 'r2fr_grape_taifi',
@@ -34658,7 +34658,7 @@ const CATALOG_13: CatalogItem[] = [
     categories: ['шпинат', 'зелень', 'свіже', 'рослинне'],
     allergen_groups: [],
     zone_default: 'fresh',
-    nutrition: { protein: 3, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 2.86, fat: 0.39, carbs: 3.63, fiber: 2.2, sugars: 0.42, sodium_mg: 79, source: 'usda:168462' },
   },
   {
     key: 'r2gl_arugula_wild',
@@ -34828,7 +34828,7 @@ const CATALOG_13: CatalogItem[] = [
     categories: ['шпинат', 'зелень', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 3, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 2.86, fat: 0.39, carbs: 3.63, fiber: 2.2, sugars: 0.42, sodium_mg: 79, source: 'usda:168462' },
   },
   {
     key: 'r2gl_herb_vietnamese_mint',
@@ -35362,7 +35362,7 @@ const CATALOG_13: CatalogItem[] = [
     categories: ['паростки', 'броколі', 'мікрозелень', 'свіже', 'рослинне'],
     allergen_groups: [],
     zone_default: 'fresh',
-    nutrition: { protein: 3, fat: 1, carbs: 5, source: 'estimate' },
+    nutrition: { protein: 2.82, fat: 0.37, carbs: 6.64, fiber: 2.6, sugars: 1.7, sodium_mg: 33, source: 'usda:170379' },
   },
   {
     key: 'r2gl_wheatgrass_tray',
@@ -35396,6 +35396,7 @@ const CATALOG_13: CatalogItem[] = [
     categories: ['насіння', 'броколі', 'паростки', 'бакалія', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
+    nutrition: { protein: 2.82, fat: 0.37, carbs: 6.64, fiber: 2.6, sugars: 1.7, sodium_mg: 33, source: 'usda:170379' },
   },
   {
     key: 'r2gl_radish_seeds_sprouting',
@@ -35460,6 +35461,7 @@ const CATALOG_13: CatalogItem[] = [
     categories: ['мікрозелень', 'броколі', 'свіже', 'рослинне'],
     allergen_groups: [],
     zone_default: 'fresh',
+    nutrition: { protein: 2.82, fat: 0.37, carbs: 6.64, fiber: 2.6, sugars: 1.7, sodium_mg: 33, source: 'usda:170379' },
   },
   {
     key: 'r2gl_microgreen_beet',
@@ -40751,7 +40753,7 @@ const CATALOG_15: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'fridge',
     density: 1.02,
-    nutrition: { protein: 1, fat: 0, carbs: 14, source: 'estimate' },
+    nutrition: { protein: 0.82, fat: 0.38, carbs: 14.98, fiber: 1.6, sugars: 13.66, sodium_mg: 1, source: 'usda:169910' },
   },
   {
     key: 'r2scb_feta_cream_sauce',
@@ -44959,7 +44961,7 @@ const CATALOG_16: CatalogItem[] = [
     categories: ['капуста', 'броколі', 'капустяні', 'овочі', 'рослинне'],
     allergen_groups: [],
     zone_default: 'fridge',
-    nutrition: { protein: 3, fat: 0, carbs: 5, source: 'estimate' },
+    nutrition: { protein: 2.82, fat: 0.37, carbs: 6.64, fiber: 2.6, sugars: 1.7, sodium_mg: 33, source: 'usda:170379' },
   },
   {
     key: 'r2vg_broccoli_florets',
@@ -44968,7 +44970,7 @@ const CATALOG_16: CatalogItem[] = [
     categories: ['броколі', 'капустяні', 'овочі', 'рослинне'],
     allergen_groups: [],
     zone_default: 'fridge',
-    nutrition: { protein: 3, fat: 0, carbs: 7, source: 'estimate' },
+    nutrition: { protein: 2.82, fat: 0.37, carbs: 6.64, fiber: 2.6, sugars: 1.7, sodium_mg: 33, source: 'usda:170379' },
   },
   {
     key: 'r2vg_broccoli_purple',
@@ -44977,7 +44979,7 @@ const CATALOG_16: CatalogItem[] = [
     categories: ['броколі', 'капустяні', 'овочі', 'рослинне'],
     allergen_groups: [],
     zone_default: 'fresh',
-    nutrition: { protein: 3, fat: 0, carbs: 6, source: 'estimate' },
+    nutrition: { protein: 2.82, fat: 0.37, carbs: 6.64, fiber: 2.6, sugars: 1.7, sodium_mg: 33, source: 'usda:170379' },
   },
   {
     key: 'r2vg_broccolini',
@@ -45932,7 +45934,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     categories: ['томати', 'пасльонові', 'овочі', 'рослинне'],
     allergen_groups: [],
     zone_default: 'fresh',
-    priority: -1, unit_weight: 80, nutrition: { protein: 1, fat: 0, carbs: 4, source: 'estimate' },
+    priority: -1, unit_weight: 80, nutrition: { protein: 0.88, fat: 0.2, carbs: 3.89, fiber: 1.2, sugars: 2.63, sodium_mg: 5, source: 'usda:170457' },
   },
   {
     key: 'gen_fish',
@@ -46022,7 +46024,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     categories: ['курка', 'птиця', 'мʼясо', 'тваринне'],
     allergen_groups: [],
     zone_default: 'fridge',
-    priority: -1, unit_weight: 90, nutrition: { protein: 18, fat: 13, carbs: 0, source: 'estimate' },
+    priority: -1, unit_weight: 90, nutrition: { protein: 17.52, fat: 12.85, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 84, source: 'usda:172390' },
   },
   {
     key: 'gen_chicken_thighs',
@@ -46031,7 +46033,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     categories: ['курка', 'птиця', 'мʼясо', 'тваринне'],
     allergen_groups: [],
     zone_default: 'fridge',
-    priority: -1, unit_weight: 170, nutrition: { protein: 17, fat: 17, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 81, source: 'estimate' },
+    priority: -1, unit_weight: 170, nutrition: { protein: 16.52, fat: 16.61, carbs: 0.25, fiber: 0, sugars: 0, sodium_mg: 81, source: 'usda:172385' },
   },
   {
     key: 'gen_tuna',
@@ -46040,7 +46042,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     categories: ['тунець', 'риба', 'консерви', 'тваринне'],
     allergen_groups: ['риба'],
     zone_default: 'dry',
-    priority: -1, nutrition: { protein: 26, fat: 1, carbs: 0, source: 'estimate' },
+    priority: -1, nutrition: { protein: 23.33, fat: 4.9, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 39, source: 'usda:173706' },
   },
   {
     key: 'gen_herring',
@@ -46058,7 +46060,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     categories: ['креветки', 'ракоподібні', 'морепродукти', 'тваринне'],
     allergen_groups: ['ракоподібні', 'морепродукти'],
     zone_default: 'freezer',
-    priority: -1, nutrition: { protein: 20, fat: 1, carbs: 0, sodium_mg: 119, source: 'estimate' },
+    priority: -1, nutrition: { protein: 20.1, fat: 0.51, carbs: 0, sodium_mg: 119, source: 'usda:175179' },
   },
   {
     key: 'gen_bell_pepper',
@@ -46094,7 +46096,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     categories: ['паста', 'борошняне', 'пшениця', 'зернові', 'рослинне'],
     allergen_groups: ['глютен'],
     zone_default: 'dry',
-    priority: -1, nutrition: { protein: 13, fat: 2, carbs: 75, fiber: 3, sugars: 3, sodium_mg: 6, source: 'estimate' },
+    priority: -1, nutrition: { protein: 13.04, fat: 1.51, carbs: 74.67, fiber: 3.2, sugars: 2.67, sodium_mg: 6, source: 'usda:168927' },
   },
   {
     key: 'gen_coffee',
@@ -46113,6 +46115,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     priority: -1, density: 1,
+    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 2, source: 'usda:174158' },
   },
   {
     key: 'gen_juice',
@@ -46130,7 +46133,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     categories: ['пиво', 'алкоголь', 'напої', 'ячмінь', 'зернові', 'рослинне'],
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
-    priority: -1, density: 1.01, nutrition: { protein: 0, fat: 0, carbs: 4, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 4, source: 'estimate' },
+    priority: -1, density: 1.01, nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'gen_wine',
