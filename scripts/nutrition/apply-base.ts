@@ -12,6 +12,11 @@
 //        + JSON-звіт (--report): покриття, 30 випадкових замін «було → стало»,
 //        порушення санітарної перевірки (їх у файл не пишемо).
 // Рядки бази з source=estimate позицію не міняють: оцінку на оцінку не міняємо.
+// Етап 2 (22.09): нове джерело label:<домен>@<ISO-дата> — застосовується
+// нарівні з usda/ciqual (не estimate — правило вище на нього не діє).
+// Формат перевіряється (кине помилку збірки на невалідний), і якщо в CSV є
+// 11-та колонка (заявлені ккал з етикетки) — звіряється з 4-4-9, >±10% —
+// рядок у санітарні порушення, не в каталог.
 // Запуск: npx tsx scripts/nutrition/apply-base.ts [--report path.json]
 
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
@@ -19,7 +24,7 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CATALOG } from '../../packages/catalog/seed.ts';
 import { BaseMatcher, type NutritionAliases } from '../../packages/catalog/nutrition-match.ts';
-import type { Nutrition } from '../../packages/catalog/nutrition.ts';
+import { isValidLabelSource, type Nutrition } from '../../packages/catalog/nutrition.ts';
 import { kcalOf, nutritionIssue } from '../../packages/domain/nutrition.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -32,8 +37,18 @@ const lines = readFileSync(join(ROOT, 'data/nutrition/base.csv'), 'utf-8').split
 const num = (s: string | undefined) => (s === undefined || s === '' ? undefined : Number(s));
 const base = new Map<string, Nutrition>();
 const states = new Map<string, string>();
+// Етап 2, п.5: заявлені на етикетці ккал (11-та, необов'язкова колонка) —
+// для label:-рядків звіряємо з 4-4-9 (±10%), щоб зловити сміттєвий рядок
+// (розвідка Сільпо: тунець Rio Mare заявляв 427 ккал при складі на ~100).
+const declaredKcal = new Map<string, number>();
 for (const l of lines) {
-  const [name, state, protein, fat, carbs, fiber, sugars, sodium, source, alcohol] = l.split(';');
+  const [name, state, protein, fat, carbs, fiber, sugars, sodium, source, alcohol, kcalLabel] = l.split(';');
+  // Етап 2, п.4: формат label:<домен>@<ISO-дата> — погана форма НЕ пропускається
+  // мовчки (домен/дата обов'язкові — інакше за півроку не видно, що саме
+  // перевіряли і коли).
+  if (source?.startsWith('label:') && !isValidLabelSource(source)) {
+    throw new Error(`data/nutrition/base.csv: невалідне джерело "${source}" у рядку "${name}" — формат label:<домен>@<ISO-дата> (напр. label:veres.ua@2026-09-22)`);
+  }
   states.set(name!, state!);
   const n: Nutrition = { protein: num(protein) ?? 0, fat: num(fat) ?? 0, carbs: num(carbs) ?? 0, source: source as Nutrition['source'] };
   if (num(fiber) !== undefined) n.fiber = num(fiber);
@@ -41,11 +56,12 @@ for (const l of lines) {
   if (num(sodium) !== undefined) n.sodium_mg = num(sodium);
   if (num(alcohol) !== undefined) n.alcohol = num(alcohol);
   base.set(name!, n);
+  if (num(kcalLabel) !== undefined) declaredKcal.set(name!, num(kcalLabel)!);
 }
 
 const matcher = new BaseMatcher([...base.keys()], aliases, states);
 const out: Record<string, Nutrition & { base: string }> = {};
-const stats = { catalog: CATALOG.length, with_nutrition: 0, matched: 0, by_rule: {} as Record<string, number>, usda: 0, ciqual: 0, base_estimate_skipped: 0, sanity_violations: [] as { key: string; base: string; issue: string }[], estimate_left: 0 };
+const stats = { catalog: CATALOG.length, with_nutrition: 0, matched: 0, by_rule: {} as Record<string, number>, usda: 0, ciqual: 0, label: 0, base_estimate_skipped: 0, sanity_violations: [] as { key: string; base: string; issue: string }[], estimate_left: 0 };
 const replacements: { key: string; name: string; base: string; rule: string; was: string; now: string }[] = [];
 
 for (const item of CATALOG) {
@@ -56,9 +72,24 @@ for (const item of CATALOG) {
   if (n.source === 'estimate') { stats.base_estimate_skipped++; continue; }
   const issue = nutritionIssue(n);
   if (issue) { stats.sanity_violations.push({ key: item.key, base: m.base, issue }); continue; }
+  // Етап 2, п.5: заявлені ккал (якщо в CSV є значення) проти 4-4-9 — >±10%
+  // означає сміттєвий рядок (склад одне, заявлені ккал зовсім інше).
+  if (n.source.startsWith('label:')) {
+    const declared = declaredKcal.get(m.base);
+    if (declared !== undefined) {
+      const computed = kcalOf(n);
+      const diffPct = Math.abs(computed - declared) / declared * 100;
+      if (diffPct > 10) {
+        stats.sanity_violations.push({ key: item.key, base: m.base, issue: `заявлено ${declared} ккал, за 4-4-9 ${computed} — розбіжність ${diffPct.toFixed(1)}% > 10%` });
+        continue;
+      }
+    }
+  }
   stats.matched++;
   stats.by_rule[m.rule] = (stats.by_rule[m.rule] ?? 0) + 1;
-  if (n.source.startsWith('usda:')) stats.usda++; else stats.ciqual++;
+  if (n.source.startsWith('usda:')) stats.usda++;
+  else if (n.source.startsWith('label:')) stats.label++;
+  else stats.ciqual++;
   out[item.key] = { ...n, base: m.base };
   const old = item.nutrition as unknown as { kcal?: number; p?: number; f?: number; c?: number; protein?: number; fat?: number; carbs?: number } | undefined;
   const was = old

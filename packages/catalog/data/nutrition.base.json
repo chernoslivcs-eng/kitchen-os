@@ -284,6 +284,16 @@
   "sodium_mg": 59,
   "base": "Лосось фермерський"
  },
+ "spinach_frozen": {
+  "protein": 2.86,
+  "fat": 0.39,
+  "carbs": 3.63,
+  "source": "usda:168462",
+  "fiber": 2.2,
+  "sugars": 0.42,
+  "sodium_mg": 79,
+  "base": "Шпинат"
+ },
  "cream_20": {
   "protein": 2.96,
   "fat": 19.1,
@@ -2438,6 +2448,16 @@
   "sodium_mg": 5,
   "base": "Печериці"
  },
+ "mush_champignon_brown": {
+  "protein": 3.09,
+  "fat": 0.34,
+  "carbs": 3.26,
+  "source": "usda:169251",
+  "fiber": 1,
+  "sugars": 1.98,
+  "sodium_mg": 5,
+  "base": "Печериці"
+ },
  "mush_portobello": {
   "protein": 2.11,
   "fat": 0.35,
@@ -2694,6 +2714,14 @@
   "sodium_mg": 2,
   "base": "Смородина чорна"
  },
+ "berry_whitecurrant": {
+  "protein": 1.4,
+  "fat": 0.41,
+  "carbs": 15.38,
+  "source": "usda:173963",
+  "sodium_mg": 2,
+  "base": "Смородина чорна"
+ },
  "berry_gooseberry": {
   "protein": 0.88,
   "fat": 0.58,
@@ -2712,6 +2740,54 @@
   "sugars": 4.27,
   "sodium_mg": 2,
   "base": "Журавлина"
+ },
+ "berry_strawberry_frozen": {
+  "protein": 0.67,
+  "fat": 0.3,
+  "carbs": 7.68,
+  "source": "usda:167762",
+  "fiber": 2,
+  "sugars": 4.89,
+  "sodium_mg": 1,
+  "base": "Полуниця"
+ },
+ "fruit_cherry_frozen": {
+  "protein": 1,
+  "fat": 0.3,
+  "carbs": 12.18,
+  "source": "usda:173954",
+  "fiber": 1.6,
+  "sugars": 8.49,
+  "sodium_mg": 3,
+  "base": "Вишня"
+ },
+ "berry_blackcurrant_frozen": {
+  "protein": 1.4,
+  "fat": 0.41,
+  "carbs": 15.38,
+  "source": "usda:173963",
+  "sodium_mg": 2,
+  "base": "Смородина чорна"
+ },
+ "berry_raspberry_frozen": {
+  "protein": 1.2,
+  "fat": 0.65,
+  "carbs": 11.94,
+  "source": "usda:167755",
+  "fiber": 6.5,
+  "sugars": 4.42,
+  "sodium_mg": 1,
+  "base": "Малина"
+ },
+ "berry_blueberry_frozen": {
+  "protein": 0.74,
+  "fat": 0.33,
+  "carbs": 14.49,
+  "source": "usda:171711",
+  "fiber": 2.4,
+  "sugars": 9.96,
+  "sodium_mg": 1,
+  "base": "Лохина"
  },
  "fruit_banana": {
   "protein": 1.09,
@@ -2928,6 +3004,16 @@
   "fiber": 14,
   "sodium_mg": 9,
   "base": "Чебрець"
+ },
+ "herb_arugula_spinach_mix": {
+  "protein": 2.86,
+  "fat": 0.39,
+  "carbs": 3.63,
+  "source": "usda:168462",
+  "fiber": 2.2,
+  "sugars": 0.42,
+  "sodium_mg": 79,
+  "base": "Шпинат"
  },
  "legume_beans_red_dry": {
   "protein": 22.53,
@@ -4203,6 +4289,16 @@
   "sodium_mg": 425,
   "base": "Гриби мариновані"
  },
+ "frz_broccoli": {
+  "protein": 2.82,
+  "fat": 0.37,
+  "carbs": 6.64,
+  "source": "usda:170379",
+  "fiber": 2.6,
+  "sugars": 1.7,
+  "sodium_mg": 33,
+  "base": "Броколі"
+ },
  "frz_french_fries": {
   "protein": 3.43,
   "fat": 14.73,
@@ -4212,6 +4308,26 @@
   "sugars": 0.3,
   "sodium_mg": 210,
   "base": "Картопля фрі"
+ },
+ "frz_mushrooms_champignon": {
+  "protein": 3.09,
+  "fat": 0.34,
+  "carbs": 3.26,
+  "source": "usda:169251",
+  "fiber": 1,
+  "sugars": 1.98,
+  "sodium_mg": 5,
+  "base": "Печериці"
+ },
+ "frz_mushrooms_chanterelle": {
+  "protein": 1.49,
+  "fat": 0.53,
+  "carbs": 6.86,
+  "source": "usda:168422",
+  "fiber": 3.8,
+  "sugars": 1.16,
+  "sodium_mg": 9,
+  "base": "Лисички"
  },
  "frz_puff_pastry": {
   "protein": 7.3,
@@ -4252,6 +4368,16 @@
   "sugars": 21.8,
   "sodium_mg": 438,
   "base": "Чізкейк"
+ },
+ "frz_mango": {
+  "protein": 0.82,
+  "fat": 0.38,
+  "carbs": 14.98,
+  "source": "usda:169910",
+  "fiber": 1.6,
+  "sugars": 13.66,
+  "sodium_mg": 1,
+  "base": "Манго"
  },
  "choc_dark_70": {
   "protein": 7.79,
@@ -6543,6 +6669,16 @@
   "sodium_mg": 119,
   "base": "Креветки"
  },
+ "r2fzb_blueberry_frozen": {
+  "protein": 1.22,
+  "fat": 0.76,
+  "carbs": 12.31,
+  "source": "usda:167640",
+  "fiber": 2.6,
+  "sugars": 6.46,
+  "sodium_mg": 6,
+  "base": "Чорниця"
+ },
  "r2fzb_cod_portions_frozen": {
   "protein": 17.81,
   "fat": 0.67,
@@ -6581,6 +6717,16 @@
   "sodium_mg": 98.6,
   "base": "Хек"
  },
+ "r2fzb_broccoli_cauliflower_mix_frozen": {
+  "protein": 2.82,
+  "fat": 0.37,
+  "carbs": 6.64,
+  "source": "usda:170379",
+  "fiber": 2.6,
+  "sugars": 1.7,
+  "sodium_mg": 33,
+  "base": "Броколі"
+ },
  "r2fr_plum_president": {
   "protein": 0.7,
   "fat": 0.28,
@@ -6591,6 +6737,26 @@
   "sodium_mg": 0,
   "base": "Слива"
  },
+ "r2fr_cherry_shpanka": {
+  "protein": 1,
+  "fat": 0.3,
+  "carbs": 12.18,
+  "source": "usda:173954",
+  "fiber": 1.6,
+  "sugars": 8.49,
+  "sodium_mg": 3,
+  "base": "Вишня"
+ },
+ "r2fr_cherry_pitted_frozen": {
+  "protein": 1,
+  "fat": 0.3,
+  "carbs": 12.18,
+  "source": "usda:173954",
+  "fiber": 1.6,
+  "sugars": 8.49,
+  "sodium_mg": 3,
+  "base": "Вишня"
+ },
  "r2fr_redcurrant": {
   "protein": 1.4,
   "fat": 0.2,
@@ -6600,6 +6766,44 @@
   "sugars": 7.37,
   "sodium_mg": 1,
   "base": "Смородина червона"
+ },
+ "r2fr_redcurrant_frozen": {
+  "protein": 1.4,
+  "fat": 0.41,
+  "carbs": 15.38,
+  "source": "usda:173963",
+  "sodium_mg": 2,
+  "base": "Смородина чорна"
+ },
+ "r2fr_raspberry_yellow": {
+  "protein": 1.2,
+  "fat": 0.65,
+  "carbs": 11.94,
+  "source": "usda:167755",
+  "fiber": 6.5,
+  "sugars": 4.42,
+  "sodium_mg": 1,
+  "base": "Малина"
+ },
+ "r2fr_strawberry_imported": {
+  "protein": 0.67,
+  "fat": 0.3,
+  "carbs": 7.68,
+  "source": "usda:167762",
+  "fiber": 2,
+  "sugars": 4.89,
+  "sodium_mg": 1,
+  "base": "Полуниця"
+ },
+ "r2fr_mango_ataulfo": {
+  "protein": 0.82,
+  "fat": 0.38,
+  "carbs": 14.98,
+  "source": "usda:169910",
+  "fiber": 1.6,
+  "sugars": 13.66,
+  "sodium_mg": 1,
+  "base": "Манго"
  },
  "r2gr_pasta_fettuccine": {
   "protein": 13.04,
@@ -6620,6 +6824,56 @@
   "sugars": 2.67,
   "sodium_mg": 6,
   "base": "Паста суха з твердих сортів"
+ },
+ "r2gl_spinach_hydro": {
+  "protein": 2.86,
+  "fat": 0.39,
+  "carbs": 3.63,
+  "source": "usda:168462",
+  "fiber": 2.2,
+  "sugars": 0.42,
+  "sodium_mg": 79,
+  "base": "Шпинат"
+ },
+ "r2gl_spinach_frozen_leaf": {
+  "protein": 2.86,
+  "fat": 0.39,
+  "carbs": 3.63,
+  "source": "usda:168462",
+  "fiber": 2.2,
+  "sugars": 0.42,
+  "sodium_mg": 79,
+  "base": "Шпинат"
+ },
+ "r2gl_broccoli_sprouts": {
+  "protein": 2.82,
+  "fat": 0.37,
+  "carbs": 6.64,
+  "source": "usda:170379",
+  "fiber": 2.6,
+  "sugars": 1.7,
+  "sodium_mg": 33,
+  "base": "Броколі"
+ },
+ "r2gl_broccoli_seeds_sprouting": {
+  "protein": 2.82,
+  "fat": 0.37,
+  "carbs": 6.64,
+  "source": "usda:170379",
+  "fiber": 2.6,
+  "sugars": 1.7,
+  "sodium_mg": 33,
+  "base": "Броколі"
+ },
+ "r2gl_microgreen_broccoli": {
+  "protein": 2.82,
+  "fat": 0.37,
+  "carbs": 6.64,
+  "source": "usda:170379",
+  "fiber": 2.6,
+  "sugars": 1.7,
+  "sodium_mg": 33,
+  "base": "Броколі"
  },
  "r2mt_beef_porterhouse": {
   "protein": 21.72,
@@ -6793,5 +7047,124 @@
   "sugars": 2.13,
   "sodium_mg": 428,
   "base": "Рол каліфорнія"
+ },
+ "r2scb_mango_salsa": {
+  "protein": 0.82,
+  "fat": 0.38,
+  "carbs": 14.98,
+  "source": "usda:169910",
+  "fiber": 1.6,
+  "sugars": 13.66,
+  "sodium_mg": 1,
+  "base": "Манго"
+ },
+ "r2vg_cauliflower_broccoli_mix": {
+  "protein": 2.82,
+  "fat": 0.37,
+  "carbs": 6.64,
+  "source": "usda:170379",
+  "fiber": 2.6,
+  "sugars": 1.7,
+  "sodium_mg": 33,
+  "base": "Броколі"
+ },
+ "r2vg_broccoli_florets": {
+  "protein": 2.82,
+  "fat": 0.37,
+  "carbs": 6.64,
+  "source": "usda:170379",
+  "fiber": 2.6,
+  "sugars": 1.7,
+  "sodium_mg": 33,
+  "base": "Броколі"
+ },
+ "r2vg_broccoli_purple": {
+  "protein": 2.82,
+  "fat": 0.37,
+  "carbs": 6.64,
+  "source": "usda:170379",
+  "fiber": 2.6,
+  "sugars": 1.7,
+  "sodium_mg": 33,
+  "base": "Броколі"
+ },
+ "gen_tomatoes": {
+  "protein": 0.88,
+  "fat": 0.2,
+  "carbs": 3.89,
+  "source": "usda:170457",
+  "fiber": 1.2,
+  "sugars": 2.63,
+  "sodium_mg": 5,
+  "base": "Томат"
+ },
+ "gen_chicken_wings": {
+  "protein": 17.52,
+  "fat": 12.85,
+  "carbs": 0,
+  "source": "usda:172390",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 84,
+  "base": "Курка крила"
+ },
+ "gen_chicken_thighs": {
+  "protein": 16.52,
+  "fat": 16.61,
+  "carbs": 0.25,
+  "source": "usda:172385",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 81,
+  "base": "Курка стегно з шкірою"
+ },
+ "gen_tuna": {
+  "protein": 23.33,
+  "fat": 4.9,
+  "carbs": 0,
+  "source": "usda:173706",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 39,
+  "base": "Тунець свіжий"
+ },
+ "gen_shrimp": {
+  "protein": 20.1,
+  "fat": 0.51,
+  "carbs": 0,
+  "source": "usda:175179",
+  "sodium_mg": 119,
+  "base": "Креветки"
+ },
+ "gen_pasta": {
+  "protein": 13.04,
+  "fat": 1.51,
+  "carbs": 74.67,
+  "source": "usda:168927",
+  "fiber": 3.2,
+  "sugars": 2.67,
+  "sodium_mg": 6,
+  "base": "Паста суха з твердих сортів"
+ },
+ "gen_water": {
+  "protein": 0,
+  "fat": 0,
+  "carbs": 0,
+  "source": "usda:174158",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 2,
+  "base": "Вода"
+ },
+ "gen_beer": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
  }
 }
