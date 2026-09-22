@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { kcalOf, nutritionIssue, recipeNutrition, isEstimate, type Nutrition } from './nutrition.js';
+import { readFileSync } from 'node:fs';
+import { kcalOf, carbsForDisplay, nutritionIssue, recipeNutrition, isEstimate, type Nutrition } from './nutrition.js';
 
 // Раунд 5, крок Н1: ккал не зберігаються — рахуються з БЖВ одним правилом
 // 4-4-9 на весь моноліт.
@@ -21,6 +22,80 @@ describe('kcalOf', () => {
     expect(isEstimate(usda(1, 1, 1))).toBe(false);
     expect(isEstimate({ source: 'estimate' })).toBe(true);
   });
+
+  // Клітковина — 2 ккал/г, не 4, АЛЕ по-різному залежно від джерела:
+  // usda «by difference» carbs УЖЕ містить fiber → віднімаємо перед 4-ккал
+  // частиною. ciqual «glucides» carbs — УЖЕ БЕЗ fiber (окрема величина) →
+  // віднімати не можна, лише додати окремо (ГОЛОВНИЙ ЧАТ, виправлення після
+  // #192: «Водорості вакаме» carbs 13.3 при fiber 42.9 — carbs<fiber, за
+  // конструкцією не може містити її). Значення — реальні рядки
+  // data/nutrition/base.csv, очікування (усда) — з NUTRI-LABELS-REPORT-0922.md.
+  it('Н1б: usda — клітковина віднімається з carbs і рахується окремо по 2 ккал/г (реальні рядки бази, звірено зі звітом)', () => {
+    // Розмарин сушений (usda): Б4.88 Ж15.22 В64.06 клітковина42.6 · було 413 → стало 328
+    expect(kcalOf({ protein: 4.88, fat: 15.22, carbs: 64.06, fiber: 42.6, source: 'usda:171333' })).toBe(328);
+    // Куркума (usda): Б9.68 Ж3.25 В67.14 клітковина22.7 · було 337 → стало 291
+    expect(kcalOf({ protein: 9.68, fat: 3.25, carbs: 67.14, fiber: 22.7, source: 'usda:172231' })).toBe(291);
+    // Лавровий лист (usda): Б7.61 Ж8.36 В74.97 клітковина26.3 · було 406 → стало 353
+    expect(kcalOf({ protein: 7.61, fat: 8.36, carbs: 74.97, fiber: 26.3, source: 'usda:170917' })).toBe(353);
+    // Маш (usda): Б23.86 Ж1.15 В62.62 клітковина16.3 · було 356 → стало 324
+    expect(kcalOf({ protein: 23.86, fat: 1.15, carbs: 62.62, fiber: 16.3, source: 'usda:174256' })).toBe(324);
+  });
+  it('Н1б: ciqual — carbs УЖЕ без клітковини, вона рахується окремо по 2 ккал/г ПОВЕРХ carbs, не віднімається', () => {
+    // Водорості вакаме (ciqual): Б12.2 Ж1.5 В13.3 клітковина42.9 — carbs<fiber,
+    // тому й доказ, що carbs тут не може містити fiber (усда-віднімання дало б відʼємне).
+    expect(kcalOf({ protein: 12.2, fat: 1.5, carbs: 13.3, fiber: 42.9, source: 'ciqual:20999' })).toBe(201);
+    // Водорості норі (ciqual): Б30.2 Ж1.77 В11.7 клітковина36.8
+    expect(kcalOf({ protein: 30.2, fat: 1.77, carbs: 11.7, fiber: 36.8, source: 'ciqual:20987' })).toBe(257);
+  });
+  it('без fiber (35 рядків бази з 677) — уся carbs по 4, як було раніше (незалежно від джерела)', () => {
+    expect(kcalOf({ protein: 4.88, fat: 15.22, carbs: 64.06, source: 'usda:171333' })).toBe(413);
+    expect(kcalOf({ protein: 4.88, fat: 15.22, carbs: 64.06, fiber: undefined, source: 'usda:171333' })).toBe(413);
+  });
+  it('estimate (чи джерело незнане/відсутнє) — клітковину ігноруємо взагалі, навіть якщо вона є', () => {
+    // CATALOG_GENERIC має estimate-рядки З fiber (нечисте раунд-число);
+    // формула НЕ повинна її рахувати — ані відняти, ані додати.
+    expect(kcalOf({ protein: 12, fat: 3, carbs: 75, fiber: 10, source: 'estimate' })).toBe(kcalOf({ protein: 12, fat: 3, carbs: 75, source: 'estimate' }));
+    expect(kcalOf({ protein: 12, fat: 3, carbs: 75, fiber: 10, source: 'estimate' })).toBe(375);
+    expect(kcalOf({ protein: 4.88, fat: 15.22, carbs: 64.06, fiber: 42.6 })).toBe(413); // без source узагалі — те саме, що estimate
+  });
+});
+
+describe('carbsForDisplay — вуглеводи на екран (комора, рецепт)', () => {
+  it('usda — carbs − fiber; маш 62,62 → 46,3, як на етикетці', () => {
+    expect(carbsForDisplay({ carbs: 62.62, fiber: 16.3, source: 'usda:174256' })).toBeCloseTo(46.32, 5);
+  });
+  it('ciqual — carbs як є, НЕ віднімається (вакаме/норі не змінюються)', () => {
+    expect(carbsForDisplay({ carbs: 13.3, fiber: 42.9, source: 'ciqual:20999' })).toBe(13.3);
+    expect(carbsForDisplay({ carbs: 11.7, fiber: 36.8, source: 'ciqual:20987' })).toBe(11.7);
+  });
+  it('estimate/без джерела — carbs як є', () => {
+    expect(carbsForDisplay({ carbs: 75, fiber: 10, source: 'estimate' })).toBe(75);
+    expect(carbsForDisplay({ carbs: 64.06, fiber: 42.6 })).toBe(64.06);
+  });
+  it('немає fiber — carbs як є, незалежно від джерела', () => {
+    expect(carbsForDisplay({ carbs: 64.06, source: 'usda:171333' })).toBe(64.06);
+  });
+});
+
+describe('carbsForDisplay/kcalOf — захисні перевірки по ВСІХ 677 рядках data/nutrition/base.csv', () => {
+  const csvPath = new URL('../../data/nutrition/base.csv', import.meta.url);
+  const rows = readFileSync(csvPath, 'utf-8').split('\n').slice(1).filter(Boolean).map((l) => {
+    const [name, , protein, fat, carbs, fiber, , , source] = l.split(';');
+    return { name: name!, protein: Number(protein), fat: Number(fat), carbs: Number(carbs), fiber: fiber ? Number(fiber) : undefined, source: source! };
+  });
+  // Звіт каже «677 з 677» — на живому файлі зараз 665 рядків (розбіжність
+  // звіту й репо, дрібна, не з цієї правки); джерело істини — сам base.csv.
+  it(`${rows.length} рядків прочитано`, () => {
+    expect(rows.length).toBe(665);
+  });
+  it('жодна відображена величина вуглеводів не відʼємна', () => {
+    const negatives = rows.filter((r) => carbsForDisplay(r) < 0);
+    expect(negatives.map((r) => r.name)).toEqual([]);
+  });
+  it('перерахований ккал не порушує межу nutritionIssue (905) на жодному рядку', () => {
+    const over = rows.filter((r) => kcalOf(r) > 905);
+    expect(over.map((r) => r.name)).toEqual([]);
+  });
 });
 
 describe('nutritionIssue — санітарна перевірка', () => {
@@ -39,6 +114,17 @@ describe('nutritionIssue — санітарна перевірка', () => {
     expect(nutritionIssue({ protein: 0, fat: 100, carbs: 0, source: 'estimate' })).toBeNull();
     expect(nutritionIssue({ protein: 0, fat: 100, carbs: 1, source: 'estimate' })).toMatch(/100/);
     expect(nutritionIssue({ protein: 0, fat: 0, carbs: 0.1, alcohol: 33.2, source: 'ciqual:1008' })).toBeNull();
+  });
+  // Н1б: 905 лишається безпечною межею й після переходу kcalOf на 2 ккал/г
+  // клітковини — вона лише переносить частину ваги carbs із 4 на 2, тобто
+  // ккал під новою формулою ніколи не вищий за старий (перевір формулу).
+  it('905 — межа ккал лишається коректною і з високою клітковиною (Н1б)', () => {
+    // Розмарин сушений: сума Б+Ж+В=84.25 ≤100.5 (нижче межі й раніше), ккал
+    // за новою формулою 328 (було 413) — з великим запасом під 905.
+    expect(nutritionIssue({ protein: 4.88, fat: 15.22, carbs: 64.06, fiber: 42.6, source: 'usda:171333' })).toBeNull();
+    // Майже чистий жир (100 г, макс. з-під межі суми) + вся клітковина, яку
+    // тільки дозволяє carbs=0.5 — ккал усе одно не вище, ніж без клітковини.
+    expect(nutritionIssue({ protein: 0, fat: 100, carbs: 0.5, fiber: 0.5, source: 'estimate' })).toBeNull();
   });
 });
 
@@ -89,6 +175,15 @@ describe('recipeNutrition — рядок під інгредієнтами', () 
     expect(noDens?.per_serving.protein).toBe(6.6);
     const pack = recipeNutrition({ sv: 1, ing: [{ n: 'паста', v: 1, u: 'pack' }, { n: 'рис', v: 100, u: 'g' }] }, () => ({ nutrition: rice }));
     expect(pack).toEqual({ per_serving: { kcal: 349, protein: 7, fat: 1, carbs: 78 }, approx: true, skipped: 1 });
+  });
+
+  it('Н1б: клітковина зважується по інгредієнтах окремо від carbs; В на картці = carbs − fiber (реальний рядок бази — маш)', () => {
+    const mash = usda(23.86, 1.15, 62.62, { fiber: 16.3 }); // data/nutrition/base.csv
+    const r = recipeNutrition(
+      { sv: 1, ing: [{ n: 'маш', v: 200, u: 'g' }, { n: 'курка', v: 100, u: 'g' }] },
+      (ing) => ing.n === 'маш' ? { nutrition: mash } : { nutrition: chicken },
+    );
+    expect(r).toEqual({ per_serving: { kcal: 757, protein: 70.7, fat: 4.3, carbs: 92.6 }, approx: false, skipped: 0 });
   });
 
   it('жодного порахованого інгредієнта — null', () => {

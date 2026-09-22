@@ -9,18 +9,67 @@ import type { Nutrition } from '@kitchen/catalog';
 
 export type { Nutrition, NutritionSource } from '@kitchen/catalog';
 
-/** 4-4-9 (+7 на грам спирту, Н1а), округлення до цілого. */
-export function kcalOf(n: { protein: number; fat: number; carbs: number; alcohol?: number }): number {
-  return Math.round(n.protein * 4 + n.carbs * 4 + n.fat * 9 + (n.alcohol ?? 0) * 7);
+/**
+ * Як клітковина стосується `carbs` — залежить від ДЖЕРЕЛА, не однаково всюди:
+ *  - `usda:` — «carbohydrate by difference» вже МІСТИТЬ клітковину (nutrition-
+ *    Issue поруч) → віднімаємо з 4-ккал частини, рахуємо окремо по 2.
+ *  - `ciqual:` (і майбутній `label:`, етап 2 — етикетка декларує так само, як
+ *    ciqual) — carbs УЖЕ БЕЗ клітковини («glucides» — засвоювані вуглеводи):
+ *    віднімати ще раз не можна, від'ємне число («Водорості вакаме» carbs 13.3
+ *    при fiber 42.9 — carbs<fiber, за конструкцією не може містити її).
+ *    Клітковина додається ОКРЕМО, по 2 ккал/г, зверху.
+ *  - `estimate` (чи будь-що незнане) — походження невідоме, клітковину не
+ *    чіпаємо взагалі (навіть якщо якийсь рядок CATALOG_GENERIC її має) — carbs
+ *    цілком по 4, як до цієї правки.
+ */
+type FiberRule = 'subtract' | 'add' | 'ignore';
+function fiberRuleFor(source: string | undefined): FiberRule {
+  if (source?.startsWith('usda:')) return 'subtract';
+  if (source?.startsWith('ciqual:') || source?.startsWith('label:')) return 'add';
+  return 'ignore';
+}
+
+/** Ккал із уже готових складових: carbsAt4 — те, що йде в 4-ккал частину
+ * (для usda — carbs МІНУС fiber, для ciqual/estimate — carbs як є); fiberAt2
+ * — скільки клітковини рахувати окремо по 2 ккал (0 для estimate). Джерело
+ * тут більше не питається — рішення про нього вже прийнято раніше. */
+function kcalFromParts(protein: number, fat: number, carbsAt4: number, fiberAt2: number, alcohol: number): number {
+  return Math.round(protein * 4 + carbsAt4 * 4 + fiberAt2 * 2 + fat * 9 + alcohol * 7);
+}
+
+/** 4-4-9 (+7 на грам спирту, Н1а) + клітковина окремо по 2 ккал/г — правило
+ * залежить від джерела (fiberRuleFor). Округлення до цілого. */
+export function kcalOf(n: { protein: number; fat: number; carbs: number; fiber?: number; alcohol?: number; source?: string }): number {
+  const fiber = n.fiber ?? 0;
+  const rule = fiberRuleFor(n.source);
+  const carbsAt4 = rule === 'subtract' ? n.carbs - fiber : n.carbs;
+  const fiberAt2 = rule === 'ignore' ? 0 : fiber;
+  return kcalFromParts(n.protein, n.fat, carbsAt4, fiberAt2, n.alcohol ?? 0);
+}
+
+/**
+ * Вуглеводи, що йдуть НА ЕКРАН (комора, рецепт) — «доступні» вуглеводи, як на
+ * етикетці. `usda:` — carbs мінус fiber (carbs «by difference» містить її);
+ * `ciqual:`/`label:`/`estimate` — carbs як є (уже без клітковини, або
+ * походження невідоме — не чіпаємо). Немає fiber — як є, завжди.
+ */
+export function carbsForDisplay(n: { carbs: number; fiber?: number; source?: string }): number {
+  if (n.fiber == null) return n.carbs;
+  return fiberRuleFor(n.source) === 'subtract' ? n.carbs - n.fiber : n.carbs;
 }
 
 export const isEstimate = (n: { source: string }): boolean => n.source === 'estimate';
 
 /**
  * Санітарна перевірка одного рядка: білки+жири+вуглеводи (+спирт) не більше
- * 100,5 г на 100 г продукту (Н1а: клітковина НЕ додається — вуглеводи USDA
- * «by difference» уже містять її; 0,5 — округлення дампу), жодного відʼємного
- * числа, ккал у межах 0–905 (чистий жир — 900 плюс запас). Повертає опис або null.
+ * 100,5 г на 100 г продукту (0,5 — округлення дампу; клітковина в цю суму НЕ
+ * входить — для usda вона вже частина carbs, для ciqual/label — окрема
+ * величина понад carbs, тож не додається і не віднімається тут), жодного
+ * відʼємного числа, ккал у межах 0–905 (чистий жир — 900 плюс запас). 905
+ * лишається безпечною межею НЕЗАЛЕЖНО від джерела/fiberRuleFor — перевірка
+ * рахується від фактичного kcalOf(n) (уже source-aware), а не від суми макро
+ * вище, тож ловить і пограничну клітковину в ciqual-рядках, яку сама сума не
+ * бачить. Повертає опис або null.
  */
 export function nutritionIssue(n: Nutrition): string | null {
   const vals: [string, number | undefined][] = [
@@ -67,7 +116,10 @@ export function recipeNutrition(
   resolve: (ing: RecipeIngLike) => IngredientFacts | null,
 ): RecipeNutrition | null {
   const servings = recipe.sv && recipe.sv > 0 ? recipe.sv : 1;
-  let protein = 0, fat = 0, carbs = 0, alcohol = 0;
+  // carbs/fiber тут — уже ПІСЛЯ fiberRuleFor по кожному інгредієнту окремо
+  // (джерела в рецепті можуть бути мішані: усда+сіквал одночасно), тож на
+  // відміну від kcalOf/carbsForDisplay підсумок нижче джерело більше не питає.
+  let protein = 0, fat = 0, carbs = 0, fiber = 0, alcohol = 0;
   let counted = 0, skipped = 0, approx = false;
   for (const ing of recipe.ing) {
     // «За смаком» (без кількості) — не пропуск, там нема чого рахувати.
@@ -84,18 +136,21 @@ export function recipeNutrition(
     }
     if (grams == null) { skipped++; continue; }
     const k = grams / 100;
+    const rule = fiberRuleFor(facts.nutrition.source);
+    const fiberG = facts.nutrition.fiber ?? 0;
     protein += facts.nutrition.protein * k;
     fat += facts.nutrition.fat * k;
-    carbs += facts.nutrition.carbs * k;
+    carbs += (rule === 'subtract' ? facts.nutrition.carbs - fiberG : facts.nutrition.carbs) * k;
+    fiber += (rule === 'ignore' ? 0 : fiberG) * k;
     alcohol += (facts.nutrition.alcohol ?? 0) * k;
     if (isEstimate(facts.nutrition)) approx = true;
     counted++;
   }
   if (!counted) return null;
   if (skipped) approx = true;
-  const per = { protein: protein / servings, fat: fat / servings, carbs: carbs / servings, alcohol: alcohol / servings };
+  const per = { protein: protein / servings, fat: fat / servings, carbs: carbs / servings, fiber: fiber / servings, alcohol: alcohol / servings };
   return {
-    per_serving: { kcal: kcalOf(per), protein: round1(per.protein), fat: round1(per.fat), carbs: round1(per.carbs) },
+    per_serving: { kcal: kcalFromParts(per.protein, per.fat, per.carbs, per.fiber, per.alcohol), protein: round1(per.protein), fat: round1(per.fat), carbs: round1(per.carbs) },
     approx,
     skipped,
   };
