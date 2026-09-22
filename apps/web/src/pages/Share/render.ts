@@ -1,10 +1,12 @@
 // Шерінг v3 (spec §1): три рендерери на canvas 1080×1920 — постер (фото,
-// скрим детермінований за яскравістю), вертикаль (лише коли назва влізає),
-// чисте тло (тема застосунку). Спільна геометрія — з макета «Kitchen OS -
-// Share v3.dc.html» (істина для вигляду).
+// скрим детермінований за яскравістю), вертикаль (кадр завжди присутній,
+// назва переноситься на ≤2 рядки — fitVerticalLayout), чисте тло (тема
+// застосунку). Спільна геометрія — з макета «Kitchen OS - Share v3.dc.html»
+// (істина для вигляду).
 import type { FrameData, MeasureFn, Brightness, CropState } from './frame';
 import {
-  fitTitle, fitIngredients, fitIngredientName, fitDescription, verticalFontSize, fitVerticalColumn, fitVerticalIngLine, classifyBrightness, clampCrop,
+  fitTitle, fitIngredients, fitIngredientName, fitDescription, fitVerticalLayout, classifyBrightness, clampCrop,
+  verticalTitleThickness, VCOL_SIZE, VCOL_GAP, VCOL_LINE_PX,
   splitLayoutTitle, layoutGridItems, layoutChipLabel, ellipsize,
 } from './frame';
 
@@ -335,15 +337,12 @@ export function drawPoster(ctx: CanvasRenderingContext2D, data: FrameData, img: 
   return scheme;
 }
 
-// ── Вертикаль: лише коли назва влізає (96 → 72 → нема кадру) ──
-export function verticalAvailable(data: FrameData, ctx: CanvasRenderingContext2D): boolean {
-  return verticalFontSize(data.title, measureFn(ctx)) != null;
-}
-
+// ── Вертикаль: кадр присутній завжди — назва переноситься на ≤2 рядки,
+// кегль 96→72→56 (fitVerticalLayout, frame.ts) замість зникнення кадру. ──
 export function drawVertical(ctx: CanvasRenderingContext2D, data: FrameData, img: HTMLImageElement | null, crop: CropState, theme: CleanTheme, now = new Date()): boolean {
   const measure = measureFn(ctx);
-  const size = verticalFontSize(data.title, measure);
-  if (size == null) return false;
+  const layout = fitVerticalLayout(data, measure);
+  const { size, titleLines, col1Lines, col2Lines } = layout;
 
   if (!img) {
     // Той самий склад, що заглушка постера (spec: «як на справжньому
@@ -370,20 +369,30 @@ export function drawVertical(ctx: CanvasRenderingContext2D, data: FrameData, img
   noShadow(ctx);
 
   // Назва вертикально: rotate(-90°), читається знизу вгору, низ на y 1520,
-  // ліворуч (spec §1). Крапка sage наприкінці (кінець читання = верх кадру).
-  ctx.save();
-  ctx.translate(PAD + size * 0.5, 1520);
-  ctx.rotate(-Math.PI / 2);
-  shadow(ctx, 'rgba(0,0,0,.6)', 8);
-  ctx.font = `700 ${size}px ${FONT}`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#fff';
-  ctx.fillText(data.title, 0, 0);
-  const tw = measure(data.title, `700 ${size}px ${FONT}`);
-  ctx.fillStyle = '#93b48b';
-  ctx.fillText('.', tw + size * 0.03, 0);
-  ctx.restore();
+  // ліворуч (spec §1). До 2 рядків (fitVerticalLayout) — у ротованій системі
+  // це дві колонки поряд: рядок i зсунутий на i*titleLinePitch по глобальному
+  // x, той самий крок 1.02×size, що fitTitle уже використовує для тієї самої
+  // назви в Постері/Чистому тлі. Крапка sage — по кінцю ОСТАННЬОГО рядка
+  // (кінець читання = верх кадру).
+  const titlePitch = size * 1.02;
+  const titleFont = `700 ${size}px ${FONT}`;
+  titleLines.forEach((line, i) => {
+    ctx.save();
+    ctx.translate(PAD + size * 0.5 + i * titlePitch, 1520);
+    ctx.rotate(-Math.PI / 2);
+    shadow(ctx, 'rgba(0,0,0,.6)', 8);
+    ctx.font = titleFont;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(line, 0, 0);
+    if (i === titleLines.length - 1) {
+      const tw = measure(line, titleFont);
+      ctx.fillStyle = '#93b48b';
+      ctx.fillText('.', tw + size * 0.03, 0);
+    }
+    ctx.restore();
+  });
   noShadow(ctx);
 
   // Правка (п.13, 22.09; замінено 22.09): дві вертикальні колонки поряд із
@@ -392,13 +401,13 @@ export function drawVertical(ctx: CanvasRenderingContext2D, data: FrameData, img
   // 1520, що назва). Колонка 1 — «<характер>. <опис>» 22/600; колонка 2 —
   // рядок інгредієнтів 22/400, роздільник « · » (fitVerticalIngLine сам
   // будує nbsp-захищені токени). Виняток із «мінімум 28px» — свідомий.
-  const VCOL_SIZE = 22, VCOL_LH = 1.4, VCOL_GAP = 22, VCOL_LINE_PX = VCOL_SIZE * VCOL_LH;
-  const col1Text = data.character ? `${data.character}. ${data.description}` : data.description;
-  const col1Lines = fitVerticalColumn(col1Text, measure, 700, VCOL_SIZE, 600, VCOL_LH);
-  const col2Lines = fitVerticalIngLine(data.ingredients, measure, 700, VCOL_SIZE, 400, VCOL_LH);
+  //
+  // Хотфікс (прод, 22.09): pivot тепер зсунутий не на фіксований `size`, а
+  // на verticalTitleThickness(titleLines.length, size) — реальну товщину
+  // назви (1 або 2 рядки); інакше 2-рядкова назва налазила б на col1/col2.
   if (col1Lines.length || col2Lines.length) {
     ctx.save();
-    ctx.translate(PAD + size + 36, 1520);
+    ctx.translate(PAD + verticalTitleThickness(titleLines.length, size) + 36, 1520);
     ctx.rotate(-Math.PI / 2);
     shadow(ctx, 'rgba(0,0,0,.6)', 8);
     ctx.textAlign = 'left';
