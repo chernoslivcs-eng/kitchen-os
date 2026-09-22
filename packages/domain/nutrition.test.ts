@@ -90,9 +90,10 @@ describe('carbsForDisplay/kcalOf — захисні перевірки по ВС
     return { name: name!, protein: Number(protein), fat: Number(fat), carbs: Number(carbs), fiber: fiber ? Number(fiber) : undefined, source: source! };
   });
   // Пін на кількість рядків — сторожок «хтось чіпав base.csv». Етап 4 додав
-  // 17 рядків із українських етикеток (label:), було 665.
+  // 17 рядків із українських етикеток (label:), було 665→682. Етап 5-біс
+  // (§Б) додав 2 рядки «з заливкою» для консервованої квасолі, було 682.
   it(`${rows.length} рядків прочитано`, () => {
-    expect(rows.length).toBe(682);
+    expect(rows.length).toBe(684);
   });
   it('жодна відображена величина вуглеводів не відʼємна', () => {
     const negatives = rows.filter((r) => carbsForDisplay(r) < 0);
