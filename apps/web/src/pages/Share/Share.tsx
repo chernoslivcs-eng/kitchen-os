@@ -13,8 +13,8 @@ import { Icon } from '../../components/Icon/Icon';
 import { api, type Recipe, type CookRunWithRecipe } from '../../api';
 import { track } from '../../lib/track';
 import { captureClientIncident } from '../../lib/sentry';
-import { pickCookRun, frameDataOf, verticalFontSize, clampCrop, resetCrop, applyCropDrag, isCropDefault, type FrameData, type CropState } from './frame';
-import { drawPoster, drawVertical, drawLayout, drawClean, measureFn, FRAME_W, FRAME_H, CLEAN_LIGHT, CLEAN_DARK, type FrameKind } from './render';
+import { pickCookRun, frameDataOf, clampCrop, resetCrop, applyCropDrag, isCropDefault, type FrameData, type CropState } from './frame';
+import { drawPoster, drawVertical, drawLayout, drawClean, FRAME_W, FRAME_H, CLEAN_LIGHT, CLEAN_DARK, type FrameKind } from './render';
 import styles from './Share.module.css';
 
 // Баг з проду (iPhone Chrome, PR #181): user activation зʼїдав `await` перед
@@ -25,6 +25,17 @@ function isIOSChrome(): boolean {
 }
 
 const FRAME_LABEL: Record<FrameKind, string> = { poster: 'Постер', vertical: 'Вертикаль', layout: 'Розкладка', clean: 'Чисте тло' };
+
+// Правка 8 (22.09): без фото Постер/Вертикаль/Розкладка — теж у каруселі, із
+// заглушкою (render.ts малює її сам за img=null); лише «Чисте тло» не
+// залежить від фото взагалі. Порядок той самий, є фото чи нема.
+//
+// Хотфікс (прод, 22.09): «Вертикаль» БЕЗУМОВНО в ролі — раніше зникала, коли
+// назва не влазила в 1 рядок на 96/72px («3 / 3» замість «4 / 4» на довгих
+// назвах). Тепер fitVerticalLayout (frame.ts) завжди дає валідний розклад
+// (перенос до 2 рядків, менший кегль, у крайньому разі «…»), кадр ніколи не
+// «нема» — тому список кадрів більше не залежить від назви, статичний.
+const FRAMES: FrameKind[] = ['poster', 'vertical', 'layout', 'clean'];
 
 // Масштаб і зсув зберігаються РАЗОМ (одна пара на run) — правка 22.09 (п.6):
 // кроп більше не лише вертикальний зсув, а й пінч-масштаб 1–3×.
@@ -127,32 +138,10 @@ export function SharePage() {
   const runIdRef = useRef(runId);
   runIdRef.current = runId;
 
-  // Кадри, що доступні для цього рецепта/фото.
-  const measureCtx = useMemo(() => document.createElement('canvas').getContext('2d')!, []);
   const frameData: FrameData | null = useMemo(() => recipe ? frameDataOf(recipe, run?.finished_at) : null, [recipe, run]);
-  const verticalFits = useMemo(() => {
-    if (!frameData) return false;
-    return verticalFontSize(frameData.title, measureFn(measureCtx)) != null;
-  }, [frameData, measureCtx]);
-  // Правка 8 (22.09): без фото Постер (і Вертикаль, якщо назва влізає) —
-  // теж у каруселі, із заглушкою (render.ts малює її сам за img=null); лише
-  // «Чисте тло» не залежить від фото взагалі. Порядок той самий, є фото чи нема.
-  const frames: FrameKind[] = useMemo(() => {
-    // «Розкладка» — доступна для будь-якої назви (на відміну від «Вертикалі»,
-    // що зникає, коли назва не влазить), тому в ролі без умови; спека —
-    // «четвертим», тож завжди перед «Чистим тлом» останньою. Без фото —
-    // усі photo-based кадри (постер/вертикаль/розкладка) лишаються в ролі
-    // із заглушкою (правка 8), не лише «Чисте тло».
-    return [
-      'poster',
-      ...(verticalFits ? (['vertical'] as const) : []),
-      'layout',
-      'clean',
-    ];
-  }, [verticalFits]);
   const [activeIdx, setActiveIdx] = useState(0);
-  useEffect(() => { setActiveIdx((i) => Math.min(i, frames.length - 1)); }, [frames.length]);
-  const activeKind = frames[activeIdx] ?? 'clean';
+  useEffect(() => { setActiveIdx((i) => Math.min(i, FRAMES.length - 1)); }, []);
+  const activeKind = FRAMES[activeIdx] ?? 'clean';
   const activeKindRef = useRef(activeKind);
   activeKindRef.current = activeKind;
   // Заглушка: активний кадр photo-based (постер/вертикаль), фото нема —
@@ -175,7 +164,7 @@ export function SharePage() {
   const redrawAll = useCallback(async (): Promise<void> => {
     if (!frameData) return;
     await document.fonts.ready;
-    for (const kind of frames) {
+    for (const kind of FRAMES) {
       const canvas = canvasRefs.current[kind];
       if (!canvas) continue;
       canvas.width = FRAME_W; canvas.height = FRAME_H;
@@ -198,7 +187,7 @@ export function SharePage() {
         tctx?.drawImage(canvas, 0, 0, 220, 392);
       }
     }
-  }, [frameData, frames, isDark, crop]);
+  }, [frameData, isDark, crop]);
 
   // ── Кроп: перетягування (обидві осі), пінч і колесо (масштаб 1–3×).
   // Кілька активних pointerId одразу (Pointer Events дають кожному пальцю
@@ -225,7 +214,7 @@ export function SharePage() {
     saveCrop(runId, next);
   }
   function advanceFrame(): void {
-    setActiveIdx((i) => (i + 1) % frames.length);
+    setActiveIdx((i) => (i + 1) % FRAMES.length);
   }
 
   function onCropPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -494,8 +483,8 @@ export function SharePage() {
 
       <div className={styles.body}>
         <div className={styles.previewCol}>
-          <div className={styles.carousel} data-frame-count={frames.length}>
-            {frames.map((kind) => (
+          <div className={styles.carousel} data-frame-count={FRAMES.length}>
+            {FRAMES.map((kind) => (
               <div key={kind} className={styles.frameSlot} data-frame-slot={kind} data-active={kind === activeKind || undefined}>
                 <canvas
                   ref={(el) => {
@@ -524,8 +513,8 @@ export function SharePage() {
           )}
           <div className={styles.frameRow}>
             <span className={styles.frameLabel}>{FRAME_LABEL[activeKind]}{activeKind === 'poster' && photoUrl ? ' · з фото' : ''}</span>
-            {frames.length > 1 && (
-              <span className={styles.frameCounter} data-frame-counter>{activeIdx + 1} / {frames.length}</span>
+            {FRAMES.length > 1 && (
+              <span className={styles.frameCounter} data-frame-counter>{activeIdx + 1} / {FRAMES.length}</span>
             )}
             <span className={styles.frameRowRight}>
               {!isCropDefault(crop) && (
@@ -549,10 +538,10 @@ export function SharePage() {
           {photoUrl && !cropTouched && activeKind !== 'clean' && (
             <span className={styles.cropHintSide}>Потягни фото, щоб підібрати кадр</span>
           )}
-          <div className={styles.thumbCol} aria-hidden={frames.length < 2}>
+          <div className={styles.thumbCol} aria-hidden={FRAMES.length < 2}>
             <span className={styles.thumbLabel}>КАДР</span>
             <div className={styles.thumbs}>
-              {frames.map((kind, i) => (
+              {FRAMES.map((kind, i) => (
                 <button key={kind} type="button" className={styles.thumbBtn} data-thumb={kind} data-selected={i === activeIdx || undefined} data-placeholder={(!photoUrl && kind !== 'clean') || undefined} onClick={() => setActiveIdx(i)}>
                   <canvas ref={(el) => { thumbRefs.current[kind] = el; }} className={styles.thumbCanvas} />
                   <span className={styles.thumbTag}>{FRAME_LABEL[kind]}</span>

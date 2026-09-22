@@ -162,14 +162,6 @@ export function fitDescription(description: string, measure: MeasureFn, maxWidth
   return shown;
 }
 
-// ── «Вертикаль»: 96/700 ≤ 1100 → 96; інакше 72 ≤ 1100 → 72; інакше нема кадру ──
-export function verticalFontSize(title: string, measure: MeasureFn, maxWidth = 1100, weight = 700): number | null {
-  for (const size of [96, 72]) {
-    if (measure(title, `${weight} ${size}px ${FONT}`) <= maxWidth) return size;
-  }
-  return null;
-}
-
 // Правка (п.13, 22.09; замінено 22.09 — власник: «хай буде дрібно, як у
 // макеті»): дві вертикальні колонки поряд із ротованою назвою, той самий
 // writing-mode — з первісного D1 (макет «Kitchen OS - Share v3.dc.html»,
@@ -241,6 +233,139 @@ export function fitVerticalIngLine(ingredients: FrameIngredient[], measure: Meas
   const tokens = ingLineOf(ingredients).split(' · ');
   const lines = wrapTokens(tokens, measure, font, maxHeight);
   return capLines(lines, measure, font, maxHeight, maxLines, ' · ');
+}
+
+// Хотфікс (прод, 22.09): «Вертикаль» більше НЕ зникає, коли назва не влазить
+// в один рядок на 96/72px («Спагеттіні з мідіями, анчоусами та просеко» —
+// 42 símb. — раніше ховала кадр цілком, «3 / 3» замість «4 / 4»). Рішення
+// власника: дозволити перенос до 2 вертикальних рядків (у ротованій системі
+// — дві колонки поряд, той самий писемний принцип, що вже несуть col1/col2
+// нижче); кегль 96 → 72 → 56, лише якщо й 2 рядки на 56 не влазять — «…»
+// на другому. Кадр присутній ЗАВЖДИ — fitVerticalLayout ніколи не null.
+//
+// Головне (власник, прямо): жодних накладань. Друга колонка назви (якщо є)
+// не може налізти на col1/col2, а ті — не можуть налізти на назву. Порядок
+// пріоритету: спершу зменшуємо кегль назви (96→72→56), потім 1→2 рядки на
+// тому самому кеглі; якщо й це не звільнило місця — ріжемо текстові колонки,
+// спершу col1 (опис), потім col2 (інгредієнти), по одному рядку.
+//
+// Геометрія (та сама, що вже малює drawVertical, spec §1): усе крутиться
+// rotate(-90°) навколо (x, VCOL_BASE_Y=1520) — локальний x («вздовж рядка»)
+// стає ГЛОБАЛЬНИМ y (рядок росте ВГОРУ від 1520), локальний y («яка колонка
+// за рахунком») стає ГЛОБАЛЬНИМ x (наступна колонка — правіше). Тому «товщина»
+// колонки назви — це просто size (approx. висота гліфа при textBaseline
+// middle), а між рядками назви — той самий крок 1.02×size, що fitTitle уже
+// використовує для ГОРИЗОНТАЛЬНОГО перенесення тієї самої назви (Постер/
+// Чисте тло) — узгоджено з тим, як назва поводиться в інших кадрах.
+export const VCOL_SIZE = 22, VCOL_LH = 1.4, VCOL_GAP = 22;
+export const VCOL_LINE_PX = VCOL_SIZE * VCOL_LH;
+const VERT_PAD = 96;           // = PAD у render.ts (той самий кадр 1080×1920)
+const VERT_BASE_Y = 1520;      // = «низ» ротованого читання (render.ts)
+const VERT_MAX_LEN = 1100;     // довжина рядка (= висота в ротованій системі)
+const VERT_RIGHT_MARGIN = 96;  // «поле 96px справа» (власник)
+const VERT_TITLE_GAP = 36;     // проміжок назва → col1/col2 (той самий, що вже в render.ts)
+// FRAME_W живе в render.ts (canvas-шар) — frame.ts навмисно без canvas-
+// залежностей (spec §4), тому ширина кадру продубльована тут як константа;
+// 1080 — той самий FRAME_W, синхронізовано вручну (обидва місця — spec §1).
+const FRAME_W_VERT = 1080;
+const VERT_AVAILABLE_W = FRAME_W_VERT - VERT_PAD - VERT_RIGHT_MARGIN;
+
+function titleLinePitch(size: number): number {
+  return size * 1.02; // той самий крок, що fitTitle (lh = size*1.02)
+}
+export function verticalTitleThickness(numLines: number, size: number): number {
+  return numLines <= 1 ? size : (numLines - 1) * titleLinePitch(size) + size;
+}
+function verticalColsThickness(col1Lines: string[], col2Lines: string[]): number {
+  const n = col1Lines.length + col2Lines.length;
+  if (!n) return 0;
+  return n * VCOL_LINE_PX + (col1Lines.length && col2Lines.length ? VCOL_GAP : 0);
+}
+
+export interface VerticalLayout { size: number; titleLines: string[]; col1Lines: string[]; col2Lines: string[] }
+
+/** Завжди повертає валідний розклад — «Вертикаль» більше ніколи не «нема». */
+export function fitVerticalLayout(data: FrameData, measure: MeasureFn, weight = 700): VerticalLayout {
+  const col1Text = data.character ? `${data.character}. ${data.description}` : data.description;
+  let col1Lines = fitVerticalColumn(col1Text, measure, 700, VCOL_SIZE, 600, VCOL_LH);
+  let col2Lines = fitVerticalIngLine(data.ingredients, measure, 700, VCOL_SIZE, 400, VCOL_LH);
+
+  for (const size of [96, 72, 56]) {
+    const font = `${weight} ${size}px ${FONT}`;
+    for (const maxLines of [1, 2]) {
+      const lines = wrapLines(data.title, measure, font, VERT_MAX_LEN);
+      if (!linesFit(lines, measure, font, VERT_MAX_LEN, maxLines)) continue;
+      const thickness = verticalTitleThickness(lines.length, size);
+      const budget = VERT_AVAILABLE_W - thickness - VERT_TITLE_GAP;
+      if (verticalColsThickness(col1Lines, col2Lines) <= Math.max(0, budget)) {
+        return { size, titleLines: lines, col1Lines, col2Lines };
+      }
+    }
+  }
+
+  // Найгірший випадок: 56px, до 2 рядків (з «…», якщо й так задовге) — і
+  // урізаємо текстові колонки по одному рядку, поки все не влізе в поле.
+  const size = 56;
+  const font = `${weight} ${size}px ${FONT}`;
+  const rawLines = wrapLines(data.title, measure, font, VERT_MAX_LEN);
+  const titleLines = capLines(rawLines, measure, font, VERT_MAX_LEN, 2, ' ');
+  const thickness = verticalTitleThickness(titleLines.length, size);
+  const budget = Math.max(0, VERT_AVAILABLE_W - thickness - VERT_TITLE_GAP);
+  const col1Font = `600 ${VCOL_SIZE}px ${FONT}`;
+  while (verticalColsThickness(col1Lines, col2Lines) > budget && col1Lines.length) {
+    col1Lines = capLines(col1Lines, measure, col1Font, 700, col1Lines.length - 1, ' ');
+  }
+  const col2Font = `400 ${VCOL_SIZE}px ${FONT}`;
+  while (verticalColsThickness(col1Lines, col2Lines) > budget && col2Lines.length) {
+    col2Lines = capLines(col2Lines, measure, col2Font, 700, col2Lines.length - 1, ' · ');
+  }
+  return { size, titleLines, col1Lines, col2Lines };
+}
+
+// ── Перевірка накладань (реальний рендер, не лише вибір розкладу): межі
+// кожного рядка/колонки в ГЛОБАЛЬНИХ координатах кадру — тими самими
+// формулами, що drawVertical малює. ──
+export interface Rect { x: number; y: number; w: number; h: number }
+// EPS: сусідні рядки того самого стовпця (col1[i]/col1[i+1]) торкаються
+// ВПРИТУЛ по задуму (0 проміжку — той самий рядок абзацу) — накопичена
+// похибка плаваючої коми в i*VCOL_LINE_PX (22*1.4 не рівно 30.8) інколи
+// дає a.x+a.w на 1e-13 більше за b.x у ТОЧНО дотичних прямокутників, і
+// строге «<» тоді хибно каже «перетин». EPS на порядки менший за будь-який
+// реальний зазор (VERT_TITLE_GAP=36, VCOL_GAP=22) — реального накладання не сховає.
+const EPS = 1e-6;
+export function rectsIntersect(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.w - EPS && b.x < a.x + a.w - EPS && a.y < b.y + b.h - EPS && b.y < a.y + a.h - EPS;
+}
+export function verticalTitleRects(titleLines: string[], size: number, measure: MeasureFn, weight = 700): Rect[] {
+  const font = `${weight} ${size}px ${FONT}`;
+  const pitch = titleLinePitch(size);
+  return titleLines.map((line, i) => {
+    const w = measure(line, font);
+    return { x: VERT_PAD + i * pitch, y: VERT_BASE_Y - w, w: size, h: w };
+  });
+}
+export function verticalColumnRects(col1Lines: string[], col2Lines: string[], titleThickness: number, measure: MeasureFn): Rect[] {
+  const startX = VERT_PAD + titleThickness + VERT_TITLE_GAP;
+  const col1Font = `600 ${VCOL_SIZE}px ${FONT}`;
+  const col2Font = `400 ${VCOL_SIZE}px ${FONT}`;
+  const rects: Rect[] = [];
+  col1Lines.forEach((line, i) => {
+    const w = measure(line, col1Font);
+    rects.push({ x: startX + i * VCOL_LINE_PX, y: VERT_BASE_Y - w, w: VCOL_LINE_PX, h: w });
+  });
+  const col2Start = col1Lines.length * VCOL_LINE_PX + (col1Lines.length ? VCOL_GAP : 0);
+  col2Lines.forEach((line, i) => {
+    const w = measure(line, col2Font);
+    rects.push({ x: startX + col2Start + i * VCOL_LINE_PX, y: VERT_BASE_Y - w, w: VCOL_LINE_PX, h: w });
+  });
+  return rects;
+}
+/** Усі динамічні прямокутники «Вертикалі» (назва + обидві колонки) — для тесту на непересічність. */
+export function verticalLayoutRects(layout: VerticalLayout, measure: MeasureFn): Rect[] {
+  const titleRects = verticalTitleRects(layout.titleLines, layout.size, measure);
+  const thickness = verticalTitleThickness(layout.titleLines.length, layout.size);
+  const colRects = verticalColumnRects(layout.col1Lines, layout.col2Lines, thickness, measure);
+  return [...titleRects, ...colRects];
 }
 
 // ── Яскравість фото: середня відносна яскравість верхніх 45% + нижніх 18% ──

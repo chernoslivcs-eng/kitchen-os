@@ -2,9 +2,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   frameDate, frameDateWithWeekday, wrapLines, fitTitle, fitIngredients, fitIngredientName, fitDescription,
-  verticalFontSize, fitVerticalColumn, fitVerticalIngLine, ingLineOf, classifyBrightness, pickCookRun, frameDataOf, clampCrop, resetCrop, applyCropDrag, isCropDefault,
+  fitVerticalColumn, fitVerticalIngLine, ingLineOf, classifyBrightness, pickCookRun, frameDataOf, clampCrop, resetCrop, applyCropDrag, isCropDefault,
   splitLayoutTitle, layoutGridItems, layoutChipLabel,
-  type MeasureFn,
+  fitVerticalLayout, verticalTitleThickness, verticalLayoutRects, rectsIntersect,
+  type MeasureFn, type FrameData,
 } from './frame';
 import type { CookRunWithRecipe, Recipe } from '../../api';
 
@@ -144,22 +145,118 @@ describe('fitDescription: ≤3 рядки, довший — по останнь�
   });
 });
 
-describe('verticalFontSize: 96 ≤ 1100 → 96; інакше 72 ≤ 1100 → 72; інакше нема', () => {
-  it('коротка назва — 96', () => {
-    expect(verticalFontSize('Сауер', fakeMeasure)).toBe(96);
+// Хотфікс (прод, 22.09): «Вертикаль» раніше зникала цілком, коли назва не
+// влазила в 1 рядок на 96/72px («Спагеттіні з мідіями, анчоусами та
+// просеко» — 42 símb. — кадру не було, «3 / 3» замість «4 / 4»). Тепер
+// fitVerticalLayout ЗАВЖДИ повертає валідний розклад (перенос до 2 рядків,
+// кегль 96→72→56, у крайньому разі «…»), а verticalLayoutRects дає
+// прямокутники для перевірки, що ніщо не накладається.
+const frame = (over: Partial<FrameData> = {}): FrameData => ({
+  title: 'Борщ', minutes: 40, description: 'Класичний борщ на яловичині.', date: '22 вересня', character: 'Затишний',
+  ingredients: [{ name: 'буряк', qty: '2 шт' }, { name: 'капуста', qty: '300 г' }, { name: 'яловичина', qty: '500 г' }],
+  ...over,
+});
+
+describe('rectsIntersect: суміжні (дотичні впритул) прямокутники — не перетин; реальний — так', () => {
+  it('впритул по x (той самий рядок абзацу, суміжна колонка) — не перетин', () => {
+    // Значення як у справжньому VCOL_LINE_PX (22×1.4=30.799999999999997) —
+    // накопичена похибка плаваючої коми якраз і ловила цей кейс хибно.
+    const a = { x: 218.8, y: 0, w: 30.799999999999997, h: 100 };
+    const b = { x: 249.6, y: 0, w: 30.8, h: 100 };
+    expect(rectsIntersect(a, b)).toBe(false);
   });
-  it('середня назва — падає на 72', () => {
-    // довжина підібрана так, щоб на 96 (55%×96×len) перевищувала 1100, а на 72 — ні
-    const title = 'Смородиновий джин-сауер'; // 23 символи
-    const at96 = fakeMeasure(title, '700 96px Onest');
-    const at72 = fakeMeasure(title, '700 72px Onest');
-    expect(at96).toBeGreaterThan(1100);
-    expect(at72).toBeLessThanOrEqual(1100);
-    expect(verticalFontSize(title, fakeMeasure)).toBe(72);
+  it('впритул по y — не перетин', () => {
+    const a = { x: 0, y: 100, w: 50, h: 50 };
+    const b = { x: 0, y: 150, w: 50, h: 50 };
+    expect(rectsIntersect(a, b)).toBe(false);
   });
-  it('дуже довга назва — кадру нема (null)', () => {
-    const title = 'Дуже-предуже-довга-назва-страви-яка-нізащо-не-влізе-навіть-дрібним-шрифтом-у-відведену-ширину';
-    expect(verticalFontSize(title, fakeMeasure)).toBeNull();
+  it('справжній перетин (заходить на кілька пікселів) — так', () => {
+    const a = { x: 0, y: 0, w: 50, h: 50 };
+    const b = { x: 40, y: 40, w: 50, h: 50 };
+    expect(rectsIntersect(a, b)).toBe(true);
+  });
+  it('явно окремі — не перетин', () => {
+    const a = { x: 0, y: 0, w: 50, h: 50 };
+    const b = { x: 200, y: 200, w: 50, h: 50 };
+    expect(rectsIntersect(a, b)).toBe(false);
+  });
+});
+
+describe('verticalTitleThickness: 1 рядок = size; 2 рядки = size + крок 1.02×size (той самий, що fitTitle)', () => {
+  it('1 рядок — просто size', () => {
+    expect(verticalTitleThickness(1, 96)).toBe(96);
+  });
+  it('2 рядки — size + 1.02×size', () => {
+    expect(verticalTitleThickness(2, 96)).toBeCloseTo(96 + 96 * 1.02, 5);
+  });
+});
+
+describe('fitVerticalLayout: кадр завжди валідний — коротка назва лишається як була', () => {
+  it('«Борщ» — 96px, 1 рядок (не зіпсували звичний вигляд)', () => {
+    const r = fitVerticalLayout(frame(), fakeMeasure);
+    expect(r.size).toBe(96);
+    expect(r.titleLines).toEqual(['Борщ']);
+  });
+});
+
+describe('fitVerticalLayout: довгі реальні назви — кадр присутній, ≤2 рядки, ніколи null', () => {
+  const longTitles = [
+    'Спагеттіні з мідіями, анчоусами та просеко',
+    'Спагеттіні з мідіями в томатному винному соусі',
+    'Паста з печеними помідорами й часником',
+  ];
+  for (const title of longTitles) {
+    it(`«${title}» — влазить у ≤2 рядки на якомусь із 96/72/56`, () => {
+      const r = fitVerticalLayout(frame({ title }), fakeMeasure);
+      expect([96, 72, 56]).toContain(r.size);
+      expect(r.titleLines.length).toBeLessThanOrEqual(2);
+      expect(r.titleLines.length).toBeGreaterThan(0);
+    });
+  }
+  it('навіть неможливо довга назва — 2 рядки з «…» на другому, не null і не падає', () => {
+    const title = Array.from({ length: 30 }, (_, i) => `слово${i}`).join(' ');
+    const r = fitVerticalLayout(frame({ title }), fakeMeasure);
+    expect(r.size).toBe(56);
+    expect(r.titleLines.length).toBe(2);
+    expect(r.titleLines[1]!.endsWith('…')).toBe(true);
+  });
+});
+
+describe('verticalLayoutRects: жодних накладань — назва (1–2 рядки) і обидві колонки', () => {
+  const cases: [string, Partial<FrameData>][] = [
+    ['контроль — коротка назва', {}],
+    ['«Спагеттіні з мідіями, анчоусами та просеко»', { title: 'Спагеттіні з мідіями, анчоусами та просеко' }],
+    ['«Спагеттіні з мідіями в томатному винному соусі»', { title: 'Спагеттіні з мідіями в томатному винному соусі' }],
+    ['«Паста з печеними помідорами й часником»', { title: 'Паста з печеними помідорами й часником' }],
+  ];
+  for (const [label, over] of cases) {
+    it(`${label} — жодна пара прямокутників не перетинається`, () => {
+      const data = frame(over);
+      const layout = fitVerticalLayout(data, fakeMeasure);
+      const rects = verticalLayoutRects(layout, fakeMeasure);
+      for (let i = 0; i < rects.length; i++) {
+        for (let j = i + 1; j < rects.length; j++) {
+          expect(rectsIntersect(rects[i]!, rects[j]!)).toBe(false);
+        }
+      }
+    });
+  }
+
+  it('патологічний випадок — довга назва + довгий опис + багато довгих інгредієнтів: колонки урізаються, але не накладаються', () => {
+    const data = frame({
+      title: 'Дуже-предуже-довга-назва-страви-яка-нізащо-не-влізе-навіть-дрібним-шрифтом-у-відведену-ширину',
+      character: 'Дуже врочистий і надзвичайно деталізований',
+      description: Array.from({ length: 40 }, (_, i) => `речення номер ${i} про смак і текстуру.`).join(' '),
+      ingredients: Array.from({ length: 20 }, (_, i) => ({ name: `дуже довга назва інгредієнта номер ${i} з деталями`, qty: '100 г' })),
+    });
+    const layout = fitVerticalLayout(data, fakeMeasure);
+    expect(layout.size).toBe(56); // найгірший випадок — і за розміром, і за урізаними колонками
+    const rects = verticalLayoutRects(layout, fakeMeasure);
+    for (let i = 0; i < rects.length; i++) {
+      for (let j = i + 1; j < rects.length; j++) {
+        expect(rectsIntersect(rects[i]!, rects[j]!)).toBe(false);
+      }
+    }
   });
 });
 
