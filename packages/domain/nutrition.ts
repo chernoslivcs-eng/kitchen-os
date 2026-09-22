@@ -6,8 +6,36 @@
 // розʼїжджається між сідом, коморою й рецептом.
 
 import type { Nutrition } from '@kitchen/catalog';
+import { matchProductNameToBaseRow } from '@kitchen/catalog';
 
 export type { Nutrition, NutritionSource } from '@kitchen/catalog';
+
+/**
+ * Етап 5: конкретна назва ПРОДУКТУ ДОМУ («оливки Iruela зелені в олії»,
+ * «желе сухе Мрія») часто несе уточнення, якого нема в узагальненій назві
+ * каталожної позиції — `apply-base.ts` запікає нутрієнти в каталог,
+ * проганяючи через матчер саме його назву, не партії
+ * (NUTRI-LABELS-REPORT-0922.md, знахідка етапу 3а: усі підтверджені «чужі
+ * ключі» — про вид/стан, який є в назві партії, а не в каталожній). Якщо
+ * матчер дав СИЛЬНИЙ збіг (не keyword — найслабший, аудит: «груша» ним
+ * зловила «топінамбур») по назві продукту — цей рядок виграє; інакше, як і
+ * раніше, нутрієнти каталожної позиції.
+ *
+ * `productLabel` — `product + variant` (БЕЗ бренду): порівняно з повною
+ * назвою (+бренд) емпірично краще на реальних партіях (0 програшів, 5
+ * виграшів на 146 перевірених — «лимонний сік Sandora», «тунець Calvo» та
+ * ін. до цього не матчились). Причина не випадкова: перший (і
+ * найнадійніший) крок матчера — точний збіг усієї фрази; бренд у ній ламає
+ * цей збіг, а обхідний шлях «зняти бренд → точний збіг» у BaseMatcher
+ * підтверджується категоріями позиції, яких у продукту дому нема.
+ */
+export function resolveNutrition(catalogNutrition: Nutrition | undefined, productLabel: string | null | undefined): Nutrition | undefined {
+  if (productLabel) {
+    const fromProduct = matchProductNameToBaseRow(productLabel);
+    if (fromProduct) return fromProduct;
+  }
+  return catalogNutrition;
+}
 
 /**
  * Як клітковина стосується `carbs` — залежить від ДЖЕРЕЛА, не однаково всюди:

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { kcalOf, carbsForDisplay, nutritionIssue, recipeNutrition, isEstimate, type Nutrition } from './nutrition.js';
+import { kcalOf, carbsForDisplay, nutritionIssue, recipeNutrition, isEstimate, resolveNutrition, type Nutrition } from './nutrition.js';
 
 // Раунд 5, крок Н1: ккал не зберігаються — рахуються з БЖВ одним правилом
 // 4-4-9 на весь моноліт.
@@ -195,5 +195,24 @@ describe('recipeNutrition — рядок під інгредієнтами', () 
   it('жодного порахованого інгредієнта — null', () => {
     expect(recipeNutrition({ sv: 2, ing: [{ n: 'x', v: 1, u: 'pcs' }] }, () => null)).toBeNull();
     expect(recipeNutrition({ sv: 2, ing: [] }, () => null)).toBeNull();
+  });
+});
+
+// Етап 5: назва продукту дому перемагає узагальнену каталожну, коли резолвер
+// дав сильний збіг по НІЙ; інакше — як було. Реальні рядки бази (не мок) —
+// щоб довести саме інтеграцію з matchProductNameToBaseRow, не її підміну.
+describe('resolveNutrition: назва продукту дому виграє в каталожної, коли резолвер її впізнав сильним правилом', () => {
+  const catalogFallback: Nutrition = { protein: 1, fat: 1, carbs: 1, source: 'estimate' };
+  it('продукт дому впізнано (exact) — його рядок, не каталожний', () => {
+    const r = resolveNutrition(catalogFallback, 'Гірчиця');
+    expect(r).toEqual({ protein: 3.74, fat: 3.34, carbs: 5.83, fiber: 4, sugars: 0.92, sodium_mg: 1104, source: 'usda:172234' });
+  });
+  it('назва без уточнення / резолвер мовчить — каталожний рядок, як і раніше', () => {
+    expect(resolveNutrition(catalogFallback, 'щось геть невідоме xyz987')).toBe(catalogFallback);
+    expect(resolveNutrition(catalogFallback, null)).toBe(catalogFallback);
+    expect(resolveNutrition(catalogFallback, '')).toBe(catalogFallback);
+  });
+  it('немає каталожного fallback і резолвер теж мовчить — undefined', () => {
+    expect(resolveNutrition(undefined, 'щось геть невідоме xyz987')).toBeUndefined();
   });
 });

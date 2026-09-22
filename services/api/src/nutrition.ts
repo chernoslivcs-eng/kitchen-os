@@ -4,16 +4,24 @@
 import { resolveLabelToKey } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import {
-  recipeNutrition,
+  recipeNutrition, resolveNutrition,
   type IngredientFacts, type RecipeNutrition, type PantryBatch, type HouseholdProduct, type Recipe, type Repo,
 } from '@kitchen/domain';
 
-/** Що каталог знає про позицію: БЖВ/100 г, вага штуки, густина. */
-export function catalogFacts(catalog_key: string | null | undefined, label?: string): IngredientFacts | null {
+/**
+ * Що каталог знає про позицію: БЖВ/100 г, вага штуки, густина. `productLabel`
+ * (етап 5) — `product + variant` продукту дому, коли інгредієнт зіставлений
+ * із партією комори (не з вільною назвою рецепта — `resolveNutrition`,
+ * packages/domain/nutrition.ts, пояснює чому саме ця форма): конкретніший
+ * рядок бази, коли резолвер дав сильний збіг, виграє в узагальненого,
+ * запеченого в позицію каталогу.
+ */
+export function catalogFacts(catalog_key: string | null | undefined, label?: string, productLabel?: string | null): IngredientFacts | null {
   const key = catalog_key ?? (label ? resolveLabelToKey(label) : null);
   const item = key ? BY_KEY.get(key) : undefined;
-  if (!item?.nutrition) return null;
-  return { nutrition: item.nutrition, unit_weight: item.unit_weight, density: item.density };
+  const nutrition = resolveNutrition(item?.nutrition, productLabel);
+  if (!nutrition) return null;
+  return { nutrition, unit_weight: item?.unit_weight, density: item?.density };
 }
 
 /**
@@ -26,7 +34,8 @@ export function recipeNutritionFor(recipe: Recipe, batches: Map<string, PantryBa
       const b = batches.get(ing.p);
       if (!b) return null;
       const prod = b.product_id ? products.find((p) => p.id === b.product_id) : undefined;
-      return catalogFacts(b.catalog_key ?? prod?.catalog_key ?? null, b.label);
+      const productLabel = prod ? [prod.product, prod.variant].filter(Boolean).join(' ') : null;
+      return catalogFacts(b.catalog_key ?? prod?.catalog_key ?? null, b.label, productLabel);
     }
     return ing.n ? catalogFacts(null, ing.n) : null;
   });

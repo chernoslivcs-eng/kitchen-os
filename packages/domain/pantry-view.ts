@@ -7,7 +7,7 @@ import type { PantryBatch } from './types.js';
 import type { HouseholdProduct } from './product.js';
 import type { VetoRow } from './profile-text.js';
 import { matchVeto, type VetoScope } from './veto.js';
-import { kcalOf, isEstimate, carbsForDisplay } from './nutrition.js';
+import { kcalOf, isEstimate, carbsForDisplay, resolveNutrition } from './nutrition.js';
 import { shelfSealedDays, openDaysFor } from './shelf-life.js';
 
 export type PantryNo = 'не їм' | 'не можна' | null;
@@ -171,7 +171,10 @@ export function pantryItemView(
 ): PantryItemView {
   const key = b.catalog_key ?? prod?.catalog_key ?? null;
   const item = key ? BY_KEY.get(key) : undefined;
-  const n = item?.nutrition;
+  // Етап 5: назва продукту дому (product+variant, без бренду) — конкретніший
+  // рядок бази, коли резолвер дав сильний збіг; інакше нутрієнти позиції каталогу.
+  const productLabel = prod ? [prod.product, prod.variant].filter(Boolean).join(' ') : null;
+  const n = resolveNutrition(item?.nutrition, productLabel);
   return {
     // 15.09: ключ, за яким усе порахували, — у відповідь. Партія свого ключа
     // не має ніколи (apply пише null), ключ живе на продукті; веб читає

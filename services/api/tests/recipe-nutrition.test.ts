@@ -53,6 +53,28 @@ describe('GET /v1/recipes/:id → nutrition_calc', () => {
     expect(calc.approx).toBe(true);
   });
 
+  // Етап 5: партія, звʼязана з продуктом дому (product_id), чия власна
+  // назва (product+variant, без бренду) резолвиться СИЛЬНИМ правилом на
+  // рядок бази — цей рядок і йде в розрахунок рецепта, не узагальнений
+  // каталожний (chicken_fillet, 114 ккал) на partії.
+  it('nutrition_calc бере рядок бази з назви ПРОДУКТУ партії, коли резолвер її впізнав (не з каталожного ключа партії)', async () => {
+    const { repo, app, me } = await stand();
+    const prodId = randomUUID();
+    await repo.insertProduct({
+      id: prodId, household_id: me.household_id, product: 'гірчиця', brand: 'Верес', variant: null,
+      unit: null, pack_size: null, tags: {}, catalog_key: 'chicken_fillet', created_at: new Date().toISOString(),
+    });
+    const b = batch(me.household_id, 'Гірчиця Верес', { catalog_key: null, product_id: prodId });
+    await repo.insertBatch(b);
+    const recipe: Recipe = { t: 'Тест', sv: 1, tm: 5, ch: '', d: '', rk: '', ing: [{ p: b.id, v: 100, u: 'g' }], st: [] };
+    const id = randomUUID();
+    await repo.saveRecipe({ id, owner_id: me.user_id, origin: 'generated', title: recipe.t, descr: null, character: null, risk: null, base_servings: 1, time_total: 5, nutrition: null, payload: recipe, created_at: new Date().toISOString(), saved_at: null });
+    const res = await app.inject({ method: 'GET', url: `/v1/recipes/${id}`, headers: { cookie: me.cookie } });
+    const calc = (res.json() as { nutrition_calc: { per_serving: { kcal: number } } }).nutrition_calc;
+    // «Гірчиця» (usda:172234, 100 г) = 60 ккал, НЕ chicken_fillet (114 на 100 г).
+    expect(calc.per_serving.kcal).toBe(60);
+  });
+
   it('усі інгредієнти з джерелом, без пропусків — без ≈', async () => {
     const { repo, app, me } = await stand();
     const recipe: Recipe = { t: 'Філе', sv: 1, tm: 10, ch: '', d: '', rk: '', ing: [{ n: 'куряче філе', v: 200, u: 'g' }], st: [] };
