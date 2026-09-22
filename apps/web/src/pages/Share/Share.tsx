@@ -13,7 +13,7 @@ import { Icon } from '../../components/Icon/Icon';
 import { api, type Recipe, type CookRunWithRecipe } from '../../api';
 import { track } from '../../lib/track';
 import { captureClientIncident } from '../../lib/sentry';
-import { pickCookRun, frameDataOf, verticalFontSize, type FrameData } from './frame';
+import { pickCookRun, frameDataOf, verticalFontSize, clampCrop, resetCrop, type FrameData, type CropState } from './frame';
 import { drawPoster, drawVertical, drawClean, measureFn, FRAME_W, FRAME_H, CLEAN_LIGHT, CLEAN_DARK, type FrameKind } from './render';
 import styles from './Share.module.css';
 
@@ -26,14 +26,21 @@ function isIOSChrome(): boolean {
 
 const FRAME_LABEL: Record<FrameKind, string> = { poster: 'Постер', vertical: 'Вертикаль', clean: 'Чисте тло' };
 
+// Масштаб і зсув зберігаються РАЗОМ (одна пара на run) — правка 22.09 (п.6):
+// кроп більше не лише вертикальний зсув, а й пінч-масштаб 1–3×.
 function cropStorageKey(runId: string): string { return `share-crop:${runId}`; }
-function loadCropOffset(runId: string | null): number {
-  if (!runId) return 0.5;
-  try { const v = sessionStorage.getItem(cropStorageKey(runId)); return v ? Number(v) : 0.5; } catch { return 0.5; }
+function loadCrop(runId: string | null): CropState {
+  if (!runId) return resetCrop();
+  try {
+    const v = sessionStorage.getItem(cropStorageKey(runId));
+    if (!v) return resetCrop();
+    const parsed = JSON.parse(v) as Partial<CropState> | null;
+    return clampCrop({ scale: parsed?.scale ?? 1, x: parsed?.x ?? 0.5, y: parsed?.y ?? 0.5 });
+  } catch { return resetCrop(); }
 }
-function saveCropOffset(runId: string | null, offset: number): void {
+function saveCrop(runId: string | null, crop: CropState): void {
   if (!runId) return;
-  try { sessionStorage.setItem(cropStorageKey(runId), String(offset)); } catch { /* приватний режим — тихо */ }
+  try { sessionStorage.setItem(cropStorageKey(runId), JSON.stringify(crop)); } catch { /* приватний режим — тихо */ }
 }
 
 function useDarkTheme(): boolean {
@@ -110,11 +117,15 @@ export function SharePage() {
     return () => { img.onload = null; };
   }, [photoUrl]);
 
-  // Кроп: зсув по вертикалі, sessionStorage на run.
+  // Кроп: масштаб 1–3× + зсув по обох осях, sessionStorage на run.
   const runId = run?.id ?? null;
-  const [cropOffset, setCropOffset] = useState(() => loadCropOffset(runId));
-  useEffect(() => { setCropOffset(loadCropOffset(runId)); }, [runId]);
+  const [crop, setCrop] = useState<CropState>(() => loadCrop(runId));
+  useEffect(() => { setCrop(loadCrop(runId)); }, [runId]);
   const [cropTouched, setCropTouched] = useState(false);
+  const cropRef = useRef(crop);
+  cropRef.current = crop;
+  const runIdRef = useRef(runId);
+  runIdRef.current = runId;
 
   // Кадри, що доступні для цього рецепта/фото.
   const measureCtx = useMemo(() => document.createElement('canvas').getContext('2d')!, []);
@@ -130,6 +141,8 @@ export function SharePage() {
   const [activeIdx, setActiveIdx] = useState(0);
   useEffect(() => { setActiveIdx((i) => Math.min(i, frames.length - 1)); }, [frames.length]);
   const activeKind = frames[activeIdx] ?? 'clean';
+  const activeKindRef = useRef(activeKind);
+  activeKindRef.current = activeKind;
 
   // Карусель 390: центрувати активний кадр — на монтуванні й коли крапку
   // обрали тапом (не лише коли людина сама гортає). Без цього перший кадр
@@ -184,8 +197,8 @@ export function SharePage() {
       if (kind === 'clean') {
         drawClean(ctx, frameData, isDark ? CLEAN_DARK : CLEAN_LIGHT);
       } else if (photoImgRef.current) {
-        if (kind === 'poster') drawPoster(ctx, frameData, photoImgRef.current, cropOffset);
-        else drawVertical(ctx, frameData, photoImgRef.current, cropOffset);
+        if (kind === 'poster') drawPoster(ctx, frameData, photoImgRef.current, crop);
+        else drawVertical(ctx, frameData, photoImgRef.current, crop);
       } else {
         continue; // фото ще не завантажене — кадр домалюється, коли прийде
       }
@@ -200,28 +213,96 @@ export function SharePage() {
       }
     }
     return activeBlob;
-  }, [frameData, frames, isDark, cropOffset, activeKind]);
+  }, [frameData, frames, isDark, crop, activeKind]);
 
-  // ── Кроп перетягуванням: pointer events на активному полотні ──
-  const dragRef = useRef<{ startY: number; startOffset: number } | null>(null);
+  // ── Кроп: перетягування (обидві осі), пінч і колесо (масштаб 1–3×),
+  // подвійний тап/клік — скидання. Кілька активних pointerId одразу
+  // (Pointer Events дають кожному пальцю свій id) — 2 пальці = пінч,
+  // 1 — перетягування; перехід між ними скасовує drag/pinch-стан. ──
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const dragRef = useRef<{ startX: number; startY: number; startCrop: CropState; w: number; h: number } | null>(null);
+  const pinchRef = useRef<{ startDist: number; startScale: number } | null>(null);
+  const lastTapRef = useRef<number>(0);
+
+  function resetCropNow(): void {
+    const next = resetCrop();
+    setCropTouched(true);
+    setCrop(next);
+    saveCrop(runId, next);
+  }
+
   function onCropPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!photoImgRef.current || activeKind === 'clean') return;
-    dragRef.current = { startY: e.clientY, startOffset: cropOffset };
-    (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
+    const el = e.currentTarget;
+    (el as HTMLCanvasElement).setPointerCapture(e.pointerId);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 2) {
+      dragRef.current = null;
+      const [a, b] = [...pointersRef.current.values()];
+      pinchRef.current = { startDist: Math.hypot(a!.x - b!.x, a!.y - b!.y), startScale: cropRef.current.scale };
+      return;
+    }
+    if (pointersRef.current.size > 2) return;
+    // Один палець/миша: подвійний тап/клік у межах 300мс — скидання, не drag.
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      lastTapRef.current = 0;
+      resetCropNow();
+      return;
+    }
+    lastTapRef.current = now;
+    dragRef.current = { startX: e.clientX, startY: e.clientY, startCrop: crop, w: el.clientWidth, h: el.clientHeight };
   }
   function onCropPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinchRef.current && pointersRef.current.size === 2) {
+      const [a, b] = [...pointersRef.current.values()];
+      const dist = Math.hypot(a!.x - b!.x, a!.y - b!.y);
+      const ratio = dist / Math.max(1, pinchRef.current.startDist);
+      setCropTouched(true);
+      setCrop((c) => clampCrop({ ...c, scale: pinchRef.current!.startScale * ratio }));
+      return;
+    }
     const d = dragRef.current;
     if (!d) return;
-    const el = e.currentTarget;
-    const dy = e.clientY - d.startY;
-    const next = Math.min(1, Math.max(0, d.startOffset + dy / Math.max(1, el.clientHeight)));
+    const dx = e.clientX - d.startX, dy = e.clientY - d.startY;
+    const next = clampCrop({
+      scale: d.startCrop.scale,
+      x: d.startCrop.x + dx / Math.max(1, d.w),
+      y: d.startCrop.y + dy / Math.max(1, d.h),
+    });
     setCropTouched(true);
-    setCropOffset(next);
+    setCrop(next);
   }
-  function onCropPointerUp() {
-    if (!dragRef.current) return;
-    dragRef.current = null;
-    saveCropOffset(runId, cropOffset);
+  function onCropPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchRef.current = null;
+    if (pointersRef.current.size === 0) {
+      dragRef.current = null;
+      saveCrop(runId, cropRef.current);
+    }
+  }
+  // React додає onWheel як passive listener — e.preventDefault() у ньому
+  // мовчки нічого не робить (сторінка все одно скролиться під час зуму
+  // колесом). Нативний addEventListener(..., {passive:false}) на самому
+  // canvas-елементі — єдиний спосіб; прив'язка — через cleanup-функцію
+  // ref-колбека (React 19), не ручний remove/add за попереднім значенням
+  // рефа: останнє мовчки лишало старий passive-слухач активним при частій
+  // переприв'язці рефа (кожен рендер — нова ідентичність інлайн-колбека).
+  // Стабільний useCallback з порожніми deps: читає лише з рефів.
+  const onCropWheelNative = useCallback((e: WheelEvent) => {
+    if (!photoImgRef.current || activeKindRef.current === 'clean') return;
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.1 : -0.1;
+    setCropTouched(true);
+    const next = clampCrop({ ...cropRef.current, scale: cropRef.current.scale + delta });
+    setCrop(next);
+    saveCrop(runIdRef.current, next);
+  }, []);
+  function onCropDoubleClick() {
+    if (!photoImgRef.current || activeKind === 'clean') return;
+    resetCropNow();
   }
 
   // ── Фото: замінити/додати ──
@@ -246,7 +327,7 @@ export function SharePage() {
     off.getContext('2d')!.drawImage(bitmap, 0, 0);
     const localUrl = off.toDataURL('image/jpeg', 0.92);
     setPhotoUrl(localUrl);
-    setCropOffset(0.5);
+    setCrop(resetCrop());
     setCropTouched(false);
     if (!run) return; // без запису — фото живе лише в кадрі цієї сесії (spec §2)
     setSavingPhoto(true);
@@ -282,7 +363,7 @@ export function SharePage() {
       }
     });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- redrawAll уже несе activeKind/cropOffset/isDark/frames у своїй ідентичності; fileName залежить лише від recipe (стабільний за час життя сторінки)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- redrawAll уже несе activeKind/crop/isDark/frames у своїй ідентичності; fileName залежить лише від recipe (стабільний за час життя сторінки)
   }, [redrawAll, photoReady]);
 
   const [busy, setBusy] = useState<'share' | 'telegram' | null>(null);
@@ -418,7 +499,12 @@ export function SharePage() {
             {frames.map((kind) => (
               <div key={kind} ref={(el) => { slotRefs.current[kind] = el; }} className={styles.frameSlot} data-frame-slot={kind} data-active={kind === activeKind || undefined}>
                 <canvas
-                  ref={(el) => { canvasRefs.current[kind] = el; }}
+                  ref={(el) => {
+                    canvasRefs.current[kind] = el;
+                    if (!el) return;
+                    el.addEventListener('wheel', onCropWheelNative, { passive: false });
+                    return () => el.removeEventListener('wheel', onCropWheelNative);
+                  }}
                   className={styles.frameCanvas}
                   data-frame={kind}
                   data-selected={kind === activeKind || undefined}
@@ -427,6 +513,7 @@ export function SharePage() {
                   onPointerMove={onCropPointerMove}
                   onPointerUp={onCropPointerUp}
                   onPointerCancel={onCropPointerUp}
+                  onDoubleClick={onCropDoubleClick}
                 />
               </div>
             ))}

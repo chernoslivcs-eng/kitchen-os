@@ -2,7 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   frameDate, frameDateWithWeekday, wrapLines, fitTitle, fitIngredients, fitDescription,
-  verticalFontSize, classifyBrightness, pickCookRun, frameDataOf, type MeasureFn,
+  verticalFontSize, classifyBrightness, pickCookRun, frameDataOf, clampCrop, resetCrop,
+  type MeasureFn,
 } from './frame';
 import type { CookRunWithRecipe, Recipe } from '../../api';
 
@@ -202,5 +203,32 @@ describe('frameDataOf: одиниці інгредієнтів — той сам
   it('«600 г», «4 шт», «45 мл» — не сирі g/pcs/ml', () => {
     const data = frameDataOf(RECIPE, null);
     expect(data.ingredients.map((i) => i.qty)).toEqual(['600 г', '4 шт', '45 мл', '—']);
+  });
+});
+
+// Правка 22.09 (п.6): кроп фото — масштаб 1–3× + зсув по обох осях. Межі
+// clampCrop — те, що гарантує «фото ніколи не відкриває тло» (coverRect у
+// render.ts довіряє x/y вже в [0,1] і сам ніколи не читає поза картинкою).
+describe('clampCrop: межі масштабу 1..3 і зсуву 0..1 по обох осях', () => {
+  it('у межах — не змінює', () => {
+    expect(clampCrop({ scale: 2, x: 0.3, y: 0.7 })).toEqual({ scale: 2, x: 0.3, y: 0.7 });
+  });
+  it('масштаб нижче 1 — підтягує до 1 (не можна менше «cover»)', () => {
+    expect(clampCrop({ scale: 0.4, x: 0.5, y: 0.5 }).scale).toBe(1);
+  });
+  it('масштаб вище 3 — стелю 3', () => {
+    expect(clampCrop({ scale: 7, x: 0.5, y: 0.5 }).scale).toBe(3);
+  });
+  it('x/y нижче 0 або вище 1 — притискає до країв, не відкриває тло', () => {
+    expect(clampCrop({ scale: 1.5, x: -0.2, y: 1.9 })).toEqual({ scale: 1.5, x: 0, y: 1 });
+  });
+  it('x/y рівно на межі 0 і 1 — лишає як є', () => {
+    expect(clampCrop({ scale: 2, x: 0, y: 1 })).toEqual({ scale: 2, x: 0, y: 1 });
+  });
+});
+
+describe('resetCrop: скидання до 1× по центру (подвійний тап/клік)', () => {
+  it('завжди {scale:1, x:0.5, y:0.5} незалежно від попереднього стану', () => {
+    expect(resetCrop()).toEqual({ scale: 1, x: 0.5, y: 0.5 });
   });
 });

@@ -177,6 +177,28 @@ export function classifyBrightness(pixels: Uint8ClampedArray | number[], width: 
   return avg > 0.6 ? 'light' : 'dark';
 }
 
+// ── Кроп фото: масштаб 1..3× + зсув по обох осях (0..1 кожна, 0.5 — центр) ──
+// x/y — частка пандомого діапазону при ПОТОЧНОМУ scale (не абсолютні пікселі
+// зображення) — coverRect (render.ts) перераховує сам діапазон з натуральних
+// розмірів фото на кожному кадрі; тут лише межі, з яких і випливає «фото
+// ніколи не відкриває тло» — sx/sy завжди в [0, imgW-sw]/[0, imgH-sh].
+export interface CropState { scale: number; x: number; y: number }
+export const CROP_MIN_SCALE = 1;
+export const CROP_MAX_SCALE = 3;
+export const CROP_DEFAULT: CropState = { scale: 1, x: 0.5, y: 0.5 };
+
+export function clampCrop(state: CropState): CropState {
+  return {
+    scale: Math.min(CROP_MAX_SCALE, Math.max(CROP_MIN_SCALE, state.scale)),
+    x: Math.min(1, Math.max(0, state.x)),
+    y: Math.min(1, Math.max(0, state.y)),
+  };
+}
+
+export function resetCrop(): CropState {
+  return { ...CROP_DEFAULT };
+}
+
 // ── Вибір запису журналу: `run` із query, інакше останній не-undone з фото ──
 export function pickCookRun(runs: CookRunWithRecipe[], recipeId: string, runParam?: string | null): CookRunWithRecipe | null {
   const forRecipe = runs.filter((r) => r.recipe_id === recipeId && !r.undone_at);

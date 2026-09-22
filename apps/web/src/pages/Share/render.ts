@@ -2,8 +2,8 @@
 // скрим детермінований за яскравістю), вертикаль (лише коли назва влізає),
 // чисте тло (тема застосунку). Спільна геометрія — з макета «Kitchen OS -
 // Share v3.dc.html» (істина для вигляду).
-import type { FrameData, MeasureFn, Brightness } from './frame';
-import { fitTitle, fitIngredients, fitDescription, verticalFontSize, classifyBrightness } from './frame';
+import type { FrameData, MeasureFn, Brightness, CropState } from './frame';
+import { fitTitle, fitIngredients, fitDescription, verticalFontSize, classifyBrightness, clampCrop } from './frame';
 
 export const FRAME_W = 1080;
 export const FRAME_H = 1920;
@@ -24,27 +24,26 @@ export function measureFn(ctx: CanvasRenderingContext2D): MeasureFn {
   return (text, font) => { ctx.font = font; return ctx.measureText(text).width; };
 }
 
-// ── Крoп фото: зсув по вертикалі (0..1, 0.5 — центр), межі — фото не відкриває тло ──
-export function coverRect(imgW: number, imgH: number, boxW: number, boxH: number, offsetNorm: number): { sx: number; sy: number; sw: number; sh: number } {
-  const scale = Math.max(boxW / imgW, boxH / imgH);
+// ── Крoп фото: масштаб 1..3× (пінч/колесо) + зсув по обох осях, межі — фото не відкриває тло ──
+export function coverRect(imgW: number, imgH: number, boxW: number, boxH: number, crop: CropState): { sx: number; sy: number; sw: number; sh: number } {
+  const c = clampCrop(crop);
+  const scale = Math.max(boxW / imgW, boxH / imgH) * c.scale;
   const sw = boxW / scale, sh = boxH / scale;
-  const maxOffX = imgW - sw, maxOffY = imgH - sh;
-  const sx = maxOffX / 2;
-  const sy = Math.min(Math.max(offsetNorm, 0), 1) * maxOffY;
-  return { sx, sy, sw, sh };
+  const maxOffX = Math.max(0, imgW - sw), maxOffY = Math.max(0, imgH - sh);
+  return { sx: c.x * maxOffX, sy: c.y * maxOffY, sw, sh };
 }
 
-function drawPhoto(ctx: CanvasRenderingContext2D, img: HTMLImageElement, offsetNorm: number): void {
-  const { sx, sy, sw, sh } = coverRect(img.naturalWidth, img.naturalHeight, FRAME_W, FRAME_H, offsetNorm);
+function drawPhoto(ctx: CanvasRenderingContext2D, img: HTMLImageElement, crop: CropState): void {
+  const { sx, sy, sw, sh } = coverRect(img.naturalWidth, img.naturalHeight, FRAME_W, FRAME_H, crop);
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, FRAME_W, FRAME_H);
 }
 
 /** Яскравість фото після кропу — верх 45% + низ 18%, зменшена копія 54×96. */
-export function classifyPhotoBrightness(img: HTMLImageElement, offsetNorm: number): Brightness {
+export function classifyPhotoBrightness(img: HTMLImageElement, crop: CropState): Brightness {
   const small = document.createElement('canvas');
   small.width = 54; small.height = 96;
   const sctx = small.getContext('2d')!;
-  const { sx, sy, sw, sh } = coverRect(img.naturalWidth, img.naturalHeight, 54, 96, offsetNorm);
+  const { sx, sy, sw, sh } = coverRect(img.naturalWidth, img.naturalHeight, 54, 96, crop);
   sctx.drawImage(img, sx, sy, sw, sh, 0, 0, 54, 96);
   const { data } = sctx.getImageData(0, 0, 54, 96);
   return classifyBrightness(data, 54, 96);
@@ -208,10 +207,10 @@ function drawBottomSection(
 }
 
 // ── Постер: фото на весь кадр, скрим за детермінованою яскравістю ──
-export function drawPoster(ctx: CanvasRenderingContext2D, data: FrameData, img: HTMLImageElement, cropOffset: number): Brightness {
+export function drawPoster(ctx: CanvasRenderingContext2D, data: FrameData, img: HTMLImageElement, crop: CropState): Brightness {
   ctx.clearRect(0, 0, FRAME_W, FRAME_H);
-  drawPhoto(ctx, img, cropOffset);
-  const scheme = classifyPhotoBrightness(img, cropOffset);
+  drawPhoto(ctx, img, crop);
+  const scheme = classifyPhotoBrightness(img, crop);
   const pal = scheme === 'light' ? LIGHT_ON_PHOTO : DARK_ON_PHOTO;
   const scrimBase = scheme === 'light' ? '244,243,239' : '8,9,10';
   const stops: [number, number][] = scheme === 'light'
@@ -234,13 +233,13 @@ export function verticalAvailable(data: FrameData, ctx: CanvasRenderingContext2D
   return verticalFontSize(data.title, measureFn(ctx)) != null;
 }
 
-export function drawVertical(ctx: CanvasRenderingContext2D, data: FrameData, img: HTMLImageElement, cropOffset: number, now = new Date()): boolean {
+export function drawVertical(ctx: CanvasRenderingContext2D, data: FrameData, img: HTMLImageElement, crop: CropState, now = new Date()): boolean {
   const measure = measureFn(ctx);
   const size = verticalFontSize(data.title, measure);
   if (size == null) return false;
 
   ctx.clearRect(0, 0, FRAME_W, FRAME_H);
-  drawPhoto(ctx, img, cropOffset);
+  drawPhoto(ctx, img, crop);
   const toRight = ctx.createLinearGradient(0, 0, FRAME_W, 0);
   toRight.addColorStop(0, 'rgba(8,9,10,.6)'); toRight.addColorStop(0.4, 'rgba(8,9,10,.34)'); toRight.addColorStop(0.68, 'rgba(8,9,10,.04)');
   ctx.fillStyle = toRight; ctx.fillRect(0, 0, FRAME_W, FRAME_H);
