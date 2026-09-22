@@ -8,6 +8,11 @@
 //     навпаки decideKey/rekey.ts, який тут навмисно НЕ використовується
 //     напряму; деталі в reassign-catalog-keys-decide.ts).
 //
+// Запобіжник (власник, 22.09, після перегляду першого сухого прогону): якщо
+// «переписати» веде на РОДОВИЙ запис каталогу (priority -1) і стара позиція
+// нічому не суперечить (та сама зона зберігання) — не пишемо, тримаємо
+// старий ключ (shouldHoldBackRekey, деталі — reassign-catalog-keys-decide.ts).
+//
 // ТИПОВИЙ РЕЖИМ — сухий: друкує звіт, нічого не пише. Запис лише з
 // ЯВНИМ --apply, і лише в транзакції (усе або нічого).
 //
@@ -31,7 +36,7 @@ import { config as loadDotenv } from 'dotenv';
 import { makePool } from '../pool.js';
 import { PostgresRepo } from '../postgres-repo.js';
 import { displayName } from '@kitchen/domain';
-import { decideReassign, exceedsLimit, EXPECTED_MAX } from './reassign-catalog-keys-decide.js';
+import { decideReassign, exceedsLimit, EXPECTED_MAX, shouldHoldBackRekey } from './reassign-catalog-keys-decide.js';
 
 loadDotenv({ path: resolve(import.meta.dirname, '../../../.env') });
 const url = process.env.PG_URL;
@@ -97,6 +102,7 @@ const { rows: households } = await pool.query<{ id: string }>('SELECT id FROM ho
 
 const fills: Change[] = [];
 const rekeys: Change[] = [];
+const heldBack: Change[] = []; // «переписати» за резолвером, але на родове — тримаємо (не пишемо)
 let keptConfirmed = 0;
 let keptSilent = 0;
 
@@ -109,7 +115,10 @@ for (const h of households) {
       name: dn, old_key: prod.catalog_key, new_key: d.key, why: d.why,
     };
     if (d.action === 'fill') fills.push(change);
-    else if (d.action === 'rekey') rekeys.push(change);
+    else if (d.action === 'rekey') {
+      if (prod.catalog_key && d.key && shouldHoldBackRekey(prod.catalog_key, d.key)) heldBack.push(change);
+      else rekeys.push(change);
+    }
     // 'keep' — резолвер мовчить (наш never-erase) чи підтверджує наявне;
     // decideKey сам розрізняє це в тексті `why` («мовчить» — тиша).
     else if (d.why.includes('мовчить')) keptSilent++;
@@ -125,7 +134,10 @@ for (const c of fills) console.log(`  «${c.name}»  ∅ → ${c.new_key}  [ді
 console.log(`\n=== переписати (${rekeys.length}) ===`);
 for (const c of rekeys) console.log(`  «${c.name}»  ${c.old_key} → ${c.new_key}  [дім ${c.household_id}]`);
 
-console.log(`\nпідсумок: проставити ${fills.length}, переписати ${rekeys.length}`
+console.log(`\n=== ТРИМАЄМО — конкретний ключ під родовий, стара позиція нічому не суперечить (${heldBack.length}) ===`);
+for (const c of heldBack) console.log(`  «${c.name}»  ${c.old_key} → ${c.new_key} (лишається ${c.old_key})  [дім ${c.household_id}]`);
+
+console.log(`\nпідсумок: проставити ${fills.length}, переписати ${rekeys.length}, тримаємо (родове) ${heldBack.length}`
   + ` · не чіпаємо: резолвер мовчить ${keptSilent}, резолвер підтверджує ${keptConfirmed}`
   + ` · разом правок: ${total}`);
 
