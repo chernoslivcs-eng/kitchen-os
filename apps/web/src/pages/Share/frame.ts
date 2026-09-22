@@ -199,6 +199,20 @@ export function resetCrop(): CropState {
   return { ...CROP_DEFAULT };
 }
 
+// Правка 22.09 (п.10): перетягування було інвертоване — тягнеш униз, фото
+// їде вгору (бо зсув sx/sy у coverRect росте зі зростанням x/y, а зростання
+// sy = вибір НИЖЧОЇ ділянки джерела = видиме зображення їде ВГОРУ). Пряма
+// маніпуляція: фото йде ЗА пальцем/курсором — drag вниз (dy>0) відкриває
+// верх знімка, тобто y МЕНШАЄ. Знак — мінус, по обох осях, на будь-якому
+// масштабі (масштаб лише міняє maxOff у coverRect, не напрямок).
+export function applyCropDrag(start: CropState, dx: number, dy: number, boxW: number, boxH: number): CropState {
+  return clampCrop({
+    scale: start.scale,
+    x: start.x - dx / Math.max(1, boxW),
+    y: start.y - dy / Math.max(1, boxH),
+  });
+}
+
 // ── Вибір запису журналу: `run` із query, інакше останній не-undone з фото ──
 export function pickCookRun(runs: CookRunWithRecipe[], recipeId: string, runParam?: string | null): CookRunWithRecipe | null {
   const forRecipe = runs.filter((r) => r.recipe_id === recipeId && !r.undone_at);

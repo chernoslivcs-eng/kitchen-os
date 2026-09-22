@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   frameDate, frameDateWithWeekday, wrapLines, fitTitle, fitIngredients, fitDescription,
-  verticalFontSize, classifyBrightness, pickCookRun, frameDataOf, clampCrop, resetCrop,
+  verticalFontSize, classifyBrightness, pickCookRun, frameDataOf, clampCrop, resetCrop, applyCropDrag,
   type MeasureFn,
 } from './frame';
 import type { CookRunWithRecipe, Recipe } from '../../api';
@@ -230,5 +230,34 @@ describe('clampCrop: межі масштабу 1..3 і зсуву 0..1 по об
 describe('resetCrop: скидання до 1× по центру (подвійний тап/клік)', () => {
   it('завжди {scale:1, x:0.5, y:0.5} незалежно від попереднього стану', () => {
     expect(resetCrop()).toEqual({ scale: 1, x: 0.5, y: 0.5 });
+  });
+});
+
+// Правка 22.09 (п.10): фото йде ЗА пальцем/курсором — drag вниз відкриває
+// верх знімка (y МЕНШАЄ), drag управо відкриває лівий край (x МЕНШАЄ).
+// Раніше знак був «+», і фото їхало навпаки, проти напрямку жесту.
+describe('applyCropDrag: фото йде за пальцем/курсором (знак зсуву)', () => {
+  const start = { scale: 1, x: 0.5, y: 0.5 };
+  it('drag вниз (dy>0) — y меншає, відкриває верх знімка', () => {
+    expect(applyCropDrag(start, 0, 40, 200, 400).y).toBeCloseTo(0.4);
+  });
+  it('drag угору (dy<0) — y більшає, відкриває низ знімка', () => {
+    expect(applyCropDrag(start, 0, -40, 200, 400).y).toBeCloseTo(0.6);
+  });
+  it('drag управо (dx>0) — x меншає, відкриває лівий край', () => {
+    expect(applyCropDrag(start, 40, 0, 200, 400).x).toBeCloseTo(0.3);
+  });
+  it('drag уліво (dx<0) — x більшає, відкриває правий край', () => {
+    expect(applyCropDrag(start, -40, 0, 200, 400).x).toBeCloseTo(0.7);
+  });
+  it('той самий знак і на масштабі >1 — масштаб лише передається без змін', () => {
+    const zoomed = { scale: 2.5, x: 0.5, y: 0.5 };
+    const next = applyCropDrag(zoomed, 0, 40, 200, 400);
+    expect(next.scale).toBe(2.5);
+    expect(next.y).toBeCloseTo(0.4);
+  });
+  it('межі — clampCrop не пускає за 0..1', () => {
+    expect(applyCropDrag(start, 0, 4000, 200, 400).y).toBe(0);
+    expect(applyCropDrag(start, 0, -4000, 200, 400).y).toBe(1);
   });
 });

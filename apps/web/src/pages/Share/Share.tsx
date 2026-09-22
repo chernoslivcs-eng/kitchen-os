@@ -13,7 +13,7 @@ import { Icon } from '../../components/Icon/Icon';
 import { api, type Recipe, type CookRunWithRecipe } from '../../api';
 import { track } from '../../lib/track';
 import { captureClientIncident } from '../../lib/sentry';
-import { pickCookRun, frameDataOf, verticalFontSize, clampCrop, resetCrop, type FrameData, type CropState } from './frame';
+import { pickCookRun, frameDataOf, verticalFontSize, clampCrop, resetCrop, applyCropDrag, type FrameData, type CropState } from './frame';
 import { drawPoster, drawVertical, drawClean, measureFn, FRAME_W, FRAME_H, CLEAN_LIGHT, CLEAN_DARK, type FrameKind } from './render';
 import styles from './Share.module.css';
 
@@ -266,11 +266,8 @@ export function SharePage() {
     const d = dragRef.current;
     if (!d) return;
     const dx = e.clientX - d.startX, dy = e.clientY - d.startY;
-    const next = clampCrop({
-      scale: d.startCrop.scale,
-      x: d.startCrop.x + dx / Math.max(1, d.w),
-      y: d.startCrop.y + dy / Math.max(1, d.h),
-    });
+    // Пряма маніпуляція (правка 22.09, п.10): фото йде ЗА пальцем/курсором.
+    const next = applyCropDrag(d.startCrop, dx, dy, d.w, d.h);
     setCropTouched(true);
     setCrop(next);
   }
