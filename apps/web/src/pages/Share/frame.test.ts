@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   frameDate, frameDateWithWeekday, wrapLines, fitTitle, fitIngredients, fitDescription,
-  verticalFontSize, classifyBrightness, pickCookRun, frameDataOf, clampCrop, resetCrop, applyCropDrag,
+  verticalFontSize, fitVerticalIngredients, classifyBrightness, pickCookRun, frameDataOf, clampCrop, resetCrop, applyCropDrag, isCropDefault,
   splitLayoutTitle, layoutGridItems, layoutChipLabel,
   type MeasureFn,
 } from './frame';
@@ -123,6 +123,31 @@ describe('verticalFontSize: 96 ≤ 1100 → 96; інакше 72 ≤ 1100 → 72;
   });
 });
 
+describe('fitVerticalIngredients: назви через « · », ≤2 рядки, порядок з рецепта; що не влізло — «+N» (п.13)', () => {
+  const ing = (...names: string[]) => names.map((name) => ({ name, qty: '10 г' }));
+  it('порожньо — []', () => {
+    expect(fitVerticalIngredients([], fakeMeasure, 888)).toEqual([]);
+  });
+  it('усе влазить в один рядок — один рядок, порядок збережено', () => {
+    const r = fitVerticalIngredients(ing('Спагетті', 'Часник'), fakeMeasure, 888);
+    expect(r).toEqual(['Спагетті · Часник']);
+  });
+  it('влазить рівно у 2 рядки — жодного «+N», порядок збережено', () => {
+    // 4 слова по 4 символи; maxWidth=200 → по 2 слова на рядок (169.4 ≤ 200 < 277.2)
+    const r = fitVerticalIngredients(ing('аааа', 'бббб', 'вввв', 'гггг'), fakeMeasure, 200);
+    expect(r).toEqual(['аааа · бббб', 'вввв · гггг']);
+  });
+  it('не влазить навіть у 2 рядки — хвіст замінюється на «+N», порядок збережено', () => {
+    // 8 слів по 4 символи, maxWidth=200: повний список — 4 рядки (>2), тому
+    // шукаємо найбільший префікс, що влазить у 2 рядки разом із «+N»:
+    // k=3 (перші 3 слова + «+5») → ['аааа · бббб', 'вввв · +5'] (перевірено вручну).
+    const names = ['аааа', 'бббб', 'вввв', 'гггг', 'дддд', 'ееее', 'жжжж', 'зззз'];
+    const r = fitVerticalIngredients(ing(...names), fakeMeasure, 200);
+    expect(r).toEqual(['аааа · бббб', 'вввв · +5']);
+    expect(r.length).toBeLessThanOrEqual(2);
+  });
+});
+
 describe('classifyBrightness: >0.6 середньої яскравості верху+низу — світла', () => {
   const solid = (r: number, g: number, b: number, w: number, h: number) => {
     const px = new Uint8ClampedArray(w * h * 4);
@@ -228,9 +253,24 @@ describe('clampCrop: межі масштабу 1..3 і зсуву 0..1 по об
   });
 });
 
-describe('resetCrop: скидання до 1× по центру (подвійний тап/клік)', () => {
+describe('resetCrop: скидання до 1× по центру (кнопка «Скинути кадр», п.14)', () => {
   it('завжди {scale:1, x:0.5, y:0.5} незалежно від попереднього стану', () => {
     expect(resetCrop()).toEqual({ scale: 1, x: 0.5, y: 0.5 });
+  });
+});
+
+describe('isCropDefault: чи кроп відхилився від {scale:1, x:0.5, y:0.5} (п.14)', () => {
+  it('дефолт — true', () => {
+    expect(isCropDefault({ scale: 1, x: 0.5, y: 0.5 })).toBe(true);
+  });
+  it('змінено масштаб — false', () => {
+    expect(isCropDefault({ scale: 1.5, x: 0.5, y: 0.5 })).toBe(false);
+  });
+  it('змінено зсув по x — false', () => {
+    expect(isCropDefault({ scale: 1, x: 0.6, y: 0.5 })).toBe(false);
+  });
+  it('змінено зсув по y — false', () => {
+    expect(isCropDefault({ scale: 1, x: 0.5, y: 0.4 })).toBe(false);
   });
 });
 

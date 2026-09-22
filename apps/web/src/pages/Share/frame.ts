@@ -156,6 +156,37 @@ export function verticalFontSize(title: string, measure: MeasureFn, maxWidth = 1
   return null;
 }
 
+// Правка (п.13, 22.09): інгредієнти повернуто у «Вертикаль» — назви БЕЗ
+// кількостей через « · », один блок ≤2 рядки, порядок з рецепта; що не
+// влізло — «+N» останнім елементом (той самий принцип, що fitIngredients
+// на постері, лише межа тут не за кількістю, а за шириною рядка).
+function wrapTokens(tokens: string[], measure: MeasureFn, font: string, maxWidth: number, sep = ' · '): string[] {
+  if (!tokens.length) return [''];
+  const lines: string[] = [];
+  let line = tokens[0]!;
+  for (let i = 1; i < tokens.length; i++) {
+    const test = `${line}${sep}${tokens[i]}`;
+    if (measure(test, font) > maxWidth) { lines.push(line); line = tokens[i]!; }
+    else line = test;
+  }
+  lines.push(line);
+  return lines;
+}
+export function fitVerticalIngredients(ingredients: FrameIngredient[], measure: MeasureFn, maxWidth: number, size = 28, weight = 500): string[] {
+  const font = `${weight} ${size}px ${FONT}`;
+  const names = ingredients.map((i) => i.name).filter(Boolean);
+  if (!names.length) return [];
+  const full = wrapTokens(names, measure, font, maxWidth);
+  if (full.length <= 2) return full;
+  // Не влізло в 2 рядки цілком — шукаємо найбільший префікс, що влазить разом із «+N».
+  for (let k = names.length - 1; k >= 0; k--) {
+    const candidate = [...names.slice(0, k), `+${names.length - k}`];
+    const lines = wrapTokens(candidate, measure, font, maxWidth);
+    if (lines.length <= 2) return lines;
+  }
+  return wrapTokens([`+${names.length}`], measure, font, maxWidth);
+}
+
 // ── Яскравість фото: середня відносна яскравість верхніх 45% + нижніх 18% ──
 // пікселів (після кропу, зменшена копія) — > 0.6 → світла, інакше темна.
 export type Brightness = 'light' | 'dark';
@@ -197,6 +228,13 @@ export function clampCrop(state: CropState): CropState {
 
 export function resetCrop(): CropState {
   return { ...CROP_DEFAULT };
+}
+
+// Правка (п.14, 22.09): кнопка «Скинути кадр» видима лише коли кроп
+// відхилився від дефолту (подвійний тап/клік більше не скидає — конфліктує
+// з новим одинарним тапом перемикання кадру).
+export function isCropDefault(crop: CropState): boolean {
+  return crop.scale === CROP_DEFAULT.scale && crop.x === CROP_DEFAULT.x && crop.y === CROP_DEFAULT.y;
 }
 
 // Правка 22.09 (п.10): перетягування було інвертоване — тягнеш униз, фото

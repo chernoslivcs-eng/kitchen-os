@@ -4,7 +4,7 @@
 // Share v3.dc.html» (істина для вигляду).
 import type { FrameData, MeasureFn, Brightness, CropState } from './frame';
 import {
-  fitTitle, fitIngredients, fitDescription, verticalFontSize, classifyBrightness, clampCrop,
+  fitTitle, fitIngredients, fitDescription, verticalFontSize, fitVerticalIngredients, classifyBrightness, clampCrop,
   splitLayoutTitle, layoutGridItems, layoutChipLabel, ellipsize,
 } from './frame';
 
@@ -363,6 +363,19 @@ export function drawVertical(ctx: CanvasRenderingContext2D, data: FrameData, img
   ctx.fillText('.', tw + size * 0.03, 0);
   ctx.restore();
   noShadow(ctx);
+
+  // Правка (п.13, 22.09): рядок(и) інгредієнтів — під вертикальною назвою,
+  // над датою; вміщується у проміжок 1520→1676 (низ ротованої назви →
+  // верх дати), назва не зачіпається (її стовпчик вузький, ліворуч).
+  const ingLines = fitVerticalIngredients(data.ingredients, measure, RIGHT - PAD);
+  if (ingLines.length) {
+    ctx.font = '500 28px ' + FONT;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#fff';
+    let iy = 1520 + 24;
+    for (const line of ingLines) { ctx.fillText(line, PAD, iy); iy += 38; }
+  }
 
   let y = 1810 - 26 - 12 - 40 - 12 - 44;
   ctx.font = '600 28px ' + FONT;

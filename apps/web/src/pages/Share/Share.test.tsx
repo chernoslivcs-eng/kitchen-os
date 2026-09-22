@@ -62,10 +62,7 @@ function defaultFetch(url: string): Promise<Response> {
 }
 
 beforeEach(() => {
-  // jsdom не має scrollIntoView (карусель 390 центрує активний кадр ним).
-  if (!('scrollIntoView' in Element.prototype)) {
-    Object.defineProperty(Element.prototype, 'scrollIntoView', { value: () => {}, configurable: true, writable: true });
-  }
+  sessionStorage.clear();
   // jsdom не має execCommand (legacyCopy — фолбек копіювання лінка).
   if (!('execCommand' in document)) {
     Object.defineProperty(document, 'execCommand', { value: () => false, configurable: true, writable: true });
@@ -132,8 +129,11 @@ const downloadBtn = () => host!.querySelector<HTMLButtonElement>('[data-download
 // («Додати фото», не шериться) — тести на sync-жест share()/download()
 // перевіряють саму МЕХАНІКУ кліку, тож перемикають на «Чисте тло» (єдиний
 // кадр без фото, що лишається повністю «живим» для «Поділитись»/«Зберегти»).
+// Правка 22.09 (п.14): крапки прибрано — пряме перемикання лишилось лише
+// мініатюрами (`[data-thumb]`, десктопна колонка, у DOM завжди, CSS лише
+// ховає на <768 — jsdom верстку не рахує, тож для тестів це годиться).
 function selectClean() {
-  act(() => { host!.querySelector<HTMLButtonElement>('[data-dot="clean"]')!.click(); });
+  act(() => { host!.querySelector<HTMLButtonElement>('[data-thumb="clean"]')!.click(); });
 }
 
 describe('SharePage · без await перед жестом (баг PR #181), на «Чистому тлі»', () => {
@@ -192,14 +192,14 @@ describe('SharePage · дані й кадри', () => {
   // лишаються в каруселі як заглушка — не лише «Чисте тло». «Розкладка»
   // (Р203) — теж завжди в ролі, без умови fit, тому мінімум 3 кадри
   // (постер+розкладка+чисте), максимум 4 (+вертикаль).
-  it('без фото — 3–4 кадри (заглушка постера + розкладка + чисте), крапки є', async () => {
+  it('без фото — 3–4 кадри (заглушка постера + розкладка + чисте), мініатюри є', async () => {
     await mount();
     expect(host!.querySelector('[data-frame="clean"]')).not.toBeNull();
     const poster = host!.querySelector('[data-frame="poster"]')!;
     expect(poster).not.toBeNull();
     expect(poster.getAttribute('data-placeholder')).toBe('true');
-    const dots = host!.querySelectorAll('[data-dot]').length;
-    expect(dots === 3 || dots === 4).toBe(true);
+    const thumbs = host!.querySelectorAll('[data-thumb]').length;
+    expect(thumbs === 3 || thumbs === 4).toBe(true);
   });
 
   it('без фото, активний постер — головна кнопка «Додати фото», не шериться', async () => {
@@ -304,5 +304,88 @@ describe('SharePage · дані й кадри', () => {
     expect(shareBtn().textContent).toContain('Зберегти');
     expect(shareBtn().textContent).not.toContain('Поділитись');
     expect(host!.querySelector('[data-download]')).toBeNull();
+  });
+});
+
+// Правка 22.09 (п.14): крапки-каруселі прибрано — перемикання кадрів тапом
+// по прев'ю (тап: зсув <8px і <300мс від pointerdown до pointerup); подвійний
+// тап/клік більше не скидає кроп — окрема кнопка «Скинути кадр», видима лише
+// коли кроп відхилився від {scale:1,x:0.5,y:0.5}.
+describe('SharePage · тап по прев\'ю перемикає кадр, «Скинути кадр» (п.14)', () => {
+  function activeCanvas(): HTMLCanvasElement {
+    return host!.querySelector<HTMLCanvasElement>('canvas[data-selected]')!;
+  }
+  function pointerTap(el: HTMLCanvasElement, x = 100, y = 100): void {
+    act(() => {
+      el.dispatchEvent(new PointerEvent('pointerdown', { clientX: x, clientY: y, pointerId: 1, bubbles: true }));
+      el.dispatchEvent(new PointerEvent('pointerup', { clientX: x, clientY: y, pointerId: 1, bubbles: true }));
+    });
+  }
+
+  it('тап перемикає кадр по колу — той самий порядок, що мініатюри', async () => {
+    await mount();
+    const order = Array.from(host!.querySelectorAll('[data-thumb]')).map((el) => el.getAttribute('data-thumb'));
+    expect(order.length).toBeGreaterThan(1);
+    expect(activeCanvas().getAttribute('data-frame')).toBe(order[0]);
+    for (let i = 1; i <= order.length; i++) {
+      pointerTap(activeCanvas());
+      expect(activeCanvas().getAttribute('data-frame')).toBe(order[i % order.length]);
+    }
+  });
+
+  it('зсув ≥8px між pointerdown і pointerup — це drag, не тап: кадр не перемикається', async () => {
+    await mount();
+    const before = activeCanvas().getAttribute('data-frame');
+    act(() => {
+      const el = activeCanvas();
+      el.dispatchEvent(new PointerEvent('pointerdown', { clientX: 100, clientY: 100, pointerId: 1, bubbles: true }));
+      el.dispatchEvent(new PointerEvent('pointerup', { clientX: 150, clientY: 100, pointerId: 1, bubbles: true }));
+    });
+    expect(activeCanvas().getAttribute('data-frame')).toBe(before);
+  });
+
+  it('утримання ≥300мс без зсуву — теж не тап: кадр не перемикається', async () => {
+    await mount();
+    const before = activeCanvas().getAttribute('data-frame');
+    vi.useFakeTimers();
+    try {
+      act(() => {
+        activeCanvas().dispatchEvent(new PointerEvent('pointerdown', { clientX: 100, clientY: 100, pointerId: 1, bubbles: true }));
+      });
+      act(() => { vi.advanceTimersByTime(320); });
+      act(() => {
+        activeCanvas().dispatchEvent(new PointerEvent('pointerup', { clientX: 100, clientY: 100, pointerId: 1, bubbles: true }));
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(activeCanvas().getAttribute('data-frame')).toBe(before);
+  });
+
+  it('«Скинути кадр» — видима лише коли кроп не дефолтний, клік скидає рівно до {scale:1,x:0.5,y:0.5}', async () => {
+    sessionStorage.setItem('share-crop:run-1', JSON.stringify({ scale: 1.8, x: 0.2, y: 0.7 }));
+    fetchImpl = (url) => {
+      if (url.startsWith('/v1/cook-runs')) {
+        return Promise.resolve(jsonRes({
+          runs: [{
+            id: 'run-1', household_id: 'h1', user_id: 'u1', recipe_id: 'recipe-1', servings: 2,
+            started_at: '2026-09-20T00:00:00.000Z', finished_at: '2026-09-20T00:10:00.000Z',
+            rating: null, verdict: null, photo_url: '/x.jpg', changes: null, undone_at: null,
+          }],
+        }));
+      }
+      return defaultFetch(url);
+    };
+    await mount();
+    const resetBtn = host!.querySelector<HTMLButtonElement>('[data-reset-crop="mobile"]');
+    expect(resetBtn).not.toBeNull();
+    act(() => { resetBtn!.click(); });
+    expect(host!.querySelector('[data-reset-crop="mobile"]')).toBeNull();
+    expect(JSON.parse(sessionStorage.getItem('share-crop:run-1')!)).toEqual({ scale: 1, x: 0.5, y: 0.5 });
+  });
+
+  it('«Скинути кадр» — нема, коли кроп на дефолті', async () => {
+    await mount();
+    expect(host!.querySelector('[data-reset-crop="mobile"]')).toBeNull();
   });
 });
