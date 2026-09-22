@@ -20,7 +20,7 @@
 
 import baseRowsJson from './data/nutrition-base-rows.json' with { type: 'json' };
 import aliasesJson from '../../scripts/nutrition/aliases.json' with { type: 'json' };
-import { BaseMatcher, type NutritionAliases, type MatchRule } from './nutrition-match.js';
+import { BaseMatcher, normalizeName, type NutritionAliases, type MatchRule } from './nutrition-match.js';
 import type { Nutrition } from './nutrition.js';
 
 interface BaseRow {
@@ -63,6 +63,18 @@ function rowToNutrition(row: BaseRow): Nutrition {
 export function matchProductNameToBaseRow(label: string): Nutrition | null {
   const trimmed = label.trim();
   if (!trimmed) return null;
+  // Етап 5-біс (§А): household_overrides — точна фраза продукту дому → рядок
+  // бази, перевіряється тут, а НЕ через matcher.match()/aliases.overrides.
+  // Свій ключ, не спільний з overrides: нормалізована назва продукту дому
+  // іноді дослівно збігається з нормалізованою назвою каталожної позиції
+  // (напр. «квасоля біла консервована» — і фраза з комори, і name
+  // white_beans_canned у seed.ts) — спільний ключ тихо переписав би
+  // нутрієнти каталожної позиції при наступному запуску apply-base.ts.
+  const forced = aliases.household_overrides?.[normalizeName(trimmed)];
+  if (forced) {
+    const row = byName.get(forced);
+    if (row) return rowToNutrition(row);
+  }
   const m = matcher.match({ name: trimmed, aliases: [], categories: [] });
   if (!m || !STRONG_RULES.has(m.rule)) return null;
   const row = byName.get(m.base);

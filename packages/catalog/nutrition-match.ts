@@ -13,6 +13,17 @@ export interface NutritionAliases {
   processed?: string[];
   /** Н1а: назва позиції (нормалізована) → рядок бази руками; перед усіма правилами. */
   overrides?: Record<string, string>;
+  /**
+   * Етап 5-біс (§А): те саме, що overrides, але для назви ПРОДУКТУ ДОМУ, не
+   * позиції каталогу — читає лише matchProductNameToBaseRow
+   * (runtime-base-match.ts), НЕ BaseMatcher.match() (тобто НЕ apply-base.ts).
+   * Окреме поле навмисно: нормалізована назва продукту дому іноді збігається
+   * з нормалізованою назвою каталожної позиції (напр. «квасоля біла
+   * консервована»); спільний ключ у overrides тихо переписав би нутрієнти
+   * каталожної позиції для кожного такого продукту дому при наступному
+   * запуску apply-base.ts, а не лише для конкретної партії.
+   */
+  household_overrides?: Record<string, string>;
 }
 
 export type MatchRule = 'override' | 'exact' | 'alias' | 'head+percent' | 'keyword';
