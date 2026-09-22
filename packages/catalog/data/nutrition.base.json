@@ -280,6 +280,16 @@
   "sodium_mg": 0,
   "base": "Апельсин"
  },
+ "tomato_yellow": {
+  "protein": 0.88,
+  "fat": 0.2,
+  "carbs": 3.89,
+  "source": "usda:170457",
+  "fiber": 1.2,
+  "sugars": 2.63,
+  "sodium_mg": 5,
+  "base": "Томат"
+ },
  "shrimp_vannamei": {
   "protein": 20.1,
   "fat": 0.51,

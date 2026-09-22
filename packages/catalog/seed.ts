@@ -571,6 +571,7 @@ const CATALOG_0: CatalogItem[] = [
     categories: ['томати', 'овочі', 'свіже'],
     allergen_groups: [],
     zone_default: 'fresh',
+    nutrition: { protein: 0.88, fat: 0.2, carbs: 3.89, fiber: 1.2, sugars: 2.63, sodium_mg: 5, source: 'usda:170457' },
   },
   {
     key: 'salad_baby_mix',
