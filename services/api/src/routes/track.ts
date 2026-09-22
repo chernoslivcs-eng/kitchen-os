@@ -37,7 +37,8 @@ export const KNOWN_EVENTS = new Set([
   'tg_start', 'tg_command', 'tg_help', 'tg_web_link', 'tg_message', 'tg_card_apply', 'tg_card_dismiss', 'tg_series_save',
   // 20.09: recipe_gen віддав нерозбірний JSON — пише сервер (chat-turn recipeJsonFailed), щоб рахувати частоту в /admin/pulse.
   'recipe_json_failed',
-  // Шерінг v3 (22.09, spec §3): share {frame, via, photo, w} на кожну дію.
+  // 22.09, шерінг v3: share {frame: poster|vertical|clean, via: share|save|telegram|copy_link, photo, w} —
+  // веб через /v1/events, «Надіслати в Telegram» — сервер (routes/share.ts).
   'share',
 ]);
 

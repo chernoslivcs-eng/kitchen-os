@@ -33,12 +33,13 @@ import { cookRunsRoutes } from './routes/cook-runs.js';
 import { sessionRoutes } from './routes/session.js';
 import { onboardingRoutes } from './routes/onboarding.js';
 import { telegramRoutes } from './routes/telegram.js';
-import { shareTelegramRoutes } from './routes/share-telegram.js';
 import { accountRoutes } from './routes/account.js';
 
 import type { RateLimitCfg } from './rate-limit.js';
 import { googleAuthRoutes, type GoogleAuthOpts } from './routes/auth-google.js';
 import { telegramAuthRoutes, type TelegramAuthOpts } from './routes/auth-telegram.js';
+import { shareRoutes, type ShareOpts } from './routes/share.js';
+import { makeSendPhoto } from './telegram-bot.js';
 import { retailRoutes, type RetailOpts } from './routes/retail.js';
 
 /**
@@ -69,6 +70,8 @@ export interface BuildAppOpts {
   google?: GoogleAuthOpts;
   telegramAuth?: TelegramAuthOpts;
   retail?: RetailOpts;
+  /** Шерінг v3: доставка кадру в Telegram (bot.api.sendPhoto); без неї роут відповідає 503. */
+  share?: ShareOpts;
 }
 
 export function buildApp(
@@ -168,6 +171,7 @@ export function buildApp(
   authRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.authRequest });
   googleAuthRoutes(app, repo, opts.google, opts.telegramAuth && { botId: opts.telegramAuth.botId, botUsername: opts.telegramAuth.botUsername });
   telegramAuthRoutes(app, repo, opts.telegramAuth);
+  shareRoutes(app, repo, opts.share);
   const retail = retailRoutes(app, repo, opts.retail);
   invitesRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.invite });
   meRoute(app, repo);
@@ -191,7 +195,6 @@ export function buildApp(
   sessionRoutes(app, repo);
   onboardingRoutes(app, repo);
   telegramRoutes(app, repo);
-  shareTelegramRoutes(app, repo);
   accountRoutes(app, repo);
   chatRoute(app, repo, store, {
     rateLimit: opts.rateLimits?.chat,
@@ -307,7 +310,10 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
       // Стейки Карпат — відкритий каталог без ключів; KARPATY_ENABLED=0 вимикає.
       karpaty: { enabled: process.env.KARPATY_ENABLED !== '0' } }
     : undefined;
-  return buildApp(repo, store, mailer, { google, telegramAuth, retail });
+  // Шерінг v3: кадр із /share → фото в чат бота. Той самий токен і telegramFetch, що
+  // в боті; без токена роут відповідає 503 і веб показує «Зв'яжи Telegram…».
+  const share = process.env.TELEGRAM_BOT_TOKEN ? { sendPhoto: makeSendPhoto(process.env.TELEGRAM_BOT_TOKEN) } : undefined;
+  return buildApp(repo, store, mailer, { google, telegramAuth, retail, share });
 }
 
 // entrypoint

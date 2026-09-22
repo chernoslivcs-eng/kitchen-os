@@ -5,8 +5,8 @@
 // бачиш, те й шериш.
 //
 // Адреса /share/:recipe_id (+?run=<cook_run_id>) під RequireAuth. Дані —
-// GET /v1/recipes/:id і GET /v1/cook-runs (фільтр по recipe_id — клієнтом,
-// поки TELEGRAM BOT не додав його на сервері).
+// GET /v1/recipes/:id, GET /v1/cook-runs?recipe_id= і GET /v1/me
+// (telegram_linked) — усі три сервером PR 1 «Шерінг v3 — API/бот».
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/Icon/Icon';
@@ -66,17 +66,15 @@ export function SharePage() {
     setLoadState('loading');
     void (async () => {
       try {
-        const [recipeRes, runsRes, tg] = await Promise.all([
+        const [recipeRes, runsRes, me] = await Promise.all([
           api.savedRecipes.get(recipe_id),
-          api.cookRuns.list(),
-          api.telegram.status().catch(() => ({ linked: false, username: null, linked_at: null })),
+          api.cookRuns.list(recipe_id),
+          api.me(),
         ]);
         if (!alive) return;
         setRecipe(recipeRes.recipe);
-        // Клієнтський фільтр по recipe_id — TELEGRAM BOT додасть серверний
-        // (GET /v1/cook-runs?recipe_id=), тоді список тут звузиться першим.
         setRun(pickCookRun(runsRes.runs, recipe_id, runParam));
-        setTelegramLinked(tg.linked);
+        setTelegramLinked(me.telegram_linked);
         setLoadState('ready');
       } catch {
         if (alive) setLoadState('error');
@@ -339,9 +337,9 @@ export function SharePage() {
     setBusy('telegram');
     setTelegramError(false);
     try {
+      // Подію 'share' {via:'telegram'} пише сервер сам (routes/share.ts) — тут не дублюємо.
       await api.share.telegram(blob, recipe_id, activeKind);
       setTelegramSent(true);
-      trackShare('telegram');
     } catch {
       setTelegramError(true);
     } finally {

@@ -200,10 +200,11 @@ describe('набір подій', () => {
     // Крок А1: тринадцять було до знайомства й картки «Про тебе»; вісім нових
     // закривають рівно ті два місця, де людина могла мовчки застрягти;
     // 15.09 — вісім подій Telegram-бота (пише сервер, telegram.ts botEvent);
-    // 20.09 — recipe_json_failed (сервер, chat-turn): міряємо нерозбірний JSON рецепта;
-    // 22.09 — шерінг v3: 'share' {frame, via, photo, w} на кожну дію /share.
+    // 20.09 — recipe_json_failed (сервер, chat-turn): міряємо нерозбірний JSON рецепта.
+    // 22.09 — share (шерінг v3): веб через /v1/events, Telegram — сервер.
     expect(KNOWN_EVENTS.size).toBe(31);
     expect(KNOWN_EVENTS.has('recipe_json_failed')).toBe(true);
+    expect(KNOWN_EVENTS.has('share')).toBe(true);
     expect(KNOWN_EVENTS.has('chat_input_abandoned')).toBe(true);
     expect(KNOWN_EVENTS.has('error_shown')).toBe(true);
     expect(KNOWN_EVENTS.has('share')).toBe(true);

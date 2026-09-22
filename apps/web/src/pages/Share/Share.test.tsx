@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 //
 // Шерінг v3: /share/:recipe_id — дані з GET /v1/recipes/:id + GET
-// /v1/cook-runs + GET /v1/telegram. Головний ризик, успадкований з PR #181
+// /v1/cook-runs?recipe_id= + GET /v1/me (telegram_linked). Головний ризик,
+// успадкований з PR #181
 // (баг з проду, iPhone Chrome): await ПЕРЕД navigator.share()/a.click()
 // зʼїдав user activation — тести на «жодного await у синхронному шляху
 // кліку» лишаються тут головними, разом з новими для v3 (кадри, копіювання
@@ -56,7 +57,7 @@ function jsonRes(o: unknown, status = 200) {
 function defaultFetch(url: string): Promise<Response> {
   if (url.startsWith('/v1/recipes/')) return Promise.resolve(jsonRes({ id: 'recipe-1', saved_at: '2026-09-01T00:00:00.000Z', recipe: RECIPE }));
   if (url.startsWith('/v1/cook-runs')) return Promise.resolve(jsonRes({ runs: [] }));
-  if (url.startsWith('/v1/telegram')) return Promise.resolve(jsonRes({ linked: false, username: null, linked_at: null }));
+  if (url.startsWith('/v1/me')) return Promise.resolve(jsonRes({ user: { id: 'u1', name: 'Т', email: 't@example.com' }, household: { id: 'h1', name: 'Дім', role: 'owner', members: [] }, session_id: 's1', telegram_linked: false }));
   return Promise.resolve(jsonRes({}));
 }
 
@@ -207,7 +208,7 @@ describe('SharePage · дані й кадри', () => {
 
   it('телеграм звʼязаний — «Надіслати в Telegram» головною дією', async () => {
     fetchImpl = (url) => {
-      if (url.startsWith('/v1/telegram')) return Promise.resolve(jsonRes({ linked: true, username: 'kitchen_os_bot', linked_at: '2026-09-01T00:00:00.000Z' }));
+      if (url.startsWith('/v1/me')) return Promise.resolve(jsonRes({ user: { id: 'u1', name: 'Т', email: 't@example.com' }, household: { id: 'h1', name: 'Дім', role: 'owner', members: [] }, session_id: 's1', telegram_linked: true }));
       return defaultFetch(url);
     };
     await mount();

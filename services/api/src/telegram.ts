@@ -146,6 +146,11 @@ export const COPY = {
   added: (n: number) => `Додав у комору · ${n}`,
   notAdded: 'Не додав',
   /** Серія «наповнюю комору» (19.09): фото йде в комору одразу, одна кнопка — скасувати. */
+  /** Шерінг v3 (22.09): фото страви → журнал → «Поділитись у сторіз»; під рецептом — сторіз і лінк. */
+  toJournal: 'Прикріпити до журналу',
+  journalFixed: 'Зафіксував у журналі',
+  shareStory: 'Поділитись у сторіз',
+  recipeLink: 'Лінк на рецепт',
   /** Власник 20.09: фото — одразу в комору, як текст і голос; репліка доконана й наша. */
   photoAdded: (n: number) => `Записав у комору · ${n}`,
   undo: 'Скасувати',
@@ -464,6 +469,12 @@ export async function handleTelegramFile(deps: TelegramDeps, u: IncomingFile): P
       ].filter(Boolean).join('\n\n');
       return { messages: splitTelegramText(text), html: true, keyboard: [[{ text: COPY.toPantry, data: `apply:${out.card_id}` }, { text: COPY.notNeeded, data: `dismiss:${out.card_id}` }]] };
     }
+    // Шерінг v3: фото страви після готування — картка cook_photo з кнопками (у вебі це тап
+    // «прикріпити до журналу»); після «Прикріпити» — «Зафіксував у журналі» + «Поділитись у сторіз».
+    if (card?.type === 'cook_photo' && out.card_id) {
+      const text = out.reply ? escapeHtml(out.reply) : escapeHtml(`Це «${card.recipe_title}» — прикріпити фото до запису в журналі?`);
+      return { messages: splitTelegramText(text), html: true, keyboard: [[{ text: COPY.toJournal, data: `apply:${out.card_id}` }, { text: COPY.notNeeded, data: `dismiss:${out.card_id}` }]] };
+    }
     // Нічого не розібрав (нема картки або порожній список): стиснуте фото — підказка про файл.
     const messages = renderTurnMessages({ reply: out.reply, card, scripted: !!(out.meta as { scripted?: string } | undefined)?.scripted }, web);
     const nothing = !card || (card.type === 'intake_diff' && !card.ops.length);
@@ -482,7 +493,7 @@ export interface IncomingCallback { update_id: number; telegram_user_id: number;
 
 /** Кнопка під карткою → той самий applyCard / dismissCard, що у вебі. Повертає рядок статусу
  *  для редагування повідомлення (кнопки знімаються); null — дубль або чужа/невідома кнопка. */
-export async function handleTelegramCallback(deps: TelegramDeps, u: IncomingCallback): Promise<{ status: string } | null> {
+export async function handleTelegramCallback(deps: TelegramDeps, u: IncomingCallback): Promise<{ status: string; keyboard?: QuickKeyboardBtn[][] } | null> {
   const now = deps.now?.() ?? new Date();
   if (seenUpdate(u.update_id, now.getTime())) return null;
   const m = u.data.match(/^(apply|dismiss|undo):([0-9a-f-]{36})$/);
@@ -498,6 +509,13 @@ export async function handleTelegramCallback(deps: TelegramDeps, u: IncomingCall
       const r = await applyCard(deps.repo, m[2]!, [], linked.user_id);
       if (pc?.card.type === 'period' && (pc.card.kind === 'custom' || pc.card.kind === 'diet')) return { status: periodAppliedStatus(pc.card) };
       if (pc?.card.type === 'event') return { status: 'Записав у календар' };
+      if (pc?.card.type === 'cook_photo') {
+        // Шерінг v3: під «Зафіксував у журналі» — url-кнопка на /share/<recipe>?run=<run> (24-годинний лінк).
+        const run = await deps.repo.getCookRun(pc.card.run_id);
+        const web = await webLink(deps, linked.user_id);
+        const keyboard = run ? [[{ text: COPY.shareStory, url: web(`/share/${encodeURIComponent(run.recipe_id)}?run=${encodeURIComponent(run.id)}`) }]] : undefined;
+        return { status: COPY.journalFixed, keyboard };
+      }
       return { status: COPY.added(r.applied) };
     }
     if (m[1] === 'undo') {
@@ -534,7 +552,8 @@ export async function handleQuickCallback(deps: TelegramDeps, u: IncomingCallbac
   const calendar = u.data.match(/^calendar:(holidays)$/);
   const pt = u.data.match(/^(pt|pa):([0-9a-f-]{36}):([0-9a-f]+)$/);
   const calSet = u.data.match(/^cal-set:(orthodox|catholic|jewish|islamic|secular)$/);
-  if (!pantry && !toggle && !recipe && !help && !calendar && !pt && !calSet) return null;
+  const shareLink = u.data.match(/^share-link:([0-9a-f-]{36})$/);
+  if (!pantry && !toggle && !recipe && !help && !calendar && !pt && !calSet && !shareLink) return null;
   if (seenUpdate(u.update_id, (deps.now?.() ?? new Date()).getTime())) return null;
   const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
   const linked = account && !account.revoked_at ? account : null;
@@ -542,6 +561,11 @@ export async function handleQuickCallback(deps: TelegramDeps, u: IncomingCallbac
   const household_id = await householdOf(deps.repo, linked.user_id);
   if (!household_id) return { kind: 'reply', reply: { messages: [COPY.startFirst], html: false } };
   const web = await webLink(deps, linked.user_id);
+  if (shareLink) {
+    // Шерінг v3: «Лінк на рецепт» — публічна адреса /r/<id> текстом, без моделі.
+    await botEvent(deps, linked.user_id, 'share', { via: 'copy_link', frame: null, photo: false, recipe_id: shareLink[1] });
+    return { kind: 'reply', reply: { messages: [`${deps.appUrl}/r/${shareLink[1]}`], html: false } };
+  }
   if (help) {
     // HELP-CHIPS-TG-0915: довідка текстом (TG-варіант), у розмову — як scripted (channel telegram),
     // під нею — ряд без прочитаної. Без моделі.
@@ -594,7 +618,8 @@ export async function handleQuickCallback(deps: TelegramDeps, u: IncomingCallbac
     return { kind: 'edit', text: renderShoppingText(updated), keyboard: listKeyboard(updated, web) };
   }
   const r = await renderSavedRecipe(deps.repo, household_id, recipe![1]!, web);
-  return r ? { kind: 'reply', reply: r } : { kind: 'reply', reply: { messages: ['Рецепт не знайдено — можливо, видалений.'], html: false } };
+  // Шерінг v3: під повним рецептом з бібліотеки — ті самі дві кнопки, що під карткою в розмові.
+  return r ? { kind: 'reply', reply: { ...r, keyboard: recipeShareKeyboard(recipe![1]!, web) } } : { kind: 'reply', reply: { messages: ['Рецепт не знайдено — можливо, видалений.'], html: false } };
 }
 
 /** Один апдейт → повідомлення боту (null — нічого не відповідати: дубль або порожньо).
@@ -710,6 +735,11 @@ async function runQuickCommand(cmd: ReturnType<typeof matchQuickCommand> & {}, d
   }
 }
 
+/** Шерінг v3: кнопки під рецептом у боті. */
+export function recipeShareKeyboard(recipe_id: string, web: WebLink): QuickKeyboardBtn[][] {
+  return [[{ text: COPY.shareStory, url: web(`/share/${encodeURIComponent(recipe_id)}`) }, { text: COPY.recipeLink, data: `share-link:${recipe_id}` }]];
+}
+
 /** Власник 15.09: картки календаря в боті — з кнопками, не «Відкрити у вебі».
  *  tradition із items → серія з тоглами; custom/diet/event → «Записати» / «Ні» (той самий apply/dismiss, що для чека). */
 function calendarCardReply(out: { reply: string | null; card: Card | null; card_id: string | null }): TelegramReply | null {
@@ -746,7 +776,10 @@ async function textTurn(deps: TelegramDeps, user_id: string, telegram_user_id: n
     const web = await webLink(deps, user_id);
     const messages = renderTurnMessages({ reply: out.reply, card, scripted: !!(out.meta as { scripted?: string } | undefined)?.scripted }, web);
     if (prefix) messages.unshift(escapeHtml(prefix));
-    return messages.length ? { messages, html: true } : null;
+    if (!messages.length) return null;
+    // Шерінг v3: під карткою рецепта — «Поділитись у сторіз» (веб /share) і «Лінк на рецепт» (текстом host/r/<id>).
+    const keyboard = card?.type === 'recipe_link' ? recipeShareKeyboard(card.recipe_id, web) : undefined;
+    return { messages, html: true, ...(keyboard ? { keyboard } : {}) };
   } catch (err) {
     // 502 model_unavailable і решта — той самий текст, що бачить веб (E1); інцидент
     // уже записано всередині ходу, як і для вебу.
