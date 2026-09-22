@@ -890,7 +890,7 @@ export const api = {
     // Telegram фетчить фото сервер-сервер, і session-cookied
     // /v1/attachments/:id/bytes йому не доступний.
     // Сервер сам пише подію app_event 'share' {via:'telegram'} — клієнт її не дублює.
-    async telegram(png: Blob, recipe_id: string, frame: 'poster' | 'vertical' | 'clean'): Promise<{ ok: true }> {
+    async telegram(png: Blob, recipe_id: string, frame: 'poster' | 'vertical' | 'layout' | 'clean'): Promise<{ ok: true }> {
       // Порядок полів важливий: сервер читає recipe_id/frame з file.fields
       // під час req.file() — у стрімінговому multipart вони мусять стояти
       // ДО png, інакше ще не розібрані (400 recipe_id required).

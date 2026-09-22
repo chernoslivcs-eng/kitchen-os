@@ -3,14 +3,17 @@
 // чисте тло (тема застосунку). Спільна геометрія — з макета «Kitchen OS -
 // Share v3.dc.html» (істина для вигляду).
 import type { FrameData, MeasureFn, Brightness, CropState } from './frame';
-import { fitTitle, fitIngredients, fitDescription, verticalFontSize, classifyBrightness, clampCrop } from './frame';
+import {
+  fitTitle, fitIngredients, fitDescription, verticalFontSize, classifyBrightness, clampCrop,
+  splitLayoutTitle, layoutGridItems, layoutChipLabel, ellipsize,
+} from './frame';
 
 export const FRAME_W = 1080;
 export const FRAME_H = 1920;
 const PAD = 96;
 const RIGHT = FRAME_W - PAD; // 984
 
-export type FrameKind = 'poster' | 'vertical' | 'clean';
+export type FrameKind = 'poster' | 'vertical' | 'layout' | 'clean';
 
 export interface Palette { ink: string; bg: string; sage: string; sageDot: string; shadow: string }
 const DARK_ON_PHOTO: Palette = { ink: '#fff', bg: '#fff', sage: '#93b48b', sageDot: '#93b48b', shadow: 'rgba(0,0,0,.5)' };
@@ -87,6 +90,14 @@ function drawLogoLeft(ctx: CanvasRenderingContext2D, x: number, y: number, size:
   noShadow(ctx);
 }
 
+/** Знак + «Kitchen OS» по центру (spec «Розкладка»: bottom 110, над порожнім місцем стікера). */
+function drawLogoCenter(ctx: CanvasRenderingContext2D, cx: number, y: number, size: number, textColor: string, ringColor: string, dotColor: string, shadowColor: string): void {
+  ctx.font = `700 30px ${FONT}`;
+  const textW = ctx.measureText('Kitchen OS').width;
+  const totalW = size + 14 + textW;
+  drawLogoLeft(ctx, cx - totalW / 2, y, size, textColor, ringColor, dotColor, shadowColor);
+}
+
 function drawKickerRow(ctx: CanvasRenderingContext2D, date: string, kickerColor: string, dateColor: string, shadowColor: string): void {
   shadow(ctx, shadowColor, 6);
   ctx.font = `600 28px ${FONT}`;
@@ -111,6 +122,12 @@ function drawTracked(ctx: CanvasRenderingContext2D, text: string, x: number, y: 
     cx += ctx.measureText(ch).width + spacing;
   }
   ctx.textAlign = align;
+}
+/** Загальна ширина рядка з ручним трекінгом (для право- чи центр-вирівнювання). */
+function trackedWidth(ctx: CanvasRenderingContext2D, text: string, spacing: number): number {
+  let w = 0;
+  for (const ch of text) w += ctx.measureText(ch).width + spacing;
+  return text.length ? w - spacing : 0;
 }
 
 /** Заголовок+час+інгредієнти — спільна верхня секція постера й чистого тла. */
@@ -361,6 +378,121 @@ export function drawVertical(ctx: CanvasRenderingContext2D, data: FrameData, img
   y += 40 + 26;
   drawLogoLeft(ctx, PAD, y, 44, '#fff', '#fff', '#93b48b', 'rgba(0,0,0,.5)');
   return true;
+}
+
+const LAYOUT_MAXW = 840;
+const LAYOUT_LEFT = (FRAME_W - LAYOUT_MAXW) / 2; // 120 — центрований 840-блок
+
+// ── «Розкладка»: фото + радіальний скрим, назва двома групами, сітка 3×≤3
+// з чіпом хвилин, знак по центру внизу (spec «Розкладка», автоматизована D2).
+// Без фото (img=null, правка 8 — поширено й на цей кадр для узгодженості
+// з постером/вертикаллю) — та сама заглушка, що постер: власної «розкладко-
+// вої» заглушки з підбором кольорів під тему не робила, «як на постері»
+// (дизайнерське рішення, спека мовчить конкретно про цей кадр).
+export function drawLayout(ctx: CanvasRenderingContext2D, data: FrameData, img: HTMLImageElement | null, crop: CropState, theme: CleanTheme): void {
+  if (!img) { drawPoster(ctx, data, null, crop, theme); return; }
+  ctx.clearRect(0, 0, FRAME_W, FRAME_H);
+  drawPhoto(ctx, img, crop);
+
+  // radial-gradient(90% 60% at 50% 46%, rgba(8,9,10,.62) 0, .34 55%, .15 100%)
+  // canvas не має еліптичних радіальних градієнтів — коло, розтягнуте по x.
+  const cx = FRAME_W * 0.5, cy = FRAME_H * 0.46;
+  const rx = FRAME_W * 0.9, ry = FRAME_H * 0.6;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(rx / ry, 1);
+  ctx.translate(-cx, -cy);
+  const scrim = ctx.createRadialGradient(cx, cy, 0, cx, cy, ry);
+  scrim.addColorStop(0, 'rgba(8,9,10,.62)');
+  scrim.addColorStop(0.55, 'rgba(8,9,10,.34)');
+  scrim.addColorStop(1, 'rgba(8,9,10,.15)');
+  ctx.fillStyle = scrim;
+  ctx.fillRect(cx - FRAME_W * 4, cy - FRAME_H * 4, FRAME_W * 8, FRAME_H * 8);
+  ctx.restore();
+
+  // Текст завжди білий (spec) — без адаптації до яскравості фото, на відміну від постера.
+  const WHITE = '#fff';
+  shadow(ctx, 'rgba(0,0,0,.55)', 8);
+
+  // Кікер по центру — «КУХНЯ · РЕЦЕПТ · 21 ВЕРЕСНЯ» (у нас: мін. кегль 28 лишається).
+  ctx.font = `600 28px ${FONT}`;
+  ctx.fillStyle = WHITE;
+  ctx.textBaseline = 'top';
+  const kicker = `КУХНЯ · РЕЦЕПТ · ${data.date.toUpperCase()}`;
+  const kickerSpacing = 0.14 * 28;
+  const kickerW = trackedWidth(ctx, kicker, kickerSpacing);
+  drawTracked(ctx, kicker, FRAME_W / 2 - kickerW / 2, 120, kickerSpacing);
+
+  // Назва: дві збалансовані групи, один рядок, tracking −.02em; хвіст — у сітку.
+  const measure = measureFn(ctx);
+  const titleY = 760;
+  const split = splitLayoutTitle(data.title, measure, LAYOUT_MAXW);
+  const titleSpacing = -0.02 * split.size;
+  ctx.font = `700 ${split.size}px ${FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = WHITE;
+  if (split.centered) {
+    const text = split.left.join(' ').toUpperCase();
+    const w = trackedWidth(ctx, text, titleSpacing);
+    drawTracked(ctx, text, FRAME_W / 2 - w / 2, titleY, titleSpacing);
+  } else {
+    const leftText = split.left.join(' ').toUpperCase();
+    const rightText = split.right.join(' ').toUpperCase();
+    drawTracked(ctx, leftText, LAYOUT_LEFT, titleY, titleSpacing);
+    const rightW = trackedWidth(ctx, rightText, titleSpacing);
+    drawTracked(ctx, rightText, LAYOUT_LEFT + LAYOUT_MAXW - rightW, titleY, titleSpacing);
+  }
+  noShadow(ctx);
+
+  // Сітка 3 колонки × ≤3 рядки, row-gap 14; центр 1-го рядка — чіп хвилин.
+  const items = layoutGridItems(split.tail, data.ingredients);
+  const colW = LAYOUT_MAXW / 3;
+  const rowH = 28 + 14;
+  const gridTop = 900;
+  const gridFont = `600 28px ${FONT}`;
+  const gridSpacing = 0.06 * 28;
+  ctx.font = gridFont;
+  ctx.textBaseline = 'top';
+  type Align = 'left' | 'center' | 'right';
+  // 9 клітинок row-major [ліво,центр,право]×3; центр 1-го рядка (slot 1) —
+  // чіп, не тут. `items` (≤8) мапляться на решту слотів по порядку.
+  const SLOTS: Align[] = ['left', 'center', 'right', 'left', 'center', 'right', 'left', 'center', 'right'];
+  const colX = (align: Align): number => (align === 'left' ? LAYOUT_LEFT : align === 'right' ? LAYOUT_LEFT + LAYOUT_MAXW : LAYOUT_LEFT + LAYOUT_MAXW / 2);
+  shadow(ctx, 'rgba(0,0,0,.45)', 5);
+  ctx.fillStyle = WHITE;
+  // Клітинка не мусить залазити на сусідню колонку (особливо ліва — під чіп)
+  // — обрізаємо з «…» по фактичній (трекованій) ширині, не голій measure().
+  const cellMaxW = colW - 16;
+  const trackMeasure: MeasureFn = (t) => trackedWidth(ctx, t, gridSpacing);
+  items.forEach((text, i) => {
+    const slot = i === 0 ? 0 : i + 1; // slot 1 (центр 1-го рядка) пропускаємо — там чіп
+    const align = SLOTS[slot]!;
+    const row = Math.floor(slot / 3);
+    const y = gridTop + row * rowH;
+    const upper = ellipsize(text.toUpperCase(), trackMeasure, gridFont, cellMaxW);
+    if (align === 'left') { drawTracked(ctx, upper, colX('left'), y, gridSpacing); }
+    else if (align === 'right') { const w = trackedWidth(ctx, upper, gridSpacing); drawTracked(ctx, upper, colX('right') - w, y, gridSpacing); }
+    else { const w = trackedWidth(ctx, upper, gridSpacing); drawTracked(ctx, upper, colX('center') - w / 2, y, gridSpacing); }
+  });
+  noShadow(ctx);
+
+  // Чіп «N ХВИЛИН» — центр 1-го рядка, sage bg, padding 2×14, tracking .08em.
+  const chipText = layoutChipLabel(data.minutes).toUpperCase();
+  const chipSpacing = 0.08 * 28;
+  ctx.font = gridFont;
+  const chipTextW = trackedWidth(ctx, chipText, chipSpacing);
+  const chipPadX = 14, chipPadY = 2;
+  const chipW = chipTextW + chipPadX * 2, chipH = 28 + chipPadY * 2;
+  const chipX = colX('center') - chipW / 2, chipY = gridTop - chipPadY;
+  ctx.fillStyle = '#5b7a4f';
+  ctx.fillRect(chipX, chipY, chipW, chipH);
+  ctx.fillStyle = WHITE;
+  drawTracked(ctx, chipText, chipX + chipPadX, chipY + chipPadY, chipSpacing);
+
+  // Порожнє місце 260×88 під стікер — нічого не малюємо (лише резервуємо
+  // простір над знаком, щоб не переплутати з реальним контентом).
+  // Знак «Kitchen OS» по центру, bottom 110 (той самий y=1766, що й інші кадри).
+  drawLogoCenter(ctx, FRAME_W / 2, 1766, 44, WHITE, WHITE, '#93b48b', 'rgba(0,0,0,.5)');
 }
 
 function weekdayDate(dateLabel: string, now: Date): string {
