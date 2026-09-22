@@ -83,16 +83,16 @@ describe('carbsForDisplay — вуглеводи на екран (комора, 
   });
 });
 
-describe('carbsForDisplay/kcalOf — захисні перевірки по ВСІХ 677 рядках data/nutrition/base.csv', () => {
+describe('carbsForDisplay/kcalOf — захисні перевірки по ВСІХ рядках data/nutrition/base.csv', () => {
   const csvPath = new URL('../../data/nutrition/base.csv', import.meta.url);
   const rows = readFileSync(csvPath, 'utf-8').split('\n').slice(1).filter(Boolean).map((l) => {
     const [name, , protein, fat, carbs, fiber, , , source] = l.split(';');
     return { name: name!, protein: Number(protein), fat: Number(fat), carbs: Number(carbs), fiber: fiber ? Number(fiber) : undefined, source: source! };
   });
-  // Звіт каже «677 з 677» — на живому файлі зараз 665 рядків (розбіжність
-  // звіту й репо, дрібна, не з цієї правки); джерело істини — сам base.csv.
+  // Пін на кількість рядків — сторожок «хтось чіпав base.csv». Етап 4 додав
+  // 17 рядків із українських етикеток (label:), було 665.
   it(`${rows.length} рядків прочитано`, () => {
-    expect(rows.length).toBe(665);
+    expect(rows.length).toBe(682);
   });
   it('жодна відображена величина вуглеводів не відʼємна', () => {
     const negatives = rows.filter((r) => carbsForDisplay(r) < 0);

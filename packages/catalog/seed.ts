@@ -203,7 +203,7 @@ const CATALOG_0: CatalogItem[] = [
     categories: ['горошок', 'бобові', 'консерви'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 5, fat: 0.5, carbs: 8, source: 'estimate' },
+    nutrition: { protein: 4.4, fat: 0.4, carbs: 12.6, fiber: 0, source: 'label:veresfood.com@2026-09-22' },
   },
   {
     key: 'corn_canned',
@@ -309,7 +309,7 @@ const CATALOG_0: CatalogItem[] = [
     categories: ['оливки', 'консерви'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 1, fat: 11, carbs: 6, source: 'estimate' },
+    nutrition: { protein: 1.5, fat: 25.2, carbs: 2.7, fiber: 0, source: 'label:metro.ua@2026-09-22' },
   },
   {
     key: 'lentils_green',
@@ -486,7 +486,7 @@ const CATALOG_0: CatalogItem[] = [
     categories: ['цукор', 'солодке'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 0, fat: 0, carbs: 98, source: 'estimate' },
+    nutrition: { protein: 0, fat: 0, carbs: 99, fiber: 0, source: 'label:silpo.ua@2026-09-22' },
   },
   {
     key: 'pea_mushroom_soup_mix',
@@ -877,6 +877,7 @@ const CATALOG_0: CatalogItem[] = [
     categories: ['оцет'],
     allergen_groups: [],
     zone_default: 'spices',
+    density: 1.1,
     nutrition: { protein: 0.49, fat: 0, carbs: 17.03, sugars: 14.95, sodium_mg: 23, source: 'usda:172241' },
   },
   {
@@ -971,7 +972,7 @@ const CATALOG_0: CatalogItem[] = [
     categories: ['соус', 'спеції'],
     allergen_groups: [],
     zone_default: 'spices',
-    nutrition: { protein: 3.74, fat: 3.34, carbs: 5.83, fiber: 4, sugars: 0.92, sodium_mg: 1104, source: 'usda:172234' },
+    nutrition: { protein: 6.4, fat: 7.8, carbs: 15.6, fiber: 0, source: 'label:veresfood.com@2026-09-22' },
   },
   {
     key: 'beef_stock_concentrate',
@@ -1062,6 +1063,7 @@ const CATALOG_0: CatalogItem[] = [
     categories: ['вино безалкогольне', 'напої'],
     allergen_groups: [],
     zone_default: 'drinks',
+    nutrition: { protein: 0, fat: 0, carbs: 4.4, fiber: 0, sugars: 4, source: 'label:carl-jung.de@2026-09-22' },
   },
   {
     key: 'lemonade_double_lemon',
@@ -13230,7 +13232,7 @@ const CATALOG_5: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'dry',
     density: 1.1,
-    nutrition: { protein: 1.04, fat: 0.1, carbs: 27.4, fiber: 0.3, sugars: 21.27, sodium_mg: 907, source: 'usda:168556' },
+    nutrition: { protein: 1.1, fat: 0.2, carbs: 22, fiber: 0, source: 'label:silpo.ua@2026-09-22' },
   },
   {
     key: 'sauce_ketchup_spicy',
@@ -13774,7 +13776,7 @@ const CATALOG_5: CatalogItem[] = [
     categories: ['паста', 'томатна паста', 'томати', 'овочі', 'консерви', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 4, fat: 0, carbs: 16, source: 'estimate' },
+    nutrition: { protein: 4, fat: 0, carbs: 16.4, fiber: 0, source: 'label:chumak.com@2026-09-22' },
   },
   {
     key: 'sauce_tomato_puree',
@@ -14179,7 +14181,7 @@ const CATALOG_5: CatalogItem[] = [
     categories: ['горошок', 'бобові', 'консерви', 'овочі', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 5, fat: 0, carbs: 12, source: 'estimate' },
+    nutrition: { protein: 3, fat: 0.4, carbs: 9.7, fiber: 0, source: 'label:silpo.ua@2026-09-22' },
   },
   {
     key: 'can_peas_and_carrots',
@@ -18956,7 +18958,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.02,
-    nutrition: { protein: 0, fat: 0, carbs: 5, source: 'estimate' },
+    nutrition: { protein: 0, fat: 0, carbs: 4.4, fiber: 0, sugars: 4, source: 'label:carl-jung.de@2026-09-22' },
   },
   {
     key: 'drink_wine_nonalcoholic_sparkling',
@@ -18966,7 +18968,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.02,
-    nutrition: { protein: 0, fat: 0, carbs: 6, source: 'estimate' },
+    nutrition: { protein: 0, fat: 0, carbs: 4.4, fiber: 0, sugars: 4, source: 'label:carl-jung.de@2026-09-22' },
   },
   {
     key: 'drink_ginger_shot',
@@ -24576,7 +24578,7 @@ const CATALOG_9: CatalogItem[] = [
     categories: ['хлібні палички', 'хліб', 'випічка', 'пшениця', 'зернові', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 11, fat: 11, carbs: 66, source: 'estimate' },
+    nutrition: { protein: 10.8, fat: 1.2, carbs: 71, fiber: 0, source: 'label:silpo.ua@2026-09-22' },
   },
   {
     key: 'r2cn_beef_stew_can',
@@ -25646,7 +25648,7 @@ const CATALOG_9: CatalogItem[] = [
     categories: ['ковбаса', 'сирокопчене', 'свинина', 'яловичина', 'мʼясо', 'тваринне'],
     allergen_groups: [],
     zone_default: 'fridge',
-    nutrition: { protein: 26, fat: 35, carbs: 1, source: 'estimate' },
+    nutrition: { protein: 19, fat: 47, carbs: 0.3, fiber: 0, source: 'label:silpo.ua@2026-09-22' },
   },
   {
     key: 'r2ch_saus_servelat_finnish',
@@ -40272,7 +40274,7 @@ const CATALOG_15: CatalogItem[] = [
     categories: ['локшина', 'швидке приготування', 'пшениця', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 9, fat: 18, carbs: 60, source: 'estimate' },
+    nutrition: { protein: 10.17, fat: 17.59, carbs: 60.26, fiber: 2.9, sugars: 1.98, sodium_mg: 1855, source: 'usda:171177' },
   },
   {
     key: 'r2rm_instant_noodles_beef',
@@ -40281,7 +40283,7 @@ const CATALOG_15: CatalogItem[] = [
     categories: ['локшина', 'швидке приготування', 'пшениця', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 9, fat: 18, carbs: 60, source: 'estimate' },
+    nutrition: { protein: 10.17, fat: 17.59, carbs: 60.26, fiber: 2.9, sugars: 1.98, sodium_mg: 1855, source: 'usda:171177' },
   },
   {
     key: 'r2rm_instant_noodles_shrimp',
@@ -40290,7 +40292,7 @@ const CATALOG_15: CatalogItem[] = [
     categories: ['локшина', 'швидке приготування', 'пшениця', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 8, fat: 17, carbs: 61, source: 'estimate' },
+    nutrition: { protein: 10.17, fat: 17.59, carbs: 60.26, fiber: 2.9, sugars: 1.98, sodium_mg: 1855, source: 'usda:171177' },
   },
   {
     key: 'r2rm_instant_noodles_mushroom',
@@ -40299,7 +40301,7 @@ const CATALOG_15: CatalogItem[] = [
     categories: ['локшина', 'швидке приготування', 'пшениця', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 8, fat: 17, carbs: 61, source: 'estimate' },
+    nutrition: { protein: 10.17, fat: 17.59, carbs: 60.26, fiber: 2.9, sugars: 1.98, sodium_mg: 1855, source: 'usda:171177' },
   },
   {
     key: 'r2rm_instant_noodles_spicy',
@@ -40308,7 +40310,7 @@ const CATALOG_15: CatalogItem[] = [
     categories: ['локшина', 'швидке приготування', 'пшениця', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 9, fat: 19, carbs: 59, source: 'estimate' },
+    nutrition: { protein: 10.17, fat: 17.59, carbs: 60.26, fiber: 2.9, sugars: 1.98, sodium_mg: 1855, source: 'usda:171177' },
   },
   {
     key: 'r2rm_instant_noodles_cup_chicken',
@@ -40317,7 +40319,7 @@ const CATALOG_15: CatalogItem[] = [
     categories: ['локшина', 'стаканчик', 'швидке приготування', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 8, fat: 16, carbs: 56, source: 'estimate' },
+    nutrition: { protein: 10.17, fat: 17.59, carbs: 60.26, fiber: 2.9, sugars: 1.98, sodium_mg: 1855, source: 'usda:171177' },
   },
   {
     key: 'r2rm_instant_ramen_sauce',
@@ -40879,7 +40881,7 @@ const CATALOG_15: CatalogItem[] = [
     categories: ['паста', 'томатна паста', 'томати', 'овочі', 'консерви', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 4, fat: 0, carbs: 18, source: 'estimate' },
+    nutrition: { protein: 4.32, fat: 0.47, carbs: 18.91, fiber: 4.1, sugars: 12.18, sodium_mg: 59, source: 'usda:170459' },
   },
   {
     key: 'r2sc_tomato_paste_tube',
@@ -41008,7 +41010,7 @@ const CATALOG_15: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'fridge',
     density: 0.96,
-    nutrition: { protein: 1, fat: 50, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.5, fat: 50, carbs: 4.7, fiber: 0, source: 'label:silpo.ua@2026-09-22' },
   },
   {
     key: 'r2sc_mayo_garlic',

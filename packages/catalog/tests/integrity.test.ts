@@ -120,8 +120,11 @@ describe('integrity · схема доданих позицій', () => {
     expect(bad).toEqual([]);
   });
 
-  it('nutrition.source — estimate | usda:<id> | ciqual:<code>; оцінки — цілі', () => {
-    const badSource = CATALOG.filter((i) => i.nutrition && !/^(estimate|usda:\d+|ciqual:\d+)$/.test(i.nutrition.source)).map((i) => i.key);
+  // Етап 4: до трьох видів джерела додався label:<домен>@<ISO-дата> (етап 2 навчив
+  // йому base.csv і apply-base.ts, але до каталогу жодна позиція на ньому ще не
+  // доїжджала — тому allowlist тут лишався старим).
+  it('nutrition.source — estimate | usda:<id> | ciqual:<code> | label:<домен>@<дата>; оцінки — цілі', () => {
+    const badSource = CATALOG.filter((i) => i.nutrition && !/^(estimate|usda:\d+|ciqual:\d+|label:[a-z0-9][a-z0-9.-]*@\d{4}-\d{2}-\d{2})$/.test(i.nutrition.source)).map((i) => i.key);
     expect(badSource).toEqual([]);
     const badInt = added.filter((i) => i.nutrition?.source === 'estimate' && [i.nutrition.protein, i.nutrition.fat, i.nutrition.carbs].some((v) => !Number.isInteger(v))).map((i) => i.key);
     expect(badInt).toEqual([]);

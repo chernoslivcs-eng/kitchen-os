@@ -110,11 +110,15 @@ export class BaseMatcher {
     // бази: правила «голова + жирність» і «ключове слово» тут не вгадують.
     // Виняток — консервований тунець: у бази є власні рядки, і словник веде
     // на них першим; для решти маркерів вихід — estimate.
+    // Етап 4: у processed є й «безалкогольн» (етап 2 додав його, щоб відсікти
+    // алкогольні рядки) — через це БУДЬ-ЯКА безалкогольна позиція виходила в
+    // estimate, навіть коли для неї з'явився власний рядок. Тому «безалкогольн»
+    // теж у списку дозволених баз: у бази є «Вино безалкогольне».
     const processed = (this.aliases.processed ?? []).some((w) => plain.includes(normalizeName(w)));
     if (processed) {
       const cats = new Set(item.categories.map(normalizeName));
       for (const k of this.aliases.keywords) {
-        if (!/консерв|у власному соку|в олії/.test(k.base.toLowerCase())) continue;
+        if (!/консерв|у власному соку|в олії|безалкогольн/.test(k.base.toLowerCase())) continue;
         if (isAlcoholKeyword(k, norm)) continue;
         if (!cats.has(normalizeName(k.cat)) && !item.categories.some((c) => wordIn(c, normalizeName(k.cat)))) continue;
         if (k.kw.some((w) => wordIn(plain, normalizeName(w)))) return { base: k.base, rule: 'keyword' };

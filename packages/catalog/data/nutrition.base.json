@@ -126,6 +126,14 @@
   "sodium_mg": 340,
   "base": "Квасоля біла консервована"
  },
+ "green_peas_canned": {
+  "protein": 4.4,
+  "fat": 0.4,
+  "carbs": 12.6,
+  "source": "label:veresfood.com@2026-09-22",
+  "fiber": 0,
+  "base": "Горошок зелений консервований"
+ },
  "corn_canned": {
   "protein": 2.29,
   "fat": 1.22,
@@ -155,6 +163,14 @@
   "sugars": 0.54,
   "sodium_mg": 1556,
   "base": "Оливки зелені"
+ },
+ "olives_black_kalamata": {
+  "protein": 1.5,
+  "fat": 25.2,
+  "carbs": 2.7,
+  "source": "label:metro.ua@2026-09-22",
+  "fiber": 0,
+  "base": "Оливки чорні каламата"
  },
  "white_beans_dry": {
   "protein": 23.36,
@@ -225,6 +241,14 @@
   "sugars": 54.4,
   "sodium_mg": 127,
   "base": "Згущене молоко"
+ },
+ "brown_sugar": {
+  "protein": 0,
+  "fat": 0,
+  "carbs": 99,
+  "source": "label:silpo.ua@2026-09-22",
+  "fiber": 0,
+  "base": "Цукор тростинний"
  },
  "potato": {
   "protein": 2.05,
@@ -413,13 +437,11 @@
   "base": "Коріандр мелений"
  },
  "mustard": {
-  "protein": 3.74,
-  "fat": 3.34,
-  "carbs": 5.83,
-  "source": "usda:172234",
-  "fiber": 4,
-  "sugars": 0.92,
-  "sodium_mg": 1104,
+  "protein": 6.4,
+  "fat": 7.8,
+  "carbs": 15.6,
+  "source": "label:veresfood.com@2026-09-22",
+  "fiber": 0,
   "base": "Гірчиця"
  },
  "bay_leaf": {
@@ -441,6 +463,15 @@
   "sodium_mg": 5,
   "alcohol": 10.3,
   "base": "Вино сухе біле"
+ },
+ "wine_sauvignon_blanc_nonalcoholic": {
+  "protein": 0,
+  "fat": 0,
+  "carbs": 4.4,
+  "source": "label:carl-jung.de@2026-09-22",
+  "fiber": 0,
+  "sugars": 4,
+  "base": "Вино безалкогольне"
  },
  "lemonade_double_lemon": {
   "protein": 0,
@@ -4111,13 +4142,11 @@
   "base": "Какао-порошок"
  },
  "sauce_ketchup_classic": {
-  "protein": 1.04,
-  "fat": 0.1,
-  "carbs": 27.4,
-  "source": "usda:168556",
-  "fiber": 0.3,
-  "sugars": 21.27,
-  "sodium_mg": 907,
+  "protein": 1.1,
+  "fat": 0.2,
+  "carbs": 22,
+  "source": "label:silpo.ua@2026-09-22",
+  "fiber": 0,
   "base": "Кетчуп"
  },
  "sauce_bbq": {
@@ -4220,6 +4249,14 @@
   "sodium_mg": 901,
   "base": "Соус ранч"
  },
+ "paste_tomato_concentrated": {
+  "protein": 4,
+  "fat": 0,
+  "carbs": 16.4,
+  "source": "label:chumak.com@2026-09-22",
+  "fiber": 0,
+  "base": "Томатна паста 25%"
+ },
  "sauce_passata": {
   "protein": 1.65,
   "fat": 0.21,
@@ -4268,6 +4305,14 @@
   "sugars": 2.58,
   "sodium_mg": 253,
   "base": "Сік томатний"
+ },
+ "can_peas_marrowfat": {
+  "protein": 3,
+  "fat": 0.4,
+  "carbs": 9.7,
+  "source": "label:silpo.ua@2026-09-22",
+  "fiber": 0,
+  "base": "Горошок зелений мозковий"
  },
  "can_beans_white_tomato": {
   "protein": 4.75,
@@ -4588,6 +4633,24 @@
   "sugars": 68.03,
   "sodium_mg": 4,
   "base": "Сироп агави"
+ },
+ "drink_wine_nonalcoholic_red": {
+  "protein": 0,
+  "fat": 0,
+  "carbs": 4.4,
+  "source": "label:carl-jung.de@2026-09-22",
+  "fiber": 0,
+  "sugars": 4,
+  "base": "Вино безалкогольне"
+ },
+ "drink_wine_nonalcoholic_sparkling": {
+  "protein": 0,
+  "fat": 0,
+  "carbs": 4.4,
+  "source": "label:carl-jung.de@2026-09-22",
+  "fiber": 0,
+  "sugars": 4,
+  "base": "Вино безалкогольне"
  },
  "alc_beer_lager_pale": {
   "protein": 0.46,
@@ -5961,6 +6024,14 @@
   "sodium_mg": 490,
   "base": "Хліб пшеничний"
  },
+ "r2bk_grissini": {
+  "protein": 10.8,
+  "fat": 1.2,
+  "carbs": 71,
+  "source": "label:silpo.ua@2026-09-22",
+  "fiber": 0,
+  "base": "Гріссіні"
+ },
  "r2cn_mackerel_fillet_oil": {
   "protein": 18.6,
   "fat": 13.89,
@@ -5970,6 +6041,14 @@
   "sugars": 0,
   "sodium_mg": 90,
   "base": "Скумбрія"
+ },
+ "r2ch_saus_dry_cured": {
+  "protein": 19,
+  "fat": 47,
+  "carbs": 0.3,
+  "source": "label:silpo.ua@2026-09-22",
+  "fiber": 0,
+  "base": "Ковбаса сировʼялена"
  },
  "r2ch_smoked_wings_bbq": {
   "protein": 17.52,
@@ -7048,6 +7127,66 @@
   "sodium_mg": 428,
   "base": "Рол каліфорнія"
  },
+ "r2rm_instant_noodles_chicken": {
+  "protein": 10.17,
+  "fat": 17.59,
+  "carbs": 60.26,
+  "source": "usda:171177",
+  "fiber": 2.9,
+  "sugars": 1.98,
+  "sodium_mg": 1855,
+  "base": "Локшина швидкого приготування"
+ },
+ "r2rm_instant_noodles_beef": {
+  "protein": 10.17,
+  "fat": 17.59,
+  "carbs": 60.26,
+  "source": "usda:171177",
+  "fiber": 2.9,
+  "sugars": 1.98,
+  "sodium_mg": 1855,
+  "base": "Локшина швидкого приготування"
+ },
+ "r2rm_instant_noodles_shrimp": {
+  "protein": 10.17,
+  "fat": 17.59,
+  "carbs": 60.26,
+  "source": "usda:171177",
+  "fiber": 2.9,
+  "sugars": 1.98,
+  "sodium_mg": 1855,
+  "base": "Локшина швидкого приготування"
+ },
+ "r2rm_instant_noodles_mushroom": {
+  "protein": 10.17,
+  "fat": 17.59,
+  "carbs": 60.26,
+  "source": "usda:171177",
+  "fiber": 2.9,
+  "sugars": 1.98,
+  "sodium_mg": 1855,
+  "base": "Локшина швидкого приготування"
+ },
+ "r2rm_instant_noodles_spicy": {
+  "protein": 10.17,
+  "fat": 17.59,
+  "carbs": 60.26,
+  "source": "usda:171177",
+  "fiber": 2.9,
+  "sugars": 1.98,
+  "sodium_mg": 1855,
+  "base": "Локшина швидкого приготування"
+ },
+ "r2rm_instant_noodles_cup_chicken": {
+  "protein": 10.17,
+  "fat": 17.59,
+  "carbs": 60.26,
+  "source": "usda:171177",
+  "fiber": 2.9,
+  "sugars": 1.98,
+  "sodium_mg": 1855,
+  "base": "Локшина швидкого приготування"
+ },
  "r2scb_mango_salsa": {
   "protein": 0.82,
   "fat": 0.38,
@@ -7057,6 +7196,24 @@
   "sugars": 13.66,
   "sodium_mg": 1,
   "base": "Манго"
+ },
+ "r2sc_tomato_paste_30": {
+  "protein": 4.32,
+  "fat": 0.47,
+  "carbs": 18.91,
+  "source": "usda:170459",
+  "fiber": 4.1,
+  "sugars": 12.18,
+  "sodium_mg": 59,
+  "base": "Томатна паста 30%"
+ },
+ "r2sc_mayo_50": {
+  "protein": 0.5,
+  "fat": 50,
+  "carbs": 4.7,
+  "source": "label:silpo.ua@2026-09-22",
+  "fiber": 0,
+  "base": "Майонез 50%"
  },
  "r2vg_cauliflower_broccoli_mix": {
   "protein": 2.82,
