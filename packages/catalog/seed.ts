@@ -393,7 +393,7 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'tteok_cheese_cup',
     name: 'Токпоккі сирна чашка (Rapokki)',
-    aliases: ['yopokki cheese cup rapokki', 'рапоккі'],
+    aliases: ['yopokki cheese cup rapokki', 'рапоккі', 'рапокі'],
     categories: ['токпоккі', 'готове'],
     allergen_groups: ['глютен', 'молочне'],
     zone_default: 'dry',
@@ -507,7 +507,7 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'tteokbokki_rose',
     name: 'Токпоккі роузе',
-    aliases: ['hipokki tteokbokki rose', 'токпоккі'],
+    aliases: ['hipokki tteokbokki rose', 'токпоккі', 'топоккі з соусом розе', 'топоккі розе'],
     categories: ['токпоккі', 'готове'],
     allergen_groups: ['глютен', 'молочне'],
     zone_default: 'dry',
@@ -600,7 +600,7 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'tuna_steak',
     name: 'Тунець стейк',
-    aliases: ['тунець стейки', 'yapiko стейки тунця', 'tuna steak'],
+    aliases: ['тунець стейки', 'yapiko стейки тунця', 'tuna steak', 'стейк з тунця', 'медальйони з тунця'],
     categories: ['тунець', 'риба', 'тваринне'],
     allergen_groups: ['риба'],
     zone_default: 'freezer',
@@ -917,7 +917,7 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'sriracha',
     name: 'Шрірача',
-    aliases: ['sriracha'],
+    aliases: ['sriracha', 'соус шрірача', 'соус шрірача чилі'],
     categories: ['соус'],
     allergen_groups: [],
     zone_default: 'spices',
@@ -934,7 +934,7 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'oregano_dried',
     name: 'Орегано сушене',
-    aliases: ['fl орегано', 'dried oregano'],
+    aliases: ['fl орегано', 'dried oregano', 'оригано', 'оригано сушене'],
     categories: ['спеції', 'трави'],
     allergen_groups: [],
     zone_default: 'spices',
@@ -1034,7 +1034,7 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'garlic_dried',
     name: 'Часник сушений',
-    aliases: ['часник сушений', 'dried garlic'],
+    aliases: ['часник сушений', 'dried garlic', 'сухий часник', 'часник сухий'],
     categories: ['спеції'],
     allergen_groups: [],
     zone_default: 'spices',
@@ -1059,7 +1059,7 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'wine_sauvignon_blanc_nonalcoholic',
     name: 'Совіньйон Блан безалкогольний',
-    aliases: ['hans greyl совіньйон блан б/а'],
+    aliases: ['hans greyl совіньйон блан б/а', 'hans greyl sauvignon blanc', 'sauvignon blanc безалкогольне', 'sauvignon blanc бʼа'],
     categories: ['вино безалкогольне', 'напої'],
     allergen_groups: [],
     zone_default: 'drinks',
@@ -4020,7 +4020,7 @@ const CATALOG_2: CatalogItem[] = [
   {
     key: 'fish_tilapia_fillet',
     name: 'Філе тілапії',
-    aliases: ['філе тілапії', 'тілапія', 'тилапія', 'тілапії', 'tilapia fillet'],
+    aliases: ['філе тілапії', 'тілапія', 'тилапія', 'тілапії', 'tilapia fillet', 'філе тилапії', 'тилапія філе'],
     categories: ['тілапія', 'філе', 'біла риба', 'риба', 'тваринне'],
     allergen_groups: ['риба'],
     zone_default: 'freezer',
@@ -5222,7 +5222,7 @@ const CATALOG_2: CatalogItem[] = [
   {
     key: 'cheese_burrata',
     name: 'Буратта',
-    aliases: ['буратта', 'бурата', 'буратту', 'burrata', 'сир буратта'],
+    aliases: ['буратта', 'бурата', 'буратту', 'burrata', 'сир буратта', 'буррата'],
     categories: ['свіжий сир', 'сир', 'молочне', 'тваринне'],
     allergen_groups: ['молочне'],
     zone_default: 'fridge',
@@ -10104,7 +10104,7 @@ const CATALOG_4: CatalogItem[] = [
   {
     key: 'pasta_spaghettini_no3',
     name: 'Спагетіні №3',
-    aliases: ['спагетіні', 'spaghettini', 'спагеті тонкі', 'спагетіні №3', 'тонкі спагеті'],
+    aliases: ['спагетіні', 'spaghettini', 'спагеті тонкі', 'спагетіні №3', 'тонкі спагеті', 'спагеттіні', 'спагеттти', 'спагеттті'],
     categories: ['паста', 'борошняне', 'пшениця', 'зернові', 'рослинне'],
     allergen_groups: ['глютен'],
     zone_default: 'dry',
@@ -15380,7 +15380,7 @@ const CATALOG_6: CatalogItem[] = [
   {
     key: 'frz_crepes_meat',
     name: 'Млинці з мʼясом',
-    aliases: ['млинці з мʼясом', 'млинців з мʼясом', 'налисники з мʼясом', 'crepes with meat'],
+    aliases: ['млинці з мʼясом', 'млинців з мʼясом', 'налисники з мʼясом', 'crepes with meat', 'млинці із курячим мʼясом', 'млинці з курячим мʼясом'],
     categories: ['млинці', 'напівфабрикат', 'мʼясо', 'пшениця', 'борошняне', 'заморожене', 'тваринне'],
     allergen_groups: ['глютен'],
     zone_default: 'freezer',
@@ -16528,7 +16528,7 @@ const CATALOG_6: CatalogItem[] = [
   {
     key: 'bake_biscotti',
     name: 'Біскотті',
-    aliases: ['біскотті', 'biscotti', 'печиво біскотті', 'кантуччі'],
+    aliases: ['біскотті', 'biscotti', 'печиво біскотті', 'кантуччі', 'кантучіні', 'кантучині', 'cantuccini'],
     categories: ['печиво', 'випічка', 'пшениця', 'зернові', 'борошняне', 'мигдаль', 'горіхи', 'солодке', 'рослинне'],
     allergen_groups: ['глютен', 'горіхи'],
     zone_default: 'dry',
@@ -42637,7 +42637,7 @@ const CATALOG_16: CatalogItem[] = [
   {
     key: 'r2spb_fried_onion_crispy',
     name: 'Цибуля смажена хрустка',
-    aliases: ['цибуля смажена', 'смажена цибуля хрустка', 'хрустка смажена цибуля', 'fried crispy onion', 'цибулеві шкварки сухі', 'цибуля фрі приправа'],
+    aliases: ['цибуля смажена', 'смажена цибуля хрустка', 'хрустка смажена цибуля', 'fried crispy onion', 'цибулеві шкварки сухі', 'цибуля фрі приправа', 'цибулевий кранч', 'кранч цибулевий'],
     categories: ['приправа', 'цибулеві', 'спеції', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
@@ -46428,6 +46428,125 @@ export const CATALOG_NONFOOD: CatalogItem[] = [
   },
 ];
 
+// ЕТАП 3 (CATALOG-KEY-AUDIT-0922.md, п.2в і п.3): позиції, яких у каталозі не
+// було, через що 31 їстівний продукт живих домів лишався без ключа, і три
+// позиції-адресати для уточнень виду/стану (refineKind у logic.ts) — без них
+// «вʼялені томати з сиром», «оливки в олії» й ароматизована олія не мали б куди
+// вести, і резолвер мовчав би замість давати правильний ключ.
+//
+// БЖВ тут свідомо нема: рядки довідника — зона іншого потоку (base.csv), і
+// числа проставить черговий прогін scripts/nutrition/apply-base.ts.
+const CATALOG_18: CatalogItem[] = [
+  {
+    key: 'r2k_herbal_blend',
+    name: 'Травʼяний збір',
+    aliases: ['травʼяний збір', 'збір травʼяний', 'чай травʼяний збір', 'карпатський збір'],
+    categories: ['чай', 'травʼяний чай', 'напої', 'рослинне'],
+    allergen_groups: [],
+    zone_default: 'dry',
+  },
+  {
+    key: 'gen_liqueur',
+    name: 'Лікер',
+    aliases: ['лікер', 'лікери', 'лікеру'],
+    categories: ['лікер', 'алкоголь', 'напої'],
+    allergen_groups: [],
+    zone_default: 'drinks',
+    priority: -1,
+  },
+  {
+    key: 'gen_tincture',
+    name: 'Настоянка',
+    aliases: ['настоянка', 'настойка', 'спотикач', 'спотикачка'],
+    categories: ['настоянка', 'алкоголь', 'напої'],
+    allergen_groups: [],
+    zone_default: 'drinks',
+    priority: -1,
+  },
+  {
+    key: 'r2k_chicken_slices_dried',
+    name: 'Сушені курячі слайси',
+    aliases: ['сушені курячі слайси', 'курячі слайси', 'рябchick', 'снек курячий сушений'],
+    categories: ['снеки', 'курка', 'мʼясо', 'тваринне'],
+    allergen_groups: [],
+    zone_default: 'dry',
+  },
+  {
+    key: 'r2k_broth_vegetable',
+    name: 'Бульйон овочевий',
+    aliases: ['бульйон овочевий', 'овочевий бульйон', 'vegetable broth'],
+    categories: ['бульйон', 'суп', 'овочі', 'рослинне'],
+    allergen_groups: [],
+    zone_default: 'dry',
+  },
+  {
+    key: 'r2k_cranberry_ground_sugar',
+    name: 'Журавлина перетерта з цукром',
+    aliases: ['журавлина перетерта', 'перетерта журавлина', 'журавлина з цукром'],
+    categories: ['журавлина', 'ягоди', 'солодке', 'рослинне'],
+    allergen_groups: [],
+    zone_default: 'fridge',
+  },
+  {
+    key: 'r2k_potato_casserole',
+    name: 'Картопляна запіканка',
+    aliases: ['картопляна запіканка', 'запіканка картопляна'],
+    categories: ['запіканка', 'готова страва', 'картопля', 'овочі', 'рослинне'],
+    allergen_groups: [],
+    zone_default: 'fridge',
+  },
+  // --- адресати уточнень виду/стану (refineKind) ---
+  {
+    // Рід без кольору: без нього «вино безалкогольне» (а це все, що стоїть у
+    // полі product) брало перший-ліпший колір — червоне. Родовий запис віддає
+    // рішення повній назві продукту, де колір і сорт є.
+    key: 'gen_wine_nonalcoholic',
+    name: 'Вино безалкогольне',
+    aliases: ['вино безалкогольне', 'безалкогольне вино', 'вино 0%', 'вино бʼа'],
+    categories: ['вино безалкогольне', 'напої', 'рослинне'],
+    allergen_groups: [],
+    zone_default: 'drinks',
+    priority: -1,
+  },
+  {
+    // Те саме, що з безалкогольним вином: у полі product стоїть рід «локшина
+    // швидкого приготування», а в каталозі лише смаки. Без родового запису
+    // anchored брав найближчий за вагою — курячий суп у стаканчику.
+    key: 'gen_instant_noodles',
+    name: 'Локшина швидкого приготування',
+    aliases: ['локшина швидкого приготування', 'вермішель швидкого приготування', 'локшина бп', 'доширак'],
+    categories: ['локшина', 'швидке приготування', 'пшениця', 'рослинне'],
+    allergen_groups: ['глютен'],
+    zone_default: 'dry',
+    priority: -1,
+  },
+  {
+    key: 'r2k_sundried_tomatoes_cheese',
+    name: 'Вʼялені томати з сиром',
+    aliases: ['вʼялені томати з сиром', 'томати вʼялені з сиром', 'вʼялені томати з сирною масою'],
+    categories: ['вʼялені томати', 'томати', 'сир', 'овочі', 'консерви', 'рослинне'],
+    allergen_groups: ['молочне'],
+    zone_default: 'fridge',
+  },
+  {
+    key: 'r2k_olives_green_oil',
+    name: 'Оливки зелені в олії',
+    aliases: ['оливки зелені в олії', 'оливки в олії', 'оливки биті в олії'],
+    categories: ['оливки', 'консерви', 'рослинне'],
+    allergen_groups: [],
+    zone_default: 'dry',
+  },
+  {
+    key: 'r2k_olive_oil_flavoured',
+    name: 'Олія оливкова ароматизована',
+    aliases: ['оливкова олія ароматизована', 'оливкова олія з трюфелем', 'оливкова олія з лимоном', 'оливкова олія з базиліком'],
+    categories: ['олія', 'жири', 'рослинне'],
+    allergen_groups: [],
+    zone_default: 'spices',
+    density: 0.91,
+  },
+];
+
 export const CATALOG: CatalogItem[] = [
   ...CATALOG_0,
   ...CATALOG_1,
@@ -46447,6 +46566,7 @@ export const CATALOG: CatalogItem[] = [
   ...CATALOG_15,
   ...CATALOG_16,
   ...CATALOG_17,
+  ...CATALOG_18,
   ...CATALOG_GENERIC,
   ...CATALOG_NONFOOD,
 ];

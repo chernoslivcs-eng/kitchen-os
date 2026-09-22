@@ -205,6 +205,8 @@ export interface ResolveCtx {
 
 // Широкі токени категорій, за якими «та сама група» не визначається:
 // кефір і сир обидва «молочне», але «Сир Моцарела» не про кефір.
+// Категорії, де м'яка планка вимагає виду, а не лише роду (етап 3, п.2).
+const ALCOHOL_CATS_GENERIC = ['алкоголь', 'вино', 'пиво', 'лікер', 'ігристе', 'міцний алкоголь'];
 const BROAD_TOKENS = new Set(['тваринне', 'рослинне', 'молочне', 'мʼясо', 'овочі', 'фрукти', 'консерви', 'напої', 'свіже', 'солодке', 'випічка', 'борошняне']);
 // У зоні спецій свіжого не буває: овочі та зелень туди не резолвимо.
 const NOT_IN_SPICES = new Set(['овочі', 'зелень', 'свіже', 'пасльонові']);
@@ -220,6 +222,140 @@ function driedVariant(item: CatalogItem, catalog: readonly CatalogItem[]): Catal
   const head = wordsOf(item.name)[0];
   if (!head) return null;
   return catalog.find((i) => i.key !== item.key && wordsOf(i.name)[0] === head && /dried|сушен/i.test(i.key + ' ' + i.name)) ?? null;
+}
+
+/**
+ * Етап 3 (CATALOG-KEY-AUDIT-0922.md): ВИД і СТАН, які слово в назві несе, а
+ * резолвер не бачив. Усі п'ять підтверджених чужих ключів аудиту — одного типу:
+ * рід збігся, уточнення проігноровано (темний шоколад → молочний, сухе желе →
+ * готове, локшина швидкого приготування → домашня, вʼялені томати з сиром → в
+ * олії, безалкогольне вино → звичайне зі спиртом).
+ *
+ * `refineSpecies` тут не допомагає: він працює лише над записами `gen_`, а всі
+ * п'ять промахів — на конкретних позиціях (часто ще й притягнутих аліасом
+ * бренда: «rioba шоколад» стоїть на молочному, «мрія желе» — на готовому).
+ *
+ * `strict: true` — мовчання обраної позиції вже є розбіжністю (начинка, вид
+ * шоколаду, суха форма, безалкогольність: усе це змінює сам продукт).
+ * `strict: false` — розбіжністю є лише ІНШЕ значення тієї ж осі (заливка: олія
+ * проти розсолу змінює число, але не продукт, і мовчання каталогу тут
+ * нормальне — інакше ми відкидали б half каталогу консервів).
+ */
+interface KindValue { value: string; re: RegExp }
+interface KindAxis { axis: string; scope: RegExp; strict: boolean; values: KindValue[] }
+
+const KIND_AXES: readonly KindAxis[] = [
+  {
+    axis: 'вид шоколаду', scope: /шоколад/, strict: true,
+    values: [
+      { value: 'чорний', re: /(^|[^а-яіїєґa-z])(темн[а-яіїє]*|чорн[а-яіїє]*|гірк[а-яіїє]*|екстрачорн[а-яіїє]*|dark)(?=$|[^а-яіїєґa-z])/ },
+      { value: 'молочний', re: /(^|[^а-яіїєґa-z])(молочн[а-яіїє]*|milk)(?=$|[^а-яіїєґa-z])/ },
+      { value: 'білий', re: /(^|[^а-яіїєґa-z])(біл[а-яіїє]*|white)(?=$|[^а-яіїєґa-z])/ },
+    ],
+  },
+  {
+    axis: 'суха форма', scope: /желе|кисіль/, strict: true,
+    values: [
+      // Голе «суміш» сюди не годиться: «Суміш лісових ягід заморожена» — теж
+      // суміш, і сухе желе лягало на заморожені ягоди.
+      { value: 'суха', re: /(^|[^а-яіїєґa-z])(сух[а-яіїє]*|порошок|концентрат)(?=$|[^а-яіїєґa-z])|суміш для/ },
+      { value: 'готова', re: /(^|[^а-яіїєґa-z])(готов[а-яіїє]*)(?=$|[^а-яіїєґa-z])/ },
+    ],
+  },
+  {
+    axis: 'швидке приготування', scope: /локшин|вермішел/, strict: true,
+    values: [
+      { value: 'швидке', re: /(швидкого приготування|миттєвого приготування|instant|доширак|(^|[^а-яіїєґa-z])бп(?=$|[^а-яіїєґa-z]))/ },
+    ],
+  },
+  {
+    axis: 'начинка', scope: /./, strict: true,
+    values: [
+      // «Чипси зі смаком сиру» — та сама начинка іншими словами; без цього
+      // «чипси Lay's з сиром» лишались без ключа (тест species-after-generic).
+      { value: 'з сиром', re: /з сиром|зі смаком сиру|з сирною|сирн[а-яіїє]*|cheese|nadziewane/ },
+      { value: 'з начинкою', re: /з начинкою|фарширован[а-яіїє]*/ },
+    ],
+  },
+  {
+    axis: 'безалкогольне', scope: /вино|пиво|ігристе|сидр|лікер|коктейл|шампанськ/, strict: true,
+    values: [
+      { value: 'без алкоголю', re: /безалкогольн[а-яіїє]*|(^|[^а-яіїєґa-z])б\/а(?=$|[^а-яіїєґa-z])|0[.,]0\s*%|alcohol[\s-]?free|non-alcoholic/ },
+    ],
+  },
+  {
+    axis: 'заливка', scope: /./, strict: false,
+    values: [
+      { value: 'в олії', re: /в олії|в оливковій олії|в соняшниковій олії/ },
+      { value: 'у власному соку', re: /у власному соку|власному соку/ },
+      { value: 'в розсолі', re: /в розсолі|у розсолі/ },
+      { value: 'в томатному соусі', re: /в томатному соусі|у томатному соусі/ },
+    ],
+  },
+];
+
+const KIND_TEXT = new WeakMap<CatalogItem, string>();
+function kindText(item: CatalogItem): string {
+  let t = KIND_TEXT.get(item);
+  if (t === undefined) { t = normalize([item.name, ...item.aliases].join(' ')); KIND_TEXT.set(item, t); }
+  return t;
+}
+const valueIn = (axis: KindAxis, text: string): string | null => axis.values.find((v) => v.re.test(text))?.value ?? null;
+
+/** Корені мітки поза самим маркером осі — ними шукаємо сусіда. */
+function rootsOf(text: string): Set<string> {
+  return new Set(text.split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3).map(root));
+}
+
+/**
+ * Веде на позицію того самого роду з потрібним уточненням; якщо такої в
+ * каталозі нема — повертає null, бо хибний ключ гірший за відсутній.
+ */
+export function refineKind(
+  chosen: CatalogItem,
+  normLabel: string,
+  catalog: readonly CatalogItem[] = CATALOG,
+): CatalogItem | null {
+  let current = chosen;
+  for (const axis of KIND_AXES) {
+    if (!axis.scope.test(normLabel)) continue;
+    const want = valueIn(axis, normLabel);
+    if (!want) continue;
+    const have = valueIn(axis, kindText(current));
+    if (have === want) continue;
+    if (!axis.strict && have === null) continue;
+    const marker = axis.values.find((v) => v.value === want)!.re;
+    const bare = normLabel.replace(marker, ' ');
+    const labelRoots = rootsOf(bare);
+    // Сусід мусить нести ГОЛОВУ мітки (без самого маркера): інакше «желе сухе
+    // … зі смаком апельсина» бралось за «Сухарики зі смаком часнику» — вони
+    // теж «сухі» й теж «зі смаком», і випадковий спільний корінь вирішував.
+    const head = wordsOf(bare).find((w) => /[а-яіїєґ]/.test(w));
+    const headRoot = head && head.length >= 3 ? root(head) : null;
+    let sib: { item: CatalogItem; shared: number } | null = null;
+    let tie = false;
+    for (const { item } of prepare(catalog)) {
+      if (item.key === current.key) continue;
+      const text = kindText(item);
+      if (valueIn(axis, text) !== want) continue;
+      if (headRoot && ![...rootsOf(text)].some((r) => r.startsWith(headRoot) || headRoot.startsWith(r))) continue;
+      // Префіксом, а не рівністю: root() ріже по два символи з кінця, тож
+      // «яловичиною» дає «яловичин», а «яловичини» — «яловичи», і сусід із
+      // потрібним смаком програвав випадковому по одному спільному слову.
+      let shared = 0;
+      for (const r of rootsOf(text.replace(marker, ' '))) {
+        if ([...labelRoots].some((l) => l.startsWith(r) || r.startsWith(l))) shared++;
+      }
+      if (!shared) continue;
+      if (!sib || shared > sib.shared) { sib = { item, shared }; tie = false; }
+      else if (shared === sib.shared) tie = true;
+    }
+    // Нічия між двома однаково схожими сусідами — не монетка: мовчимо, і
+    // resolveTripleKey спробує повну назву продукту, де слів більше.
+    if (!sib || tie) return null;
+    current = sib.item;
+  }
+  return current;
 }
 
 export function resolveLabel(
@@ -257,6 +393,12 @@ export function resolveLabel(
           // Зворотний бік: мітка вужча за аліас. «сир» ⊂ «сир твердий».
           // Межі слова стережуть і тут — «дрова» не входить у слова аліаса
           // «олія кедрова», тому стара підміна не повертається.
+          // Етап 3, п.2 (аудит): на алкоголі м'яка планка брала перший-ліпший
+          // рядок роду — усі три лікери дому стали лімончело, бо в полі
+          // `product` стоїть саме «лікер». Тут вид важить більше, ніж будь-де:
+          // лікер від лікеру різниться лише смаком. Голий рід — мовчимо.
+          if (ALCOHOL_CATS_GENERIC.some((c) => item.categories.includes(c))
+            && !ws.some((w) => w !== head)) continue;
           tier = 'generic';
           // Вага НУЛЬОВА навмисно: усі родові збіги рівні, і вирішує
           // priority — тобто стартові 131 позиції, які і є щоденні
@@ -275,7 +417,8 @@ export function resolveLabel(
     }
   }
   if (!best) return null;
-  const refined = refineSpecies(best.item, set, catalog, ctx);
+  const refined = refineKind(refineSpecies(best.item, set, catalog, ctx), norm, catalog);
+  if (!refined) return null;
   return { key: refineFrozen(refined, norm, catalog, ctx).key, tier: best.tier };
 }
 
