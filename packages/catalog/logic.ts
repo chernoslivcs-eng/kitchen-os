@@ -4,6 +4,9 @@
 
 import { CATALOG, type CatalogItem } from './seed.js';
 export type { Nutrition, NutritionSource } from './nutrition.js';
+// Етап 5: нутрієнти за назвою ПРОДУКТУ ДОМУ (не каталогу) — конкретніший
+// рядок бази, коли він є. Деталі — runtime-base-match.ts.
+export { matchProductNameToBaseRow } from './runtime-base-match.js';
 
 // ---------- нормалізація ----------
 
