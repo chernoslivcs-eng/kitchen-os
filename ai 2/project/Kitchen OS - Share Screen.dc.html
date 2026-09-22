@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+body { margin:0; background:#c9ccd0; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums; }
+a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
+* { box-sizing:border-box; }
+button { font-family:inherit; cursor:pointer; color:inherit; }
+.v3 { --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#5b7a4f; --sage-bg:#e8efe3; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); }
+.v3[data-theme="dark"] { --bg:#16181b; --card:#1f2226; --line:#2a2e33; --line2:#33383e; --ink:#ecebe7; --muted:#a3a7ac; --dim:#6f7379; --sage:#93b48b; --sage-bg:#26312a; --sh:0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.4); }
+@keyframes sk { 0% { opacity:.55; } 50% { opacity:1; } 100% { opacity:.55; } }
+</style>
+</helmet>
+
+<section class="v3" style="padding:48px 48px 90px; display:flex; flex-direction:column; gap:34px; width:max-content; color:var(--ink);">
+
+  <div style="display:flex; flex-direction:column; gap:10px; width:1100px;">
+    <div style="font-size:12px; font-weight:500; color:var(--muted);">Екран /share · карусель кадрів · бриф 22.09</div>
+    <div style="font-weight:700; font-size:32px; letter-spacing:-.03em; line-height:1.05;">Не питаємо, що хочеш — показуємо готові кадри. Гортаєш, тиснеш «Поділитись».</div>
+    <div style="font-size:14px; line-height:1.6; color:var(--muted);">390 — карусель зі snap, кадр по висоті, підпис і дії видимі без скролу. Фото завжди кадрується 9:16 — це кадр для сторіз, іншого формату нема; кроп — перетягуванням по вертикалі. 1440 — перегляд і передача на телефон: прев'ю великим, мініатюри праворуч, «Надіслати в Telegram» головною, коли Telegram зв'язаний. Одне фото — одне місце: заміна йде і в кадр, і в журнал.</div>
+  </div>
+
+  <!-- ===== 390 ===== -->
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <div style="font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.05em; text-transform:uppercase;">/share · 390 · висота 664 (Safari з тулбаром)</div>
+    <div style="display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap;">
+
+      <!-- with photo, light -->
+      <div data-screen-label="/share 390 · з фото · світла" style="width:390px; height:664px; background:var(--bg); border-radius:20px; box-shadow:var(--sh); display:flex; flex-direction:column; overflow:hidden;">
+        <div style="height:56px; display:flex; align-items:center; gap:8px; padding:0 8px 0 4px; flex:none;"><button style="width:44px; height:44px; border:0; background:transparent; display:grid; place-items:center;"><i data-lucide="chevron-left" style="width:20px; height:20px;"></i></button><span style="font-weight:700; font-size:17px; letter-spacing:-.02em;">Поділитись</span></div>
+        <div style="flex:1; min-height:0; display:flex; flex-direction:column; gap:4px; padding-top:2px;">
+          <div style="display:flex; gap:12px; align-items:center; justify-content:center; overflow:hidden; flex:none;">
+            <div style="width:24px; height:420px; flex:none; border-radius:0 14px 14px 0; background:var(--card); overflow:hidden; position:relative;"><img src="uploads/pasted-1790025518566-0.png" alt="" style="position:absolute; right:0; top:0; width:236px; height:420px; object-fit:cover; opacity:.75;"></div>
+            <div style="width:236px; height:420px; flex:none; border-radius:14px; overflow:hidden; position:relative; background:#111; color:#fff; box-shadow:var(--sh);">
+              <img src="uploads/pasted-1790025518566-0.png" alt="" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:saturate(.9);">
+              <div style="position:absolute; inset:0; background:linear-gradient(to bottom, rgba(8,9,10,.52) 0%, rgba(8,9,10,.42) 50%, rgba(8,9,10,.3) 66%, rgba(8,9,10,.06) 80%, rgba(8,9,10,.5) 100%);"></div>
+              <div style="position:absolute; left:24px; right:24px; top:30px; display:flex; justify-content:space-between; font-size:6px; letter-spacing:.14em; font-weight:600;"><span>КУХНЯ · РЕЦЕПТ</span><span style="letter-spacing:0;">21 вересня</span></div>
+              <div style="position:absolute; left:24px; right:24px; top:82px; display:flex; flex-direction:column; gap:7px;"><span style="font-size:18px; font-weight:700; letter-spacing:-.03em; line-height:1.02;">Смородиновий джин-сауер</span><div style="display:flex; gap:18px;"><sc-for list="{{ stats }}" as="st" hint-placeholder-count="3"><span style="display:flex; flex-direction:column; gap:1px;"><span style="font-size:5.5px; letter-spacing:.1em; text-transform:uppercase;">{{ st.k }}</span><span style="font-size:12px; font-weight:600;">{{ st.v }}</span></span></sc-for></div></div>
+              <div style="position:absolute; left:24px; right:24px; top:158px; display:grid; grid-template-columns:1fr 1fr; gap:4px 14px;"><sc-for list="{{ ings }}" as="i" hint-placeholder-count="5"><span style="display:flex; flex-direction:column;"><span style="font-size:5.5px;">{{ i.name }}</span><span style="font-size:8.5px; font-weight:600;">{{ i.qty }}</span></span></sc-for></div>
+              <div style="position:absolute; left:24px; right:24px; top:232px; display:flex; flex-direction:column; gap:3px;"><span style="font-size:6px; letter-spacing:.1em; text-transform:uppercase; font-weight:600;">Про смак</span><p style="margin:0; font-size:7px; line-height:1.4;">{{ desc }}</p></div>
+              <div style="position:absolute; left:24px; right:24px; bottom:28px; display:flex; align-items:center; justify-content:space-between;"><span style="display:flex; align-items:center; gap:4px; white-space:nowrap;"><span style="width:11px; height:11px; border-radius:50%; border:1px solid #fff; display:grid; place-items:center;"><span style="width:3.5px; height:3.5px; border-radius:50%; background:#93b48b;"></span></span><span style="font-weight:700; font-size:7.5px;">Kitchen OS</span></span></div>
+              
+            </div>
+            <div style="width:24px; height:420px; flex:none; border-radius:14px 0 0 14px; background:var(--card); overflow:hidden; position:relative;"><img src="uploads/pasted-1790025518566-0.png" alt="" style="position:absolute; left:0; top:0; width:236px; height:420px; object-fit:cover; opacity:.75;"></div>
+          </div>
+          <span style="font-size:11.5px; color:var(--dim); text-align:center; height:16px;">Потягни фото, щоб підібрати кадр</span>
+          <div style="display:flex; align-items:center; gap:14px; height:36px; padding:0 16px;">
+            <span style="font-size:13px; font-weight:500;">Постер · з фото</span>
+            <span style="display:flex; gap:6px;"><span style="width:6px; height:6px; border-radius:50%; background:var(--ink);"></span><span style="width:6px; height:6px; border-radius:50%; background:var(--line2);"></span><span style="width:6px; height:6px; border-radius:50%; background:var(--line2);"></span></span>
+            <button style="height:36px; padding:0 8px; border:0; background:transparent; font-size:13px; font-weight:500; color:var(--muted); display:inline-flex; align-items:center; gap:7px; margin-left:auto;"><i data-lucide="camera" style="width:15px; height:15px;"></i>Замінити фото</button>
+          </div>
+        </div>
+        <div style="flex:none; padding:6px 16px 12px; display:flex; flex-direction:column; gap:8px; background:var(--bg);">
+          <div style="display:flex; gap:8px;"><button style="flex:1; height:48px; border-radius:12px; border:0; background:var(--ink); color:var(--bg); font-weight:600; font-size:15px; display:flex; align-items:center; justify-content:center; gap:8px;"><i data-lucide="share" style="width:16px; height:16px;"></i>Поділитись</button><button style="width:48px; height:48px; border-radius:12px; border:1px solid var(--line2); background:transparent; display:grid; place-items:center;"><i data-lucide="download" style="width:17px; height:17px;"></i></button></div>
+          <button style="height:40px; border-radius:10px; border:0; background:var(--card); display:flex; align-items:center; gap:10px; padding:0 12px; font-size:12.5px; color:var(--muted); font-variant-numeric:tabular-nums;"><span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left;">kitchen-os-coral.vercel.app/r/1d14a9f2-7c…</span><i data-lucide="copy" style="width:15px; height:15px; flex:none;"></i></button>
+        </div>
+      </div>
+
+      <!-- with photo, dark, Вертикаль centred -->
+      <div class="v3" data-theme="dark" data-screen-label="/share 390 · з фото · темна · Вертикаль" style="width:390px; height:664px; background:var(--bg); border-radius:20px; box-shadow:var(--sh); display:flex; flex-direction:column; overflow:hidden; color:var(--ink);">
+        <div style="height:56px; display:flex; align-items:center; gap:8px; padding:0 8px 0 4px; flex:none;"><button style="width:44px; height:44px; border:0; background:transparent; display:grid; place-items:center;"><i data-lucide="chevron-left" style="width:20px; height:20px;"></i></button><span style="font-weight:700; font-size:17px; letter-spacing:-.02em;">Поділитись</span></div>
+        <div style="flex:1; min-height:0; display:flex; flex-direction:column; gap:4px; padding-top:2px;">
+          <div style="display:flex; gap:12px; align-items:center; justify-content:center; overflow:hidden; flex:none;">
+            <div style="width:24px; height:420px; flex:none; border-radius:0 14px 14px 0; background:#111; overflow:hidden; position:relative;"><img src="uploads/pasted-1790025518566-0.png" alt="" style="position:absolute; right:0; top:0; width:236px; height:420px; object-fit:cover; opacity:.6;"></div>
+            <div style="width:236px; height:420px; flex:none; border-radius:14px; overflow:hidden; position:relative; background:#111; color:#fff; box-shadow:var(--sh);">
+              <img src="uploads/pasted-1790025518566-0.png" alt="" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:saturate(.85);">
+              <div style="position:absolute; inset:0; background:linear-gradient(to right, rgba(8,9,10,.62) 0%, rgba(8,9,10,.4) 42%, rgba(8,9,10,.06) 70%), linear-gradient(to bottom, rgba(8,9,10,.3), rgba(8,9,10,0) 30%, rgba(8,9,10,0) 78%, rgba(8,9,10,.45));"></div>
+              <div style="position:absolute; left:24px; right:24px; top:30px; display:flex; justify-content:space-between; font-size:6px; letter-spacing:.14em; font-weight:600;"><span>КУХНЯ · РЕЦЕПТ</span></div>
+              <div style="position:absolute; left:24px; top:44px; height:300px; display:flex; align-items:flex-end; gap:9px;"><span style="writing-mode:vertical-rl; transform:rotate(180deg); font-size:20px; font-weight:700; letter-spacing:-.03em; line-height:1; white-space:nowrap;">Смородиновий джин-сауер<span style="color:#b9d6ae;">.</span></span></div>
+              <div style="position:absolute; left:24px; right:24px; bottom:30px; display:flex; flex-direction:column; gap:5px;"><span style="font-size:6px; font-weight:600;">Субота · 21 вересня</span><div style="display:flex; align-items:center; gap:7px;"><span style="width:60px; height:1px; background:#fff;"></span><span style="font-size:9px; font-weight:700;">5 ХВ</span></div><span style="display:flex; align-items:center; gap:4px;"><span style="width:11px; height:11px; border-radius:50%; border:1px solid #fff; display:grid; place-items:center;"><span style="width:3.5px; height:3.5px; border-radius:50%; background:#93b48b;"></span></span><span style="font-weight:700; font-size:7.5px;">Kitchen OS</span></span></div>
+            </div>
+            <div style="width:24px; height:420px; flex:none; border-radius:14px 0 0 14px; background:var(--card); overflow:hidden;"></div>
+          </div>
+          <span style="font-size:11.5px; color:var(--dim); text-align:center; height:16px;">Потягни фото, щоб підібрати кадр</span>
+          <div style="display:flex; align-items:center; gap:14px; height:36px; padding:0 16px;">
+            <span style="font-size:13px; font-weight:500;">Вертикаль</span>
+            <span style="display:flex; gap:6px;"><span style="width:6px; height:6px; border-radius:50%; background:var(--line2);"></span><span style="width:6px; height:6px; border-radius:50%; background:var(--ink);"></span><span style="width:6px; height:6px; border-radius:50%; background:var(--line2);"></span></span>
+            <button style="height:36px; padding:0 8px; border:0; background:transparent; font-size:13px; font-weight:500; color:var(--muted); display:inline-flex; align-items:center; gap:7px; margin-left:auto;"><i data-lucide="camera" style="width:15px; height:15px;"></i>Замінити фото</button>
+          </div>
+        </div>
+        <div style="flex:none; padding:6px 16px 12px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; gap:8px;"><button style="flex:1; height:48px; border-radius:12px; border:0; background:var(--ink); color:var(--bg); font-weight:600; font-size:15px; display:flex; align-items:center; justify-content:center; gap:8px;"><i data-lucide="share" style="width:16px; height:16px;"></i>Поділитись</button><button style="width:48px; height:48px; border-radius:12px; border:1px solid var(--line2); background:transparent; display:grid; place-items:center;"><i data-lucide="download" style="width:17px; height:17px;"></i></button></div>
+          <button style="height:40px; border-radius:10px; border:0; background:var(--card); display:flex; align-items:center; gap:10px; padding:0 12px; font-size:12.5px; color:var(--muted);"><span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left;">kitchen-os-coral.vercel.app/r/1d14a9f2-7c…</span><i data-lucide="copy" style="width:15px; height:15px; flex:none;"></i></button>
+        </div>
+      </div>
+
+      <!-- no photo, light -->
+      <div data-screen-label="/share 390 · без фото · світла" style="width:390px; height:664px; background:var(--bg); border-radius:20px; box-shadow:var(--sh); display:flex; flex-direction:column; overflow:hidden;">
+        <div style="height:56px; display:flex; align-items:center; gap:8px; padding:0 8px 0 4px; flex:none;"><button style="width:44px; height:44px; border:0; background:transparent; display:grid; place-items:center;"><i data-lucide="chevron-left" style="width:20px; height:20px;"></i></button><span style="font-weight:700; font-size:17px; letter-spacing:-.02em;">Поділитись</span></div>
+        <div style="flex:1; min-height:0; display:flex; flex-direction:column; gap:4px; padding-top:2px;">
+          <div style="display:flex; justify-content:center;">
+            <div style="width:236px; height:420px; flex:none; border-radius:14px; overflow:hidden; position:relative; background:var(--bg); border:1px solid var(--line2); box-shadow:var(--sh);">
+              <div style="position:absolute; left:24px; right:24px; top:30px; display:flex; justify-content:space-between; font-size:6px; color:var(--muted);"><span style="letter-spacing:.14em; font-weight:600; color:var(--sage);">КУХНЯ · РЕЦЕПТ</span><span>21 вересня</span></div>
+              <div style="position:absolute; left:24px; right:24px; top:82px; display:flex; flex-direction:column; gap:7px;"><span style="font-size:17px; font-weight:700; letter-spacing:-.03em; line-height:1.02;">Спагеттіні з мідіями в томатному винному соусі</span><div style="display:flex; gap:18px;"><sc-for list="{{ stats2 }}" as="st" hint-placeholder-count="3"><span style="display:flex; flex-direction:column; gap:1px;"><span style="font-size:5.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);">{{ st.k }}</span><span style="font-size:12px; font-weight:600;">{{ st.v }}</span></span></sc-for></div></div>
+              <div style="position:absolute; left:24px; right:24px; top:176px; display:grid; grid-template-columns:1fr 1fr; gap:3px 14px;"><sc-for list="{{ ings2 }}" as="i" hint-placeholder-count="8"><span style="display:flex; flex-direction:column; padding-bottom:3px; border-bottom:.5px solid var(--line2);"><span style="font-size:5.5px; color:var(--muted);">{{ i.name }}</span><span style="font-size:8px; font-weight:600;">{{ i.qty }}</span></span></sc-for></div>
+              <div style="position:absolute; left:24px; right:24px; top:296px; display:flex; flex-direction:column; gap:3px;"><span style="font-size:6px; letter-spacing:.1em; text-transform:uppercase; font-weight:600; color:var(--sage);">Про смак</span><p style="margin:0; font-size:7px; line-height:1.4; color:var(--muted);">{{ desc2 }}</p></div>
+              <div style="position:absolute; left:24px; right:24px; bottom:28px; display:flex; align-items:center; justify-content:space-between;"><span style="display:flex; align-items:center; gap:4px; white-space:nowrap;"><span style="width:11px; height:11px; border-radius:50%; border:1px solid var(--ink); display:grid; place-items:center;"><span style="width:3.5px; height:3.5px; border-radius:50%; background:var(--sage);"></span></span><span style="font-weight:700; font-size:7.5px;">Kitchen OS</span></span></div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:14px; height:36px; padding:0 16px;">
+            <span style="font-size:13px; font-weight:500;">Чисте тло</span>
+            <button style="height:36px; padding:0 8px; border:0; background:transparent; font-size:13px; font-weight:500; color:var(--sage); display:inline-flex; align-items:center; gap:7px; margin-left:auto;"><i data-lucide="camera" style="width:15px; height:15px;"></i>Додати фото</button>
+          </div>
+        </div>
+        <div style="flex:none; padding:6px 16px 12px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; gap:8px;"><button style="flex:1; height:48px; border-radius:12px; border:0; background:var(--ink); color:var(--bg); font-weight:600; font-size:15px; display:flex; align-items:center; justify-content:center; gap:8px;"><i data-lucide="share" style="width:16px; height:16px;"></i>Поділитись</button><button style="width:48px; height:48px; border-radius:12px; border:1px solid var(--line2); background:transparent; display:grid; place-items:center;"><i data-lucide="download" style="width:17px; height:17px;"></i></button></div>
+          <button style="height:40px; border-radius:10px; border:0; background:var(--card); display:flex; align-items:center; gap:10px; padding:0 12px; font-size:12.5px; color:var(--muted);"><span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left;">kitchen-os-coral.vercel.app/r/8b02c1e4-55…</span><i data-lucide="copy" style="width:15px; height:15px; flex:none;"></i></button>
+        </div>
+      </div>
+
+      <!-- copied + skeleton (states) -->
+      <div style="display:flex; flex-direction:column; gap:22px;">
+        <div data-screen-label="/share 390 · стан · Скопійовано · низ" style="width:390px; background:var(--bg); border-radius:20px; box-shadow:var(--sh); padding:16px 16px 14px; display:flex; flex-direction:column; gap:8px;">
+          <span style="font-size:11px; color:var(--dim);">Після тапу по лінку · 2 с</span>
+          <div style="display:flex; gap:8px;"><button style="flex:1; height:48px; border-radius:12px; border:0; background:var(--ink); color:var(--bg); font-weight:600; font-size:15px; display:flex; align-items:center; justify-content:center; gap:8px;"><i data-lucide="share" style="width:16px; height:16px;"></i>Поділитись</button><button style="width:48px; height:48px; border-radius:12px; border:1px solid var(--line2); background:transparent; display:grid; place-items:center;"><i data-lucide="download" style="width:17px; height:17px;"></i></button></div>
+          <div style="height:40px; border-radius:10px; background:var(--sage-bg); color:var(--sage); display:flex; align-items:center; gap:10px; padding:0 12px; font-size:12.5px; font-weight:600;"><span style="flex:1;">Скопійовано</span><i data-lucide="check" style="width:15px; height:15px; flex:none;"></i></div>
+          </div>
+        <div data-screen-label="/share 390 · стан · busy" style="width:390px; background:var(--bg); border-radius:20px; box-shadow:var(--sh); padding:16px 16px 14px; display:flex; flex-direction:column; gap:8px;">
+          <span style="font-size:11px; color:var(--dim);">Після тапу «Поділитись», поки малюється PNG</span>
+          <div style="display:flex; gap:8px;"><button style="flex:1; height:48px; border-radius:12px; border:0; background:var(--ink); color:var(--bg); font-weight:600; font-size:15px; display:flex; align-items:center; justify-content:center; gap:8px; opacity:.6;"><i data-lucide="loader-circle" style="width:16px; height:16px;"></i>Готуємо кадр…</button><button style="width:48px; height:48px; border-radius:12px; border:1px solid var(--line2); background:transparent; display:grid; place-items:center;"><i data-lucide="download" style="width:17px; height:17px;"></i></button></div>
+          <button style="height:40px; border-radius:10px; border:0; background:var(--card); display:flex; align-items:center; gap:10px; padding:0 12px; font-size:12.5px; color:var(--muted);"><span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left;">kitchen-os-coral.vercel.app/r/1d14a9f2-7c…</span><i data-lucide="copy" style="width:15px; height:15px; flex:none;"></i></button>
+        </div>
+        <div data-screen-label="/share 390 · стан · skeleton + помилка фото" style="width:390px; background:var(--bg); border-radius:20px; box-shadow:var(--sh); padding:16px; display:flex; flex-direction:column; gap:12px; align-items:center;">
+          <span style="font-size:11px; color:var(--dim); align-self:flex-start;">Перший рендер ≈ 0.5 с</span>
+          <div style="width:236px; height:420px; border-radius:14px; background:var(--card); animation:sk 1.4s ease-in-out infinite; position:relative; overflow:hidden;">
+            <span style="position:absolute; left:24px; top:82px; width:170px; height:16px; border-radius:6px; background:var(--line2);"></span>
+            <span style="position:absolute; left:24px; top:104px; width:120px; height:16px; border-radius:6px; background:var(--line2);"></span>
+            <span style="position:absolute; left:24px; top:140px; width:200px; height:9px; border-radius:5px; background:var(--line);"></span>
+            <span style="position:absolute; left:24px; top:156px; width:180px; height:9px; border-radius:5px; background:var(--line);"></span>
+          </div>
+          <span style="width:120px; height:12px; border-radius:6px; background:var(--line2);"></span>
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><button style="height:36px; padding:0 12px; border:0; background:transparent; font-size:13px; font-weight:500; color:var(--muted); display:inline-flex; align-items:center; gap:7px;"><i data-lucide="camera" style="width:15px; height:15px;"></i>Замінити фото</button><span style="font-size:12px; color:#b3463b;">Фото не збереглось. Спробуй ще раз або обери інше.</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== 1440 ===== -->
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <div style="font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.05em; text-transform:uppercase;">/share · 1440 · перегляд і передача на телефон</div>
+    <div style="display:flex; flex-direction:column; gap:22px;">
+
+      <sc-for list="{{ desktops }}" as="d" hint-placeholder-count="3">
+        <div class="v3" data-theme="{{ d.theme }}" data-screen-label="{{ d.label }}" style="width:1440px; height:{{ d.h }}px; background:var(--bg); border-radius:20px; box-shadow:var(--sh); display:flex; overflow:hidden; color:var(--ink);">
+          <aside style="width:240px; flex:none; border-right:1px solid var(--line2); padding:24px 16px; display:flex; flex-direction:column; gap:6px;">
+            <span style="display:flex; align-items:center; gap:10px; padding:0 8px 22px;"><span style="width:26px; height:26px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center;"><span style="width:8px; height:8px; border-radius:50%; background:var(--sage);"></span></span><span style="font-weight:700; font-size:15px; letter-spacing:-.02em;">Kitchen OS</span></span>
+            <sc-for list="{{ nav }}" as="n" hint-placeholder-count="6"><span style="height:40px; padding:0 12px; border-radius:10px; display:flex; align-items:center; gap:10px; font-size:14px; font-weight:{{ n.w }}; color:{{ n.c }}; background:{{ n.bg }};"><i data-lucide="{{ n.icon }}" style="width:16px; height:16px;"></i>{{ n.label }}</span></sc-for>
+          </aside>
+          <div style="flex:1; min-width:0; padding:28px 40px; display:flex; flex-direction:column; gap:20px;">
+            <div style="display:flex; align-items:center; gap:12px;"><button style="width:40px; height:40px; border-radius:10px; border:1px solid var(--line2); background:var(--card); display:grid; place-items:center;"><i data-lucide="chevron-left" style="width:18px; height:18px;"></i></button><span style="font-weight:700; font-size:22px; letter-spacing:-.02em;">Поділитись</span><span style="font-size:14px; color:var(--muted);">· Смородиновий джин-сауер</span></div>
+            <div style="display:grid; grid-template-columns:{{ d.pw }}px 360px; gap:40px; align-items:start;">
+              <div style="width:{{ d.pw }}px; height:{{ d.ph }}px; border-radius:20px; overflow:hidden; position:relative; background:#111; color:#fff; box-shadow:var(--sh);"><div style="width:540px; height:960px; position:relative; zoom:{{ d.z }};">
+                <img src="uploads/pasted-1790025518566-0.png" alt="" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:saturate(.9);">
+                <div style="position:absolute; inset:0; background:linear-gradient(to bottom, rgba(8,9,10,.52) 0%, rgba(8,9,10,.42) 50%, rgba(8,9,10,.3) 66%, rgba(8,9,10,.06) 80%, rgba(8,9,10,.5) 100%);"></div>
+                <div style="position:absolute; left:48px; right:48px; top:52px; display:flex; justify-content:space-between; font-size:11px; letter-spacing:.14em; font-weight:600;"><span>КУХНЯ · РЕЦЕПТ</span><span style="letter-spacing:0;">21 вересня</span></div>
+                <div style="position:absolute; left:48px; right:48px; top:190px; display:flex; flex-direction:column; gap:14px;"><span style="font-size:34px; font-weight:700; letter-spacing:-.03em; line-height:1.02;">Смородиновий джин-сауер</span><div style="display:flex; gap:36px;"><sc-for list="{{ stats }}" as="st" hint-placeholder-count="3"><span style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:10px; letter-spacing:.1em; text-transform:uppercase;">{{ st.k }}</span><span style="font-size:22px; font-weight:600;">{{ st.v }}</span></span></sc-for></div></div>
+                <div style="position:absolute; left:48px; right:48px; top:410px; display:grid; grid-template-columns:1fr 1fr; gap:7px 28px;"><sc-for list="{{ ings }}" as="i" hint-placeholder-count="5"><span style="display:flex; flex-direction:column;"><span style="font-size:10px;">{{ i.name }}</span><span style="font-size:16px; font-weight:600;">{{ i.qty }}</span></span></sc-for></div>
+                <div style="position:absolute; left:48px; right:48px; top:620px; display:flex; flex-direction:column; gap:6px;"><span style="font-size:11px; letter-spacing:.1em; text-transform:uppercase; font-weight:600;">Про смак</span><p style="margin:0; font-size:13px; line-height:1.4;">{{ desc }}</p></div>
+                <div style="position:absolute; left:48px; right:48px; bottom:62px; display:flex; align-items:center; justify-content:space-between;"><span style="display:flex; align-items:center; gap:7px; white-space:nowrap;"><span style="width:22px; height:22px; border-radius:50%; border:2px solid #fff; display:grid; place-items:center;"><span style="width:7px; height:7px; border-radius:50%; background:#93b48b;"></span></span><span style="font-weight:700; font-size:15px;">Kitchen OS</span></span></div>
+                
+              </div></div>
+              <div style="display:flex; flex-direction:column; gap:18px;">
+                <span style="font-size:12px; color:var(--dim); margin-top:-6px;">Потягни фото, щоб підібрати кадр</span>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  <span style="font-size:12px; font-weight:600; color:var(--dim); letter-spacing:.05em; text-transform:uppercase;">Кадр</span>
+                  <div style="display:flex; gap:10px;">
+                    <div style="width:110px; height:196px; border-radius:12px; overflow:hidden; position:relative; background:#111; outline:2px solid var(--ink); outline-offset:2px;"><img src="uploads/pasted-1790025518566-0.png" alt="" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.55;"><span style="position:absolute; left:10px; right:10px; top:32px; font-size:7.5px; font-weight:700; color:#fff; line-height:1.05;">Смородиновий джин-сауер</span><span style="position:absolute; left:10px; bottom:10px; font-size:6px; color:#fff;">Постер</span></div>
+                    <div style="width:110px; height:196px; border-radius:12px; overflow:hidden; position:relative; background:#111;"><img src="uploads/pasted-1790025518566-0.png" alt="" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.55;"><span style="position:absolute; left:10px; top:54px; writing-mode:vertical-rl; transform:rotate(180deg); font-size:10px; font-weight:700; color:#fff;">Смородиновий</span><span style="position:absolute; left:10px; bottom:10px; font-size:6px; color:#fff;">Вертикаль</span></div>
+                    <div style="width:110px; height:196px; border-radius:12px; overflow:hidden; position:relative; background:var(--bg); border:1px solid var(--line2);"><span style="position:absolute; left:10px; right:10px; top:32px; font-size:7.5px; font-weight:700; line-height:1.05;">Смородиновий джин-сауер</span><span style="position:absolute; left:10px; bottom:10px; font-size:6px; color:var(--muted);">Чисте тло</span></div>
+                  </div>
+                  <button style="height:36px; align-self:flex-start; padding:0 4px; border:0; background:transparent; font-size:13px; font-weight:500; color:var(--muted); display:inline-flex; align-items:center; gap:7px;"><i data-lucide="camera" style="width:15px; height:15px;"></i>Замінити фото</button>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <sc-if value="{{ d.tg }}" hint-placeholder-val="{{ true }}">
+                    <button style="height:48px; border-radius:12px; border:0; background:var(--ink); color:var(--bg); font-weight:600; font-size:15px; display:flex; align-items:center; justify-content:center; gap:8px;"><i data-lucide="send" style="width:16px; height:16px;"></i>Надіслати в Telegram</button>
+                    <button style="height:46px; border-radius:12px; border:1px solid var(--line2); background:transparent; font-weight:600; font-size:14.5px; display:flex; align-items:center; justify-content:center; gap:8px;"><i data-lucide="download" style="width:16px; height:16px;"></i>Зберегти PNG</button>
+                    <sc-if value="{{ d.sent }}" hint-placeholder-val="{{ false }}"><span style="font-size:12.5px; color:var(--sage); font-weight:500; padding:2px 2px 0;">Надіслано в Telegram — збережи в галерею з телефона.</span></sc-if>
+                  </sc-if>
+                  <sc-if value="{{ d.noTg }}" hint-placeholder-val="{{ false }}">
+                    <button style="height:48px; border-radius:12px; border:0; background:var(--ink); color:var(--bg); font-weight:600; font-size:15px; display:flex; align-items:center; justify-content:center; gap:8px;"><i data-lucide="download" style="width:16px; height:16px;"></i>Зберегти PNG</button>
+                    <span style="font-size:12.5px; color:var(--muted); padding:2px 2px 0; line-height:1.5;">Зв'яжи Telegram у профілі — кадр можна буде надіслати собі в чат одним тапом.</span>
+                  </sc-if>
+                  <button style="height:40px; border-radius:10px; border:0; background:var(--card); display:flex; align-items:center; gap:10px; padding:0 12px; font-size:12.5px; color:var(--muted); margin-top:4px;"><span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left;">kitchen-os-coral.vercel.app/r/1d14a9f2-7c3e…</span><i data-lucide="copy" style="width:15px; height:15px; flex:none;"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+
+    </div>
+  </div>
+
+  <!-- ===== Entry points ===== -->
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <div style="font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.05em; text-transform:uppercase;">Точки входу · recipe_link · /cooklog</div>
+    <div style="display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap;">
+      <div data-screen-label="recipe_link · 1440" style="width:680px; background:var(--bg); border-radius:16px; box-shadow:var(--sh); padding:22px;">
+        <div style="background:var(--card); border-radius:16px; padding:20px 22px; display:flex; flex-direction:column; gap:14px;">
+          <span style="font-size:11px; letter-spacing:.12em; font-weight:600; color:var(--sage);">КУХНЯ · РЕЦЕПТ</span>
+          <div style="display:flex; flex-direction:column; gap:4px;"><span style="font-size:20px; font-weight:700; letter-spacing:-.02em;">Смородиновий джин-сауер</span><span style="font-size:13px; color:var(--muted);">5 хвилин, робота шейкером</span></div>
+          <p style="margin:0; font-size:14px; line-height:1.55; color:var(--muted);">{{ desc }}</p>
+          <div style="display:flex; gap:10px; padding-top:4px;">
+            <button style="flex:1.5; height:48px; border-radius:12px; border:0; background:var(--ink); color:var(--bg); font-weight:600; font-size:15px;">Готуємо</button>
+            <button style="flex:1; height:48px; border-radius:12px; border:1px solid var(--line2); background:transparent; font-weight:600; font-size:15px;">У список · 2</button>
+            <button style="height:48px; padding:0 16px; border-radius:12px; border:1px solid var(--line2); background:transparent; font-weight:600; font-size:15px; display:inline-flex; align-items:center; gap:8px;"><i data-lucide="share" style="width:16px; height:16px;"></i>Поділитись</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:22px;">
+        <div class="v3" data-theme="dark" data-screen-label="recipe_link · 390" style="width:390px; background:var(--bg); border-radius:16px; box-shadow:var(--sh); padding:16px; color:var(--ink);">
+          <div style="background:var(--card); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:12px;">
+            <span style="font-size:10px; letter-spacing:.12em; font-weight:600; color:var(--sage);">КУХНЯ · РЕЦЕПТ</span>
+            <div style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:17px; font-weight:700; letter-spacing:-.02em;">Смородиновий джин-сауер</span><span style="font-size:12px; color:var(--muted);">5 хвилин, робота шейкером</span></div>
+            <div style="display:flex; gap:8px;">
+              <button style="flex:1.4; height:46px; border-radius:12px; border:0; background:var(--ink); color:var(--bg); font-weight:600; font-size:14px;">Готуємо</button>
+              <button style="flex:1; height:46px; border-radius:12px; border:1px solid var(--line2); background:transparent; font-weight:600; font-size:14px;">У список</button>
+              <button style="width:46px; height:46px; border-radius:12px; border:1px solid var(--line2); background:transparent; display:grid; place-items:center;"><i data-lucide="share" style="width:17px; height:17px;"></i></button>
+            </div>
+          </div>
+        </div>
+        <div data-screen-label="/cooklog · рядок з фото · 390" style="width:390px; background:var(--bg); border-radius:16px; box-shadow:var(--sh); padding:16px;">
+          <span style="font-size:11px; color:var(--dim);">Журнал · неділя, 21 вересня</span>
+          <div style="background:var(--card); border-radius:14px; padding:12px; margin-top:10px; display:flex; align-items:center; gap:12px;">
+            <div style="width:56px; height:56px; border-radius:10px; overflow:hidden; flex:none; position:relative;"><img src="uploads/pasted-1790025518566-0.png" alt="" style="width:100%; height:100%; object-fit:cover;"></div>
+            <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;"><span style="font-size:14.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Смородиновий джин-сауер</span><span style="font-size:12px; color:var(--muted);">★ 4 · списано 4</span></div>
+            <button style="width:44px; height:44px; border-radius:11px; border:1px solid var(--line2); background:transparent; display:grid; place-items:center; flex:none;"><i data-lucide="share" style="width:17px; height:17px;"></i></button>
+          </div>
+          <div style="background:var(--card); border-radius:14px; padding:12px; margin-top:8px; display:flex; align-items:center; gap:12px;">
+            <div style="width:56px; height:56px; border-radius:10px; background:var(--bg); border:1px dashed var(--line2); flex:none; display:grid; place-items:center; color:var(--dim);"><i data-lucide="camera" style="width:18px; height:18px;"></i></div>
+            <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;"><span style="font-size:14.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Спагеттіні з мідіями</span><span style="font-size:12px; color:var(--muted);">вчора, 20:05 · без фото</span></div>
+            <button style="width:44px; height:44px; border-radius:11px; border:1px solid var(--line2); background:transparent; display:grid; place-items:center; flex:none;"><i data-lucide="share" style="width:17px; height:17px;"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1560,&quot;height&quot;:1100}}">
+class Component extends DCLogic {
+  icons() { const run = () => { if (window.lucide) window.lucide.createIcons({ attrs: { 'stroke-width': 1.75 } }); else setTimeout(run, 200); }; run(); }
+  componentDidMount() { this.icons(); }
+  componentDidUpdate() { this.icons(); }
+  renderVals() {
+    const navItems = ['Стрічка','Комора','Рецепти','Список','Календар'];
+    const icons = ['message-square','archive','book-open','list-checks','calendar-days'];
+    return {
+      stats: [{ k:'Час', v:'5 хв' }],
+      stats2: [{ k:'Час', v:'35 хв' }],
+      ings: [{ name:'Джин Haister', qty:'50 мл' }, { name:'Лікер Giffard Cassis', qty:'20 мл' }, { name:'Лимонний сік', qty:'25 мл' }, { name:'Цукровий сироп', qty:'10 мл' }, { name:'Лід', qty:'—' }],
+      ings2: [{ name:'Спагеттіні', qty:'200 г' }, { name:'Мідії', qty:'400 г' }, { name:'Помідори пелаті', qty:'400 г' }, { name:'Біле сухе вино', qty:'120 мл' }, { name:'Часник', qty:'3 зубці' }, { name:'Олія оливкова', qty:'2 ст. л.' }, { name:'Петрушка', qty:'жменя' }, { name:'Чилі пластівці', qty:'дрібка' }],
+      desc: 'Яскравий ягідний сауер із терпкістю ялівцю, глибоким ароматом чорної смородини та щільним цитрусовим балансом.',
+      desc2: 'Мідії з пелаті й білим вином, соус варимо довше, щоб рідина випарувалась і лишилась густа томатна основа.',
+      nav: navItems.map((label, i) => ({ label, icon: icons[i], w: i === 0 ? 600 : 500, c: i === 0 ? 'var(--ink)' : 'var(--muted)', bg: i === 0 ? 'var(--card)' : 'transparent' })),
+      desktops: [1080, 1080, 1080, 900].map((h, i) => { const ph = h - 160, pw = Math.round(ph * 9 / 16), z = ph / 960; const base = [
+        { theme:'light', label:'/share 1440×1080 · Telegram зв\'язаний · світла', tg:true, noTg:false, sent:false },
+        { theme:'dark', label:'/share 1440×1080 · надіслано · темна', tg:true, noTg:false, sent:true },
+        { theme:'light', label:'/share 1440×1080 · без Telegram · світла', tg:false, noTg:true, sent:false },
+        { theme:'light', label:'/share 1440×900 · права колонка без скролу', tg:true, noTg:false, sent:false },
+      ][i]; return { ...base, h, ph, pw, z }; }),
+    };
+  }
+}
+</script>
+</body>
+</html>
