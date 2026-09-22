@@ -59,6 +59,239 @@
         "start"
       ],
       "port": 3000
+    },
+    {
+      "name": "stand-api",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "-C",
+        ".worktrees/stand-main",
+        "exec",
+        "tsx",
+        "scripts/stand-seed.mts"
+      ],
+      "port": 3010
+    },
+    {
+      "name": "stand-web",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:3010",
+        "pnpm",
+        "-C",
+        ".worktrees/stand-main",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--port",
+        "5180",
+        "--strictPort"
+      ],
+      "port": 5180
+    },
+    {
+      "name": "bundle-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5199",
+        "--directory",
+        "ai 2/project"
+      ],
+      "port": 5199
+    },
+    {
+      "name": "icons-v2-web",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:3010",
+        "pnpm",
+        "-C",
+        ".worktrees/icons-v2",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--port",
+        "5195",
+        "--strictPort"
+      ],
+      "port": 5195
+    },
+    {
+      "name": "glass-web",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:3010",
+        "pnpm",
+        "-C",
+        ".worktrees/glass-v3.1",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--port",
+        "5196",
+        "--strictPort"
+      ],
+      "port": 5196
+    },
+    {
+      "name": "ios-fix-web",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:3010",
+        "pnpm",
+        "-C",
+        ".worktrees/ios-scroll-end",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--port",
+        "5197",
+        "--strictPort",
+        "--host",
+        "0.0.0.0"
+      ],
+      "port": 5197
+    },
+    {
+      "name": "stand-web-lan",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:3010",
+        "pnpm",
+        "-C",
+        ".worktrees/stand-main",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--port",
+        "5197",
+        "--strictPort",
+        "--host",
+        "0.0.0.0"
+      ],
+      "port": 5197
+    },
+    {
+      "name": "empty-proto-web",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:3010",
+        "pnpm",
+        "-C",
+        ".worktrees/empty-proto-sidebar",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--port",
+        "5192",
+        "--strictPort"
+      ],
+      "port": 5192
+    },
+    {
+      "name": "main-web-5191",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:3010",
+        "pnpm",
+        "-C",
+        ".worktrees/mobile-0912-main",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--port",
+        "5191",
+        "--strictPort"
+      ],
+      "port": 5191
+    },
+    {
+      "name": "cleanup-web-5190",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:3010",
+        "pnpm",
+        "-C",
+        ".worktrees/audit-cleanup",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--port",
+        "5190",
+        "--strictPort"
+      ],
+      "port": 5190
+    },
+    {
+      "name": "stand-api-model",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "set -a; . ./.env; set +a; unset PG_URL; exec pnpm -C .worktrees/stand-main exec tsx scripts/stand-seed.mts"
+      ],
+      "port": 3010
+    },
+    {
+      "name": "profile-proto-web",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:3010",
+        "pnpm",
+        "-C",
+        ".worktrees/profile-proto",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--port",
+        "5202",
+        "--strictPort"
+      ],
+      "port": 5202
+    },
+    {
+      "name": "cal-panel-web",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:3010",
+        "pnpm",
+        "-C",
+        ".worktrees/cal-panel",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--port",
+        "5203",
+        "--strictPort"
+      ],
+      "port": 5203
+    },
+    {
+      "name": "hf-api-model",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "set -a; . ./.env; set +a; unset PG_URL; export HOME_FACT_LLM=1; exec pnpm -C .worktrees/home-fact-llm exec tsx scripts/stand-seed.mts"
+      ],
+      "port": 3010
+    },
+    {
+      "name": "hf-web",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:3010",
+        "pnpm",
+        "-C",
+        ".worktrees/home-fact-llm",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--port",
+        "5204",
+        "--strictPort"
+      ],
+      "port": 5204
     }
   ]
 }
