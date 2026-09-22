@@ -18,9 +18,10 @@ describe('kcalOf', () => {
     expect(kcalOf({ protein: 0, fat: 0, carbs: 0, alcohol: 33.2 })).toBe(232);   // горілка 40 %
     expect(kcalOf({ protein: 0.07, fat: 0, carbs: 2.61, alcohol: 10.6 })).toBe(85); // сухе червоне
   });
-  it('isEstimate — лише source estimate', () => {
+  it('isEstimate — лише source estimate; label: (етап 2) — НЕ оцінка, звірене', () => {
     expect(isEstimate(usda(1, 1, 1))).toBe(false);
     expect(isEstimate({ source: 'estimate' })).toBe(true);
+    expect(isEstimate({ source: 'label:veres.ua@2026-09-22' })).toBe(false);
   });
 
   // Клітковина — 2 ккал/г, не 4, АЛЕ по-різному залежно від джерела:
@@ -46,6 +47,11 @@ describe('kcalOf', () => {
     expect(kcalOf({ protein: 12.2, fat: 1.5, carbs: 13.3, fiber: 42.9, source: 'ciqual:20999' })).toBe(201);
     // Водорості норі (ciqual): Б30.2 Ж1.77 В11.7 клітковина36.8
     expect(kcalOf({ protein: 30.2, fat: 1.77, carbs: 11.7, fiber: 36.8, source: 'ciqual:20987' })).toBe(257);
+  });
+  it('Н1б, етап 2: label: — та сама механіка, що ciqual (переконайся: fiberRuleFor уже враховує)', () => {
+    expect(kcalOf({ protein: 12.2, fat: 1.5, carbs: 13.3, fiber: 42.9, source: 'label:veres.ua@2026-09-22' }))
+      .toBe(kcalOf({ protein: 12.2, fat: 1.5, carbs: 13.3, fiber: 42.9, source: 'ciqual:20999' }));
+    expect(carbsForDisplay({ carbs: 13.3, fiber: 42.9, source: 'label:veres.ua@2026-09-22' })).toBe(13.3);
   });
   it('без fiber (35 рядків бази з 677) — уся carbs по 4, як було раніше (незалежно від джерела)', () => {
     expect(kcalOf({ protein: 4.88, fat: 15.22, carbs: 64.06, source: 'usda:171333' })).toBe(413);

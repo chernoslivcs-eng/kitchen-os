@@ -49,6 +49,16 @@ function percentOf(norm: string): { lo: number; hi: number } | null {
 
 const wordIn = (norm: string, kw: string) => new RegExp(`(^|[^а-яіїєґa-z])${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[^а-яіїєґa-z])`).test(norm);
 
+// «вино безалкогольне» містить слово «вино» ЦІЛКОМ (межа слова тут не рятує
+// — «безалкогольне» починається з пробілу) — рядок «Вино сухе біле» давав
+// 10,3 г спирту фальшивій безалкогольній позиції: і ккал на +246%, і хибний
+// спирт (на нього зав'язані пісні й алкогольні вето). Явний гейт: маркер
+// «без алкоголю» в назві → жоден алкогольний keyword-рядок не застосовується
+// взагалі, незалежно від категорії/слова (NUTRI-LABELS-REPORT-0922.md).
+const NON_ALCOHOLIC = /безалкогольн|б\/а(?=$|[^а-яіїєґa-z])|0\.0\s*%|alcohol[\s-]?free|non-alcoholic/;
+const ALCOHOL_CATS = new Set(['вино', 'пиво', 'лікер', 'ігристе']);
+const isAlcoholKeyword = (k: { cat: string }, norm: string): boolean => ALCOHOL_CATS.has(k.cat) && NON_ALCOHOLIC.test(norm);
+
 export class BaseMatcher {
   private byNorm = new Map<string, string>();
   private headRows: { head: string; base: string; lo: number; hi: number }[] = [];
@@ -85,7 +95,9 @@ export class BaseMatcher {
     if (exactPlain && plain !== norm) {
       const cats = item.categories.map(normalizeName);
       const head = plain.split(' ')[0]!;
-      if (cats.some((c) => c === plain || c.includes(head) || plain.includes(c))) return { base: exactPlain, rule: 'exact' };
+      // Межа слова (wordIn), не сирий includes: категорія-підрядок інакше
+      // могла збігтись випадково (та сама пастка, що з алкоголем нижче).
+      if (cats.some((c) => c === plain || wordIn(c, head) || wordIn(plain, c))) return { base: exactPlain, rule: 'exact' };
     }
     // Аліас: «листи для лазаньї» мають аліас «лазанья», але рядок «Лазанья» в
     // базі — готова страва; на такі рядки через аліас не ведемо.
@@ -103,7 +115,8 @@ export class BaseMatcher {
       const cats = new Set(item.categories.map(normalizeName));
       for (const k of this.aliases.keywords) {
         if (!/консерв|у власному соку|в олії/.test(k.base.toLowerCase())) continue;
-        if (!cats.has(normalizeName(k.cat)) && !item.categories.some((c) => normalizeName(c).includes(normalizeName(k.cat)))) continue;
+        if (isAlcoholKeyword(k, norm)) continue;
+        if (!cats.has(normalizeName(k.cat)) && !item.categories.some((c) => wordIn(c, normalizeName(k.cat)))) continue;
         if (k.kw.some((w) => wordIn(plain, normalizeName(w)))) return { base: k.base, rule: 'keyword' };
       }
       return null;
@@ -130,7 +143,8 @@ export class BaseMatcher {
     // 3. категорія + ключове слово
     const cats = new Set(item.categories.map(normalizeName));
     for (const k of this.aliases.keywords) {
-      if (!cats.has(normalizeName(k.cat)) && !item.categories.some((c) => normalizeName(c).includes(normalizeName(k.cat)))) continue;
+      if (isAlcoholKeyword(k, norm)) continue;
+      if (!cats.has(normalizeName(k.cat)) && !item.categories.some((c) => wordIn(c, normalizeName(k.cat)))) continue;
       if (k.kw.some((w) => wordIn(plain, normalizeName(w)))) return { base: k.base, rule: 'keyword' };
     }
     return null;
