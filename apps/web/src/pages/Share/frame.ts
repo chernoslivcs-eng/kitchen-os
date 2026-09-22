@@ -70,7 +70,7 @@ export function wrapLines(text: string, measure: MeasureFn, font: string, maxWid
   return lines;
 }
 
-function ellipsize(text: string, measure: MeasureFn, font: string, maxWidth: number): string {
+export function ellipsize(text: string, measure: MeasureFn, font: string, maxWidth: number): string {
   if (measure(text, font) <= maxWidth) return text;
   let lo = 0, hi = text.length;
   while (lo < hi) {
@@ -211,6 +211,100 @@ export function applyCropDrag(start: CropState, dx: number, dy: number, boxW: nu
     x: start.x - dx / Math.max(1, boxW),
     y: start.y - dy / Math.max(1, boxH),
   });
+}
+
+// ── «Розкладка» (4-й кадр, автоматизована версія D2 «розріджений рядок»):
+// назва — дві збалансовані групи в один рядок; слова, що не влізли — «хвіст»,
+// іде в сітку разом з назвами інгредієнтів. ──
+export interface LayoutTitle {
+  size: number;       // 64 або 56
+  left: string[];     // ліва група (верхній регістр — на малюванні)
+  right: string[];    // права група; порожньо при centered
+  centered: boolean;  // єдине слово, що влізло, — по центру
+  tail: string[];     // слова понад те, що влізло в рядок — у сітку
+}
+function sumLen(words: string[]): number {
+  return words.reduce((s, w) => s + w.length, 0);
+}
+// Правка 22.09 (п.12): жодна група назви й жодна клітинка сітки не може
+// закінчуватись службовим словом — воно переходить на початок наступної
+// групи/клітинки («ПАСТА З | ПЕЧЕНИМИ», не «ПАСТА | З ПЕЧЕНИМИ» ламало на
+// «ПОМІДОРАМИ Й» + окремо «ЧАСНИКОМ»; має бути «ПОМІДОРАМИ» + «Й ЧАСНИКОМ»).
+const STOPWORDS = new Set(['з', 'із', 'зі', 'й', 'і', 'та', 'в', 'у', 'на', 'до', 'під', 'за', 'по', 'при', 'без', 'для', 'а']);
+function isStopword(word: string | undefined): boolean {
+  return word != null && STOPWORDS.has(word.toLowerCase());
+}
+// Межа k (1..n-1), що мінімізує різницю сум довжин лівої/правої групи —
+// порядок слів не міняємо, лише вибираємо, де розрізати. Кандидати, де
+// ЛІВА група закінчилась би службовим словом, пропускаємо (права group
+// «поглинає» його природно — його й так може забрати наступний крок
+// нижче в splitLayoutTitle, коли права закінчується службовим).
+function bestSplit(words: string[]): { left: string[]; right: string[] } {
+  let bestK = 1, bestDiff = Infinity;
+  let fallbackK = 1, fallbackDiff = Infinity;
+  for (let k = 1; k < words.length; k++) {
+    const diff = Math.abs(sumLen(words.slice(0, k)) - sumLen(words.slice(k)));
+    if (diff < fallbackDiff) { fallbackDiff = diff; fallbackK = k; }
+    if (isStopword(words[k - 1])) continue;
+    if (diff < bestDiff) { bestDiff = diff; bestK = k; }
+  }
+  const k = bestDiff === Infinity ? fallbackK : bestK;
+  return { left: words.slice(0, k), right: words.slice(k) };
+}
+export function splitLayoutTitle(title: string, measure: MeasureFn, maxWidth = 840, weight = 700): LayoutTitle {
+  const words = title.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return { size: 64, left: [], right: [], centered: true, tail: [] };
+  for (const size of [64, 56]) {
+    const font = `${weight} ${size}px ${FONT}`;
+    for (let n = words.length; n >= 1; n--) {
+      const candidate = words.slice(0, n);
+      if (n === 1) {
+        if (measure(candidate[0]!.toUpperCase(), font) <= maxWidth) {
+          return { size, left: candidate, right: [], centered: true, tail: words.slice(1) };
+        }
+        continue;
+      }
+      const { left, right } = bestSplit(candidate);
+      const w = measure(left.join(' ').toUpperCase(), font) + measure(right.join(' ').toUpperCase(), font);
+      if (w <= maxWidth) {
+        // Права група межує з хвостом — забирати службове слово з її кінця
+        // в хвіст завжди безпечно (хвіст не має обмеження ширини рядка).
+        const rightTrimmed = [...right];
+        const overflow: string[] = [];
+        while (rightTrimmed.length && isStopword(rightTrimmed[rightTrimmed.length - 1])) {
+          overflow.unshift(rightTrimmed.pop()!);
+        }
+        return { size, left, right: rightTrimmed, centered: false, tail: [...overflow, ...words.slice(n)] };
+      }
+    }
+  }
+  // Навіть одне слово на 56 не влазить (рідкість) — усе одно центруємо.
+  return { size: 56, left: [words[0]!], right: [], centered: true, tail: words.slice(1) };
+}
+
+// Сітка 3×≤3: центр 1-го рядка — фіксовано чіп (не в цьому масиві); решта
+// 8 клітинок — спершу шматки «хвоста» назви (≤2 слова), потім назви
+// інгредієнтів без кількостей (теж ≤2 слова), у порядку рецепта, ліміт 8.
+// Шматок не закінчується службовим словом (п.12) — коротший шматок (1
+// слово), службове йде на початок наступного.
+function chunk(words: string[], size: number): string[] {
+  const out: string[] = [];
+  let i = 0;
+  while (i < words.length) {
+    let take = Math.min(size, words.length - i);
+    while (take > 1 && isStopword(words[i + take - 1])) take--;
+    out.push(words.slice(i, i + take).join(' '));
+    i += take;
+  }
+  return out;
+}
+export function layoutGridItems(tail: string[], ingredients: FrameIngredient[]): string[] {
+  const tailChunks = chunk(tail, 2);
+  const ingChunks = ingredients.flatMap((i) => chunk(i.name.trim().split(/\s+/).filter(Boolean), 2));
+  return [...tailChunks, ...ingChunks].slice(0, 8);
+}
+export function layoutChipLabel(minutes: number): string {
+  return `${minutes} ХВИЛИН`;
 }
 
 // ── Вибір запису журналу: `run` із query, інакше останній не-undone з фото ──

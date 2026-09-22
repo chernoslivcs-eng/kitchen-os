@@ -189,15 +189,17 @@ describe('SharePage · без await перед жестом (баг PR #181), н
 
 describe('SharePage · дані й кадри', () => {
   // Правка 8 (22.09): без фото Постер (і Вертикаль, якщо назва влізає)
-  // лишаються в каруселі як заглушка — не лише «Чисте тло».
-  it('без фото — 2–3 кадри (заглушка постера + чисте), крапки є', async () => {
+  // лишаються в каруселі як заглушка — не лише «Чисте тло». «Розкладка»
+  // (Р203) — теж завжди в ролі, без умови fit, тому мінімум 3 кадри
+  // (постер+розкладка+чисте), максимум 4 (+вертикаль).
+  it('без фото — 3–4 кадри (заглушка постера + розкладка + чисте), крапки є', async () => {
     await mount();
     expect(host!.querySelector('[data-frame="clean"]')).not.toBeNull();
     const poster = host!.querySelector('[data-frame="poster"]')!;
     expect(poster).not.toBeNull();
     expect(poster.getAttribute('data-placeholder')).toBe('true');
     const dots = host!.querySelectorAll('[data-dot]').length;
-    expect(dots === 2 || dots === 3).toBe(true);
+    expect(dots === 3 || dots === 4).toBe(true);
   });
 
   it('без фото, активний постер — головна кнопка «Додати фото», не шериться', async () => {

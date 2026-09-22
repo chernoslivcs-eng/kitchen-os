@@ -14,7 +14,7 @@ import { api, type Recipe, type CookRunWithRecipe } from '../../api';
 import { track } from '../../lib/track';
 import { captureClientIncident } from '../../lib/sentry';
 import { pickCookRun, frameDataOf, verticalFontSize, clampCrop, resetCrop, applyCropDrag, type FrameData, type CropState } from './frame';
-import { drawPoster, drawVertical, drawClean, measureFn, FRAME_W, FRAME_H, CLEAN_LIGHT, CLEAN_DARK, type FrameKind } from './render';
+import { drawPoster, drawVertical, drawLayout, drawClean, measureFn, FRAME_W, FRAME_H, CLEAN_LIGHT, CLEAN_DARK, type FrameKind } from './render';
 import styles from './Share.module.css';
 
 // Баг з проду (iPhone Chrome, PR #181): user activation зʼїдав `await` перед
@@ -24,7 +24,7 @@ function isIOSChrome(): boolean {
   return typeof navigator !== 'undefined' && /CriOS\//.test(navigator.userAgent);
 }
 
-const FRAME_LABEL: Record<FrameKind, string> = { poster: 'Постер', vertical: 'Вертикаль', clean: 'Чисте тло' };
+const FRAME_LABEL: Record<FrameKind, string> = { poster: 'Постер', vertical: 'Вертикаль', layout: 'Розкладка', clean: 'Чисте тло' };
 
 // Масштаб і зсув зберігаються РАЗОМ (одна пара на run) — правка 22.09 (п.6):
 // кроп більше не лише вертикальний зсув, а й пінч-масштаб 1–3×.
@@ -138,7 +138,17 @@ export function SharePage() {
   // теж у каруселі, із заглушкою (render.ts малює її сам за img=null); лише
   // «Чисте тло» не залежить від фото взагалі. Порядок той самий, є фото чи нема.
   const frames: FrameKind[] = useMemo(() => {
-    return verticalFits ? ['poster', 'vertical', 'clean'] : ['poster', 'clean'];
+    // «Розкладка» — доступна для будь-якої назви (на відміну від «Вертикалі»,
+    // що зникає, коли назва не влазить), тому в ролі без умови; спека —
+    // «четвертим», тож завжди перед «Чистим тлом» останньою. Без фото —
+    // усі photo-based кадри (постер/вертикаль/розкладка) лишаються в ролі
+    // із заглушкою (правка 8), не лише «Чисте тло».
+    return [
+      'poster',
+      ...(verticalFits ? (['vertical'] as const) : []),
+      'layout',
+      'clean',
+    ];
   }, [verticalFits]);
   const [activeIdx, setActiveIdx] = useState(0);
   useEffect(() => { setActiveIdx((i) => Math.min(i, frames.length - 1)); }, [frames.length]);
@@ -202,8 +212,10 @@ export function SharePage() {
         drawClean(ctx, frameData, cleanTheme);
       } else if (kind === 'poster') {
         drawPoster(ctx, frameData, photoImgRef.current, crop, cleanTheme);
-      } else {
+      } else if (kind === 'vertical') {
         drawVertical(ctx, frameData, photoImgRef.current, crop, cleanTheme);
+      } else {
+        drawLayout(ctx, frameData, photoImgRef.current, crop, cleanTheme);
       }
       const thumb = thumbRefs.current[kind];
       if (thumb) {
