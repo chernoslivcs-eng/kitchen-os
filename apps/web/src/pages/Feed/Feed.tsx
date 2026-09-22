@@ -1218,7 +1218,7 @@ export function Feed() {
                 shoppingLabels={shoppingLabels}
                 onNonfoodToList={addNonfoodToList}
                 onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
-                onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
+                onShare={(_r, rid) => { if (rid) void navigate(`/share/${rid}`); }}
                 onSaveRecipe={saveRecipeForLater}
                 savedRecipeIds={savedRecipeIds}
                 onNeedToList={addNeedToList}
@@ -1574,6 +1574,7 @@ export function Feed() {
               <RecipeStreamCard card={t.card} active={shownArtifact?.turn?.id === t.id} live={livePositions}
                 onOpen={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
                 onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
+                onShare={(_r, rid) => { if (rid) void navigate(`/share/${rid}`); }}
                 onNeedToList={addNeedToList} />
             )}
             {t.card?.type === 'event' && t.applied && (
@@ -1759,7 +1760,7 @@ export function Feed() {
                 onNonfoodToList={addNonfoodToList}
                 onOpen={t.card.type === 'proposal' ? (i) => openRecipe(t, i) : undefined}
                 onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
-                onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
+                onShare={(_r, rid) => { if (rid) void navigate(`/share/${rid}`); }}
                 onSaveRecipe={saveRecipeForLater}
                 savedRecipeIds={savedRecipeIds}
                 onNeedToList={addNeedToList}

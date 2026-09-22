@@ -71,6 +71,14 @@
   transition: color var(--dur-fast) var(--ease-standard);
 }
 .again:hover { color: var(--ink); }
+/* Шерінг v3: квадрат 44 з іконкою — той самий рядок, «recipe_id?run=id». */
+.share {
+  flex: none; width: 44px; height: 44px;
+  border: 1px solid var(--line2); border-radius: 11px; background: transparent;
+  color: var(--muted); display: grid; place-items: center; cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+.share:hover { color: var(--ink); }
 
 /* Порожній стан — спільний з Рецептами (Recipes.module.css .empty, №43). */
 

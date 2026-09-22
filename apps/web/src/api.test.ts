@@ -73,3 +73,23 @@ describe('класифікація 401', () => {
     expect(calls.some((c) => (c as unknown[])[0] === 'auth')).toBe(false);
   });
 });
+
+// Шерінг v3 (пастка від потоку API/бот, 22.09): @fastify/multipart читає
+// recipe_id/frame з file.fields ПІД ЧАС req.file() — у стрімінговому
+// multipart поля, що йдуть ПІСЛЯ файла в тілі, ще не розібрані на той
+// момент (400 recipe_id required). Порядок append() у FormData — це і є
+// порядок частин у тілі.
+describe('api.share.telegram — порядок полів multipart', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('recipe_id і frame йдуть ДО png у тілі запиту', async () => {
+    let sentBody: FormData | null = null;
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+      sentBody = init?.body as FormData;
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }));
+    await api.share.telegram(new Blob(['png']), 'recipe-1', 'poster');
+    const keys = [...sentBody!.keys()];
+    expect(keys).toEqual(['recipe_id', 'frame', 'png']);
+  });
+});

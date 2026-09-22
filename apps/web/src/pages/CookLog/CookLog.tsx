@@ -211,6 +211,16 @@ export function CookLogPage() {
                           <Icon name="cook.done" size={12} inherit decorative /><span className={styles['again-text']}>Знову</span>
                         </button>
                       )}
+                      {!undone && (
+                        <button
+                          type="button"
+                          className={styles.share} data-tap
+                          onClick={() => navigate(`/share/${r.recipe_id}?run=${r.id}`)}
+                          aria-label="Поділитись"
+                        >
+                          <Icon name="sys.share" size={18} inherit decorative />
+                        </button>
+                      )}
                     </div>
                   );
                 })}

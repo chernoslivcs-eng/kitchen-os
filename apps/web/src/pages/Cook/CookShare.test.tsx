@@ -52,7 +52,7 @@ function Host() {
 /** Показує, куди застосунок пішов, — без моків роутера. */
 function Probe() {
   const loc = useLocation();
-  return <i data-where={loc.pathname} data-has-recipe={loc.state ? String(!!(loc.state as { recipe?: unknown }).recipe) : 'none'} />;
+  return <i data-where={loc.pathname + loc.search} />;
 }
 
 function installFetch() {
@@ -62,7 +62,8 @@ function installFetch() {
     if (url.startsWith('/v1/cook-runs')) {
       if (saveFails) return json({ error: 'boom' }, 500);
       saved += 1;
-      return json({ ok: true });
+      // Шерінг v3: /share/:recipe_id?run= бере обидва id з відповіді POST.
+      return json({ id: 'run-1', recipe_id: 'recipe-1', depleted: 0, partial: 0, opened: 0, depleted_batch_ids: [] });
     }
     return json({});
   }));
@@ -142,13 +143,12 @@ describe('О2 (3): «Поділитись результатом»', () => {
     expect(shareIdx).toBeLessThan(goIdx);
   });
 
-  it('спершу записує готування, і лише потім веде на /share з рецептом', async () => {
+  it('спершу записує готування, і лише потім веде на /share/:recipe_id?run=:cook_run_id', async () => {
     await mountAtLastStep();
     await act(async () => { shareBtns()[0]!.click(); });
     // Журнал і списання — та сама робота, що робить «Приготували».
     expect(saved).toBe(1);
-    expect(where()).toBe('/share');
-    expect(host!.querySelector('i')!.getAttribute('data-has-recipe')).toBe('true');
+    expect(where()).toBe('/share/recipe-1?run=run-1');
   });
 
   it('запис не пройшов — на /share НЕ йдемо, поводимось як звичайний провал', async () => {

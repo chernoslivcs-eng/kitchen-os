@@ -107,6 +107,8 @@ export interface Me {
     members: { user_id: string; name: string; role: 'owner' | 'member'; joined_at: string }[];
   };
   session_id: string;
+  /** Шерінг v3: Telegram живо привʼязаний (не /stop) — «Надіслати в Telegram» на /share. */
+  telegram_linked?: boolean;
 }
 
 // --- Крок О1: /admin/pulse -------------------------------------------------
@@ -828,7 +830,8 @@ export const api = {
   },
 
   cookRuns: {
-    list: () => req<{ runs: CookRunWithRecipe[] }>('/v1/cook-runs'),
+    // Шерінг v3: ?recipe_id= — лише записи цього рецепта (сервер фільтрує ті самі 30).
+    list: (recipe_id?: string) => req<{ runs: CookRunWithRecipe[] }>(`/v1/cook-runs${recipe_id ? `?recipe_id=${encodeURIComponent(recipe_id)}` : ''}`),
     save: (recipe: Recipe, opts?: { servings?: number; rating?: number; verdict?: string; keep?: (string | { id: string; v?: number })[]; skip_pantry?: boolean; recipe_id?: string; session_id?: string; ask_writeoff?: boolean }) =>
       req<{ id: string; recipe_id: string; depleted: number; partial: number; opened: number; depleted_batch_ids: string[]; depleted_labels?: string[]; partial_labels?: string[]; opened_labels?: string[] }>('/v1/cook-runs', {
         method: 'POST',
@@ -849,6 +852,13 @@ export const api = {
       req<{ updated: boolean; rating: number | null; verdict: string | null; photo_url: string | null }>(`/v1/cook-runs/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ rating, verdict }),
+      }),
+    // Шерінг v3: «Замінити/Додати фото» на /share пише в той самий запис,
+    // що журнал, — одне фото, одне місце.
+    setPhoto: (id: string, photo_url: string | null) =>
+      req<{ updated: boolean; photo_url: string | null }>(`/v1/cook-runs/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ photo_url }),
       }),
   },
 
@@ -872,6 +882,27 @@ export const api = {
       const payload: unknown = text ? safeParse(text) : null;
       if (!res.ok) throw new ApiError(res.status, payload, extractError(payload) ?? `HTTP ${res.status}`);
       return { ...(payload as AttachmentUploaded), name: file.name };
+    },
+  },
+
+  share: {
+    // Шерінг v3: кадр (PNG, малює клієнт) прямо в тіло — без attachment-id:
+    // Telegram фетчить фото сервер-сервер, і session-cookied
+    // /v1/attachments/:id/bytes йому не доступний.
+    // Сервер сам пише подію app_event 'share' {via:'telegram'} — клієнт її не дублює.
+    async telegram(png: Blob, recipe_id: string, frame: 'poster' | 'vertical' | 'clean'): Promise<{ ok: true }> {
+      // Порядок полів важливий: сервер читає recipe_id/frame з file.fields
+      // під час req.file() — у стрімінговому multipart вони мусять стояти
+      // ДО png, інакше ще не розібрані (400 recipe_id required).
+      const fd = new FormData();
+      fd.append('recipe_id', recipe_id);
+      fd.append('frame', frame);
+      fd.append('png', png, 'share.png');
+      const res = await fetch('/v1/share/telegram', { method: 'POST', body: fd, credentials: 'include' });
+      const text = await res.text();
+      const payload: unknown = text ? safeParse(text) : null;
+      if (!res.ok) throw new ApiError(res.status, payload, extractError(payload) ?? `HTTP ${res.status}`);
+      return payload as { ok: true };
     },
   },
 

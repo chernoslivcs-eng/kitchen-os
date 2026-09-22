@@ -65,6 +65,7 @@ export const MOTION: Record<Extract<IconName, `sys.${string}` | `landing.${strin
   // 12.09 (ANSWERS A): ряд «Дії й стани» в Icons — без моушну, лише натиск.
   'sys.less': null, 'sys.go': null, 'sys.hide': null, 'sys.toList': null, 'sys.hint': null,
   'sys.mail': null, 'sys.trash': null, 'sys.more': null, 'sys.notes': null, 'sys.help': null,
+  'sys.copy': null,
   // Лендінг (етап 9): знаки системної сімʼї з блоку «landing» в icons.ts —
   // у масиві бандла їх немає, тому статичні.
   'landing.opened': null, 'landing.leftover': null, 'landing.recent': null, 'landing.variety': null, 'landing.toPanel': null,

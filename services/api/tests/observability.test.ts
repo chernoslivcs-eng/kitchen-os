@@ -207,6 +207,7 @@ describe('набір подій', () => {
     expect(KNOWN_EVENTS.has('share')).toBe(true);
     expect(KNOWN_EVENTS.has('chat_input_abandoned')).toBe(true);
     expect(KNOWN_EVENTS.has('error_shown')).toBe(true);
+    expect(KNOWN_EVENTS.has('share')).toBe(true);
   });
 
   it('імена подій — через ПІДКРЕСЛЕННЯ; дефіс лишається за інцидентами', () => {

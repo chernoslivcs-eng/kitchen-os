@@ -180,7 +180,7 @@ export function RecipePage() {
       void navigate('/app', { state: { sessionId: session.id, at: Date.now() } });
     } catch {/* тихо */}
   };
-  const share = () => navigate('/share', { state: { recipe, recipeId: id ?? savedId } });
+  const share = () => { const rid = id ?? savedId; if (rid) void navigate(`/share/${rid}`); };
 
   const stepsCard = (
     <div className={`${styles.card} ${styles['card-steps']}`} data-testid="steps">
