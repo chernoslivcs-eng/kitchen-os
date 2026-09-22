@@ -143,6 +143,14 @@
   .titleRecipe { display: inline; }
 
   .body { flex-direction: row; align-items: flex-start; gap: 40px; padding-top: 20px; }
+  /* Правка 11: .previewCol успадковує flex:1 з мобільної (там воно тягнеться
+   * на всю ширину column-layout) — у рядку 1440 те саме flex:1 розтягує
+   * ФЛЕКС-ІТЕМ на всю вільну ширину `.body` (набагато ширше за 416px
+   * карусель усередині), і .actionsCol із flex-gap:40 стартує від ПРАВОГО
+   * краю цього роздутого item, не від видимого краю каруселі — звідси
+   * порожній проміжок ~180px замість 40. flex:none — item стискається до
+   * контенту (каруселі), розрив стає рівно gap'ом .body. */
+  .previewCol { flex: none; }
   .carousel {
     overflow: visible; padding: 0; scroll-snap-type: none;
     display: block; position: relative;
