@@ -226,15 +226,30 @@ export interface LayoutTitle {
 function sumLen(words: string[]): number {
   return words.reduce((s, w) => s + w.length, 0);
 }
+// Правка 22.09 (п.12): жодна група назви й жодна клітинка сітки не може
+// закінчуватись службовим словом — воно переходить на початок наступної
+// групи/клітинки («ПАСТА З | ПЕЧЕНИМИ», не «ПАСТА | З ПЕЧЕНИМИ» ламало на
+// «ПОМІДОРАМИ Й» + окремо «ЧАСНИКОМ»; має бути «ПОМІДОРАМИ» + «Й ЧАСНИКОМ»).
+const STOPWORDS = new Set(['з', 'із', 'зі', 'й', 'і', 'та', 'в', 'у', 'на', 'до', 'під', 'за', 'по', 'при', 'без', 'для', 'а']);
+function isStopword(word: string | undefined): boolean {
+  return word != null && STOPWORDS.has(word.toLowerCase());
+}
 // Межа k (1..n-1), що мінімізує різницю сум довжин лівої/правої групи —
-// порядок слів не міняємо, лише вибираємо, де розрізати.
+// порядок слів не міняємо, лише вибираємо, де розрізати. Кандидати, де
+// ЛІВА група закінчилась би службовим словом, пропускаємо (права group
+// «поглинає» його природно — його й так може забрати наступний крок
+// нижче в splitLayoutTitle, коли права закінчується службовим).
 function bestSplit(words: string[]): { left: string[]; right: string[] } {
   let bestK = 1, bestDiff = Infinity;
+  let fallbackK = 1, fallbackDiff = Infinity;
   for (let k = 1; k < words.length; k++) {
     const diff = Math.abs(sumLen(words.slice(0, k)) - sumLen(words.slice(k)));
+    if (diff < fallbackDiff) { fallbackDiff = diff; fallbackK = k; }
+    if (isStopword(words[k - 1])) continue;
     if (diff < bestDiff) { bestDiff = diff; bestK = k; }
   }
-  return { left: words.slice(0, bestK), right: words.slice(bestK) };
+  const k = bestDiff === Infinity ? fallbackK : bestK;
+  return { left: words.slice(0, k), right: words.slice(k) };
 }
 export function splitLayoutTitle(title: string, measure: MeasureFn, maxWidth = 840, weight = 700): LayoutTitle {
   const words = title.trim().split(/\s+/).filter(Boolean);
@@ -251,7 +266,16 @@ export function splitLayoutTitle(title: string, measure: MeasureFn, maxWidth = 8
       }
       const { left, right } = bestSplit(candidate);
       const w = measure(left.join(' ').toUpperCase(), font) + measure(right.join(' ').toUpperCase(), font);
-      if (w <= maxWidth) return { size, left, right, centered: false, tail: words.slice(n) };
+      if (w <= maxWidth) {
+        // Права група межує з хвостом — забирати службове слово з її кінця
+        // в хвіст завжди безпечно (хвіст не має обмеження ширини рядка).
+        const rightTrimmed = [...right];
+        const overflow: string[] = [];
+        while (rightTrimmed.length && isStopword(rightTrimmed[rightTrimmed.length - 1])) {
+          overflow.unshift(rightTrimmed.pop()!);
+        }
+        return { size, left, right: rightTrimmed, centered: false, tail: [...overflow, ...words.slice(n)] };
+      }
     }
   }
   // Навіть одне слово на 56 не влазить (рідкість) — усе одно центруємо.
@@ -261,9 +285,17 @@ export function splitLayoutTitle(title: string, measure: MeasureFn, maxWidth = 8
 // Сітка 3×≤3: центр 1-го рядка — фіксовано чіп (не в цьому масиві); решта
 // 8 клітинок — спершу шматки «хвоста» назви (≤2 слова), потім назви
 // інгредієнтів без кількостей (теж ≤2 слова), у порядку рецепта, ліміт 8.
+// Шматок не закінчується службовим словом (п.12) — коротший шматок (1
+// слово), службове йде на початок наступного.
 function chunk(words: string[], size: number): string[] {
   const out: string[] = [];
-  for (let i = 0; i < words.length; i += size) out.push(words.slice(i, i + size).join(' '));
+  let i = 0;
+  while (i < words.length) {
+    let take = Math.min(size, words.length - i);
+    while (take > 1 && isStopword(words[i + take - 1])) take--;
+    out.push(words.slice(i, i + take).join(' '));
+    i += take;
+  }
   return out;
 }
 export function layoutGridItems(tail: string[], ingredients: FrameIngredient[]): string[] {
