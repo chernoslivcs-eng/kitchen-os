@@ -432,6 +432,10 @@ export function CookOverlay() {
       try { sid = (await api.session.today()).session.id; } catch {/* offline */}
     }
     let saved = true;
+    // Шерінг v3: /share/:recipe_id?run= бере id саме з цього запису —
+    // state.recipeId лишається для випадків, коли сервер сам вирішує recipe_id.
+    let savedRecipeId: string | undefined = state.recipeId;
+    let savedRunId: string | undefined;
     const opts = {
       skip_pantry: true,
       // Порційник (14.09): рецепт уже перерахований, servings — явно, щоб
@@ -442,7 +446,9 @@ export function CookOverlay() {
       ask_writeoff: true,
     };
     try {
-      await api.cookRuns.save(recipe!, opts);
+      const run = await api.cookRuns.save(recipe!, opts);
+      savedRecipeId = run.recipe_id;
+      savedRunId = run.id;
     } catch {
       // Офлайн, 5xx — людину в пастці не тримаємо, але й не мовчимо (етап 5,
       // п.6): те саме тіло запиту лягає у сховок, смуга над колонкою каже
@@ -454,9 +460,8 @@ export function CookOverlay() {
       useIncidentStore.getState().setUnsavedCook(run);
     }
     closeOverlay();
-    if (after === 'share' && saved && recipe) {
-      // Той самий стан, що й точки входу зі стрічки.
-      void navigate('/share', { state: { recipe, recipeId: state.recipeId } });
+    if (after === 'share' && saved && savedRecipeId) {
+      void navigate(`/share/${savedRecipeId}${savedRunId ? `?run=${savedRunId}` : ''}`);
       return;
     }
     void navigate('/app', sid ? { state: { sessionId: sid, at: Date.now() } } : undefined);

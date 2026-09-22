@@ -1,91 +1,181 @@
-/* /share — оболонка за Cook and Share «Поділитись · 390» поверх наявної
- * механіки (canvas · navigator.share · download · фото + оверлеї A–D). На
- * 1440 — та сама колонка до 480 по центру. Усе на токенах. */
+/* Шерінг v3 (spec 2026-09-22): /share/:recipe_id — карусель кадрів 390,
+ * прев'ю+мініатюри 1440. Макет-істина: «Kitchen OS - Share Screen.dc.html». */
 .screen {
   min-height: 100dvh;
   background: var(--bg);
   color: var(--ink);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  /* Палітра експорту — не йде за темою глядача: чорнило · bg · шавлія
-     світлого канону й тінь тексту на фото однакові в обох темах (кадр
-     «Поділитись · 390»: картка завжди чорнильна). Share.tsx читає їх через
-     getComputedStyle — hex у коді немає. Живуть тут, не в tokens.css: потік
-     cook-share спільних файлів не чіпає. */
-  --export-ink:    #1a1c1e;
-  --export-bg:     #f4f3ef;
-  --export-sage:   #55724a;
-  --export-shadow: rgba(0, 0, 0, 0.5);
 }
-.column {
-  width: 100%;
-  max-width: 480px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 14px 16px 28px;
+.skeleton {
+  flex: 1;
+  margin: 16px;
+  border-radius: 14px;
+  background: var(--card);
+  animation: share-sk 1.4s ease-in-out infinite;
 }
-.top { display: flex; align-items: center; }
+@keyframes share-sk { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+.empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; }
+.empty h3 { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+.empty p { font-size: 14px; color: var(--muted); }
+
+/* Шапка 56: ← · «Поділитись» (390); на 1440 інша (у .body). */
+.top {
+  height: 56px; flex: none;
+  display: flex; align-items: center; gap: 8px; padding: 0 8px 0 4px;
+}
 .back {
-  width: 40px; height: 40px; border: 0; border-radius: 50%;
-  background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--muted);
+  width: 44px; height: 44px; border: 0; border-radius: 50%;
+  background: transparent; color: var(--ink);
   display: grid; place-items: center; cursor: pointer;
 }
-/* Шапка: share-2 16 muted · «Поділитись стравою» 15/600 · сегмент формату 30
-   на bg (активний — card + тінь, 12/500). */
-.head { display: flex; align-items: center; gap: 10px; }
-.head > [data-icon] { color: var(--muted); }
-.title { font-family: var(--font-body); font-size: 15px; font-weight: 600; color: var(--ink); }
-.gap { flex: 1; }
-.seg { display: flex; gap: 2px; padding: 3px; border-radius: var(--r-pill); background: var(--bg); }
-.seg-btn {
-  height: 24px; padding: 0 9px; border: 0; border-radius: var(--r-pill);
-  background: transparent; color: var(--muted);
-  font-family: var(--font-body); font-size: 12px; cursor: pointer; white-space: nowrap;
+.title { font-family: var(--font-display); font-weight: 700; font-size: 17px; letter-spacing: -.02em; }
+.titleRecipe { display: none; font-size: 14px; color: var(--muted); }
+
+.body {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  padding: 2px 0 0;
+  gap: 4px;
 }
-.seg-on { background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--ink); font-weight: 500; }
-/* Превʼю на всю ширину колонки, r14; що бачиш — те й шериш (canvas). */
-.preview {
-  display: block; width: auto; height: auto; max-width: 100%; max-height: 56vh; margin: 0 auto;
-  border-radius: 14px; background: var(--export-ink);
-  cursor: pointer;
+
+/* ── Карусель (390): кадр 236×420, сусіди визирають 24px ── */
+.previewCol { display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; }
+/* Бічний відступ = (контейнер − кадр)/2: перший/останній кадр стає по
+ * центру вже на scrollLeft:0/max, сусід визирає симетрично. `justify-
+ * content: center` тут пастка — коли вміст ширший за контейнер (завжди,
+ * 3 кадри по 236px), браузер ЦЕНТРУЄ ВЕСЬ РЯД округ scrollLeft:0, і
+ * природний (нескрольований) кадр — ДРУГИЙ, не перший; перший стає
+ * недосяжним без прокрутки «в мінус», якої не буває. */
+.carousel {
+  display: flex; gap: 12px; align-items: center;
+  overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+  padding: 0 calc((100% - 236px) / 2);
 }
-/* Стрічка мініатюр 54 r10: A стек · B кут · C твердження · D рейка (знаки
-   з кадру: коло, рамка, риска), обрана — контур чорнилом 2. */
-.thumbs { display: flex; gap: 6px; }
-.thumb {
-  width: 54px; height: 54px; flex: none; padding: 0;
-  border: 1px solid var(--line2); border-radius: 10px; background: var(--card);
-  display: grid; place-items: center; cursor: pointer; color: var(--muted);
-  position: relative; overflow: hidden;
+.carousel::-webkit-scrollbar { display: none; }
+.frameSlot { flex: none; scroll-snap-align: center; }
+.frameCanvas {
+  display: block;
+  width: 236px; height: 420px;
+  border-radius: 14px;
+  background: #111;
+  box-shadow: var(--sh-a), var(--sh-b);
+  touch-action: pan-y;
+  cursor: ns-resize;
 }
-.thumb-on { box-shadow: 0 0 0 2px var(--ink); border-color: var(--ink); }
-.thumb-mark { display: block; }
-.thumb-A .thumb-mark { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink); }
-.thumb-B { background: var(--bg); }
-.thumb-B .thumb-mark { position: absolute; top: 7px; left: 7px; width: 22px; height: 22px; border-radius: 3px; border: 1px solid var(--sage); }
-.thumb-C { background: var(--ink); color: var(--sage); }
-.thumb-C .thumb-mark { width: 26px; height: 8px; border-radius: 2px; background: var(--sage); }
-.thumb-D .thumb-mark { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--sage); }
-.thumb-photo { background: var(--bg); }
-/* Низ: «Поділитись» чорнилом 50 r12 + download 50 r12 з контуром. */
-.actions { display: flex; gap: 8px; }
-.share {
-  flex: 1; height: 50px; border: 0; border-radius: 12px;
+.frameCanvas[data-frame="clean"] { background: var(--bg); border: 1px solid var(--line2); box-shadow: var(--sh-a), var(--sh-b); }
+
+.cropHint { font-size: 11.5px; color: var(--dim); text-align: center; height: 16px; }
+
+.frameRow { display: flex; align-items: center; gap: 14px; height: 36px; padding: 0 16px; }
+.frameLabel { font-family: var(--font-body); font-size: 13px; font-weight: 500; }
+.dots { display: flex; gap: 6px; }
+.dot { width: 6px; height: 6px; border: 0; border-radius: 50%; background: var(--line2); padding: 0; cursor: pointer; }
+.dotOn { background: var(--ink); }
+.replacePhoto {
+  margin-left: auto; height: 36px; padding: 0 8px; border: 0; background: transparent;
+  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted);
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+}
+.replacePhoto:disabled { opacity: .5; cursor: wait; }
+.replacePhotoAdd { color: var(--sage); }
+
+.photoErr { font-family: var(--font-body); font-size: 12px; color: #b3463b; padding: 0 16px; }
+
+/* Мініатюри — лише 1440 (desktop) */
+.thumbCol { display: none; }
+
+/* ── Дії ── */
+.actionsCol { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 6px 16px 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+.mobileActions { display: flex; gap: 8px; }
+.shareBtn {
+  flex: 1; height: 48px; border: 0; border-radius: 12px;
   background: var(--ink); color: var(--bg);
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   font-family: var(--font-body); font-size: 15px; font-weight: 600; cursor: pointer;
 }
-.share:hover:not(:disabled) { filter: brightness(0.96); }
-.share:disabled { opacity: .6; cursor: wait; }
-.download {
-  width: 50px; height: 50px; flex: none; border: 1px solid var(--line2); border-radius: 12px;
-  background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer;
+.shareBtn:disabled { opacity: .6; cursor: wait; }
+.shareBtn:hover:not(:disabled) { filter: brightness(0.96); }
+.downloadBtn {
+  width: 48px; height: 48px; flex: none; border: 1px solid var(--line2); border-radius: 12px;
+  background: transparent; color: var(--ink); display: grid; place-items: center; cursor: pointer;
 }
-.download:disabled { opacity: .6; }
-.caption {
-  align-self: flex-start; border: 0; background: transparent; padding: 0;
-  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--sage); cursor: pointer;
+.downloadBtn:disabled { opacity: .6; }
+
+.desktopActions { display: none; }
+
+.linkRow {
+  height: 40px; border: 0; border-radius: 10px; background: var(--card);
+  display: flex; align-items: center; gap: 10px; padding: 0 12px;
+  font-family: var(--font-body); font-size: 12.5px; color: var(--muted);
+  font-variant-numeric: tabular-nums; cursor: pointer; position: relative; overflow: hidden;
 }
-.hint { font-family: var(--font-body); font-size: 13px; line-height: 1.5; color: var(--muted); }
+.linkText { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.linkCopied {
+  position: absolute; inset: 0; background: var(--sage-bg, color-mix(in srgb, var(--sage) 16%, var(--card)));
+  color: var(--sage); display: flex; align-items: center; padding: 0 12px; font-weight: 600;
+}
+.hintMuted { font-size: 12.5px; color: var(--muted); line-height: 1.5; padding: 2px 2px 0; }
+.sentHint { font-size: 12.5px; color: var(--sage); font-weight: 500; padding: 2px 2px 0; }
+
+/* ── 1440 (≥768): каркас із сайдбаром, дві колонки ── */
+@media (min-width: 768px) {
+  .screen { padding: 28px 40px; }
+  .top { height: auto; padding: 0; gap: 12px; }
+  .back { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line2); background: var(--card); }
+  .title { font-size: 22px; }
+  .titleRecipe { display: inline; }
+
+  .body { flex-direction: row; align-items: flex-start; gap: 40px; padding-top: 20px; }
+  .previewCol { flex-direction: row; align-items: flex-start; gap: 40px; flex: none; }
+  .carousel {
+    overflow: visible; padding: 0; scroll-snap-type: none;
+    display: block; position: relative;
+    width: calc((100vh - 160px) * 9 / 16); height: calc(100vh - 160px); max-width: 480px; max-height: 854px;
+  }
+  .frameSlot { position: absolute; inset: 0; scroll-snap-align: none; display: none; }
+  .frameSlot[data-active] { display: block; }
+  .frameCanvas {
+    width: 100%; height: 100%; border-radius: 20px;
+  }
+  .cropHint { position: absolute; text-align: left; height: auto; margin-top: -6px; }
+  .frameRow { display: none; }
+
+  .thumbCol { display: flex; flex-direction: column; gap: 18px; width: 360px; flex: none; }
+  .thumbLabel { font-family: var(--font-body); font-size: 12px; font-weight: 600; color: var(--dim); letter-spacing: .05em; text-transform: uppercase; }
+  .thumbs { display: flex; gap: 10px; flex-wrap: wrap; }
+  .thumbBtn {
+    width: 110px; height: 196px; border: 0; padding: 0; border-radius: 12px; overflow: hidden;
+    background: #111; position: relative; cursor: pointer; outline-offset: 2px;
+  }
+  .thumbBtn[data-selected] { outline: 2px solid var(--ink); }
+  .thumbBtn[data-thumb="clean"] { background: var(--bg); border: 1px solid var(--line2); }
+  .thumbCanvas { display: block; width: 100%; height: 100%; }
+  .thumbTag { position: absolute; left: 10px; bottom: 10px; font-size: 6px; color: #fff; }
+  .thumbBtn[data-thumb="clean"] .thumbTag { color: var(--muted); }
+  .replacePhotoDesktop {
+    align-self: flex-start; height: 36px; padding: 0 4px; border: 0; background: transparent;
+    font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted);
+    display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  }
+
+  .actionsCol { width: 360px; flex: none; padding: 0; }
+  .mobileActions { display: none; }
+  .desktopActions { display: flex; flex-direction: column; gap: 8px; }
+  .tgBtn {
+    height: 48px; border: 0; border-radius: 12px; background: var(--ink); color: var(--bg);
+    font-family: var(--font-body); font-weight: 600; font-size: 15px;
+    display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+  }
+  .tgBtn:disabled { opacity: .6; cursor: wait; }
+  .savePngBtn {
+    height: 46px; border-radius: 12px; border: 1px solid var(--line2); background: transparent;
+    font-family: var(--font-body); font-weight: 600; font-size: 14.5px; color: var(--ink);
+    display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+  }
+  .savePngBtn:disabled { opacity: .6; }
+  .linkRow { margin-top: 4px; }
+}

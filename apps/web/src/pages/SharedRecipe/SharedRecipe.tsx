@@ -92,6 +92,13 @@ export function SharedRecipePage() {
 
   const action = (
     <div className={styles.cta} data-testid="cta">
+      {/* Шерінг v3 (spec §3): незнайомець над «Увійти» — що це за застосунок і лінк на лендинг. */}
+      {!signedIn && (
+        <p className={styles['cta-intro']} data-stranger-intro>
+          Kitchen OS — кухонний асистент: знає, що є вдома, і пропонує, що з цього приготувати.{' '}
+          <a href="/" className={styles['cta-about']} data-about-link>Що це</a>
+        </p>
+      )}
       <span className={styles['cta-text']}>
         <b>Готуй у себе.</b> Кухня звірить склад із твоєю коморою й поведе по кроках із таймерами.
       </span>

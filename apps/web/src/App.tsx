@@ -136,7 +136,9 @@ export function App() {
             <Route path="/admin/beta" element={<BetaPage />} />
             <Route path="/admin/boom" element={<BoomPage />} />
           </Route>
-          <Route path="/share" element={<RequireAuth><SharePage /></RequireAuth>} />
+          <Route path="/share/:recipe_id" element={<RequireAuth><SharePage /></RequireAuth>} />
+          {/* Шерінг v3: старий /share без recipe_id — редирект (spec §2). */}
+          <Route path="/share" element={<Navigate to="/app" replace />} />
           {/* Знайомство з Семеном — поза каркасом: без табів і панелі, як /share. */}
           <Route path="/welcome" element={<RequireAuth><OnboardingPage /></RequireAuth>} />
           <Route path="/r/:id" element={<SharedRecipePage />} />

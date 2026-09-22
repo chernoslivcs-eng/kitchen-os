@@ -850,6 +850,13 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ rating, verdict }),
       }),
+    // Шерінг v3: «Замінити/Додати фото» на /share пише в той самий запис,
+    // що журнал, — одне фото, одне місце.
+    setPhoto: (id: string, photo_url: string | null) =>
+      req<{ updated: boolean; photo_url: string | null }>(`/v1/cook-runs/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ photo_url }),
+      }),
   },
 
   attachments: {
@@ -872,6 +879,23 @@ export const api = {
       const payload: unknown = text ? safeParse(text) : null;
       if (!res.ok) throw new ApiError(res.status, payload, extractError(payload) ?? `HTTP ${res.status}`);
       return { ...(payload as AttachmentUploaded), name: file.name };
+    },
+  },
+
+  share: {
+    // Шерінг v3: кадр (PNG, малює клієнт) прямо в тіло — без attachment-id:
+    // Telegram фетчить фото сервер-сервер, і session-cookied
+    // /v1/attachments/:id/bytes йому не доступний.
+    async telegram(png: Blob, recipe_id: string, frame: 'poster' | 'vertical' | 'clean'): Promise<{ sent: true }> {
+      const fd = new FormData();
+      fd.append('png', png, 'share.png');
+      fd.append('recipe_id', recipe_id);
+      fd.append('frame', frame);
+      const res = await fetch('/v1/share/telegram', { method: 'POST', body: fd, credentials: 'include' });
+      const text = await res.text();
+      const payload: unknown = text ? safeParse(text) : null;
+      if (!res.ok) throw new ApiError(res.status, payload, extractError(payload) ?? `HTTP ${res.status}`);
+      return payload as { sent: true };
     },
   },
 

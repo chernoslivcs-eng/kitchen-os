@@ -31,7 +31,7 @@ import {
   Soup, Salad, Pizza, Sandwich, EggFried, Cake, CookingPot, Microwave, FlameKindling,
   ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, RotateCcw, Star, ShoppingBasket, Import, ListOrdered, BookmarkCheck, Share2, Reply,
   Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Hourglass, WifiOff, Minus, Square, RotateCw, Camera, FileText, Moon, ChevronUp,
-  Pause, Play,
+  Pause, Play, Copy,
   type LucideIcon,
 } from 'lucide-react';
 // Картка рецепта v2 (18.09): словник dish.* — «Смузі» бере вільний cup-soda
@@ -81,6 +81,8 @@ export const ICONS = {
   'sys.voice':     { glyph: Mic,               label: 'Голос',         family: 'system' },
   'sys.send':      { glyph: ArrowUp,           label: 'Надіслати',     family: 'system' },
   'sys.attach':    { glyph: Paperclip,         label: 'Вкласти',       family: 'system' },
+  // Шерінг v3: рядок лінка на /share — «Скопіювати».
+  'sys.copy':      { glyph: Copy,              label: 'Скопіювати',    family: 'system' },
   'sys.search':    { glyph: Search,            label: 'Пошук',         family: 'system' },
   'sys.filter':    { glyph: SlidersHorizontal, label: 'Фільтр',        family: 'system' },
   'sys.sort':      { glyph: ArrowUpDown,       label: 'Порядок',       family: 'system' },

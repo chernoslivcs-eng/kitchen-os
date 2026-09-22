@@ -886,7 +886,7 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
 // «+ у список» інлайн), кроки з номерами, довгі згорнуті до трьох із
 // «Показати всі N». «Готуємо» веде тільки в Cook Mode; /recipe/:id
 // лишається адресою для «У рецепти» і шерингу.
-export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: CardProps) {
+export function RecipeLinkCard({ card, onCook, onShare, onNeedToList, batchLabels }: CardProps) {
   const r = card.recipe as Recipe | undefined;
   const rid = card.recipe_id;
   const [listed, setListed] = useState<Set<number>>(new Set());
@@ -977,6 +977,7 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: Card
 
   // Низ картки (макет Г): «Готуємо» ліворуч (ink, flex 1.5, головна) + «У
   // список · N» праворуч (контурна, flex 1) — лише коли є що докупити.
+  // Шерінг v3: «Поділитись» — контур зі знаком, третя дія в ряду.
   const footRaw = (
     <div className={`${styles['card-foot']} ${styles['recipe-foot']}`}>
       {onCook && (
@@ -985,6 +986,11 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: Card
       {missIdx.length > 0 && onNeedToList && (
         <button type="button" className={styles['recipe-tolist']} disabled={!leftToList.length} onClick={addAllMissing} data-recipe-tolist>
           {leftToList.length ? `У список · ${leftToList.length}` : 'Уже в списку'}
+        </button>
+      )}
+      {onShare && rid && (
+        <button type="button" className={styles['recipe-share']} onClick={() => onShare(scaled, rid)} aria-label="Поділитись" data-recipe-share>
+          <Icon name="sys.share" size={16} inherit decorative /><span className={styles['recipe-share-text']}>Поділитись</span>
         </button>
       )}
     </div>
@@ -1067,7 +1073,7 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: Card
 // (кошик cook.missing amber на «докупити»), низ дій «Готуємо» + «У список·N»
 // (той самий низ, що в артефакті). Праворуч лишається лише «↩ уточнити» —
 // cooking-pot і зелене коло пішли: картка вже відкрита, відкривати нема куди.
-export function RecipeStreamCard({ card, active, onOpen, onCook, onNeedToList, live }: { card: ChatCard; active?: boolean; onOpen?: () => void; onCook?: (recipe: Recipe, recipeId?: string) => void; onNeedToList?: (label: string, v: number | undefined, u: string | undefined, forDish: string) => void; live?: Map<string, LivePosition> }) {
+export function RecipeStreamCard({ card, active, onOpen, onCook, onShare, onNeedToList, live }: { card: ChatCard; active?: boolean; onOpen?: () => void; onCook?: (recipe: Recipe, recipeId?: string) => void; onShare?: (recipe: Recipe, recipeId?: string) => void; onNeedToList?: (label: string, v: number | undefined, u: string | undefined, forDish: string) => void; live?: Map<string, LivePosition> }) {
   const r = card.recipe;
   const rid = card.recipe_id;
   const title = card.title ?? r?.t ?? 'Рецепт';
@@ -1148,6 +1154,11 @@ export function RecipeStreamCard({ card, active, onOpen, onCook, onNeedToList, l
           {missIdx.length > 0 && onNeedToList && (
             <button type="button" className={styles['recipe-tolist']} disabled={!leftToList.length} onClick={addAllMissing} data-recipe-tolist>
               {leftToList.length ? `У список · ${leftToList.length}` : 'Уже в списку'}
+            </button>
+          )}
+          {onShare && scaled && rid && (
+            <button type="button" className={styles['recipe-share']} onClick={() => onShare(scaled, rid)} aria-label="Поділитись" data-recipe-share>
+              <Icon name="sys.share" size={16} inherit decorative /><span className={styles['recipe-share-text']}>Поділитись</span>
             </button>
           )}
         </div>

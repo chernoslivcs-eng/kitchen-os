@@ -58,6 +58,9 @@
 .cta { background: var(--sage-bg); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
 .cta-text { font-size: 14px; line-height: 1.45; color: var(--sage); }
 .cta-text b { font-weight: 600; }
+/* Шерінг v3: рядок «що це» для незнайомця — над кнопкою входу, тихіше за неї. */
+.cta-intro { margin: 0; font-size: 13px; line-height: 1.5; color: var(--sage); opacity: .85; }
+.cta-about { color: inherit; font-weight: 600; text-decoration: underline; }
 .cta-btn {
   height: 42px; border: 0; border-radius: 10px;
   background: var(--ink); color: var(--bg);

@@ -25,7 +25,9 @@ export type EventName =
   // Підкреслення, як у решти подій продукту: через дефіс пишуться ІНЦИДЕНТИ
   // ('intake-op-missed'), і це два різні набори.
   | 'welcome_started' | 'welcome_card_reached' | 'welcome_finished' | 'welcome_skipped'
-  | 'onboarding_started' | 'onboarding_panel_reached' | 'onboarding_finished' | 'onboarding_skipped';
+  | 'onboarding_started' | 'onboarding_panel_reached' | 'onboarding_finished' | 'onboarding_skipped'
+  // Шерінг v3 (spec §3): одна подія на кожну дію — share/save/telegram/copy_link.
+  | 'share';
 
 interface Queued { name: EventName; props?: Record<string, unknown>; at: string }
 
