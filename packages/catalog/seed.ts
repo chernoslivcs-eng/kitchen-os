@@ -921,6 +921,7 @@ const CATALOG_0: CatalogItem[] = [
     categories: ['соус'],
     allergen_groups: [],
     zone_default: 'spices',
+    nutrition: { protein: 1.93, fat: 0.93, carbs: 19.16, fiber: 2.2, sugars: 15.11, sodium_mg: 2124, source: 'usda:171186' },
   },
   {
     key: 'soy_sauce',
@@ -4051,7 +4052,7 @@ const CATALOG_2: CatalogItem[] = [
     categories: ['тунець', 'рибні консерви', 'консерви', 'риба', 'тваринне'],
     allergen_groups: ['риба'],
     zone_default: 'dry',
-    nutrition: { protein: 19.44, fat: 0.96, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 247, source: 'usda:173709' },
+    nutrition: { protein: 27, fat: 0.8, carbs: 0.7, fiber: 0, source: 'label:rozetka.com.ua@2026-09-22' },
   },
   {
     key: 'fish_tuna_in_oil',
@@ -46453,6 +46454,7 @@ const CATALOG_18: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     priority: -1,
+    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, alcohol: 18.26, source: 'ciqual:1003' },
   },
   {
     key: 'gen_tincture',
@@ -46507,6 +46509,7 @@ const CATALOG_18: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     priority: -1,
+    nutrition: { protein: 0, fat: 0, carbs: 4.4, fiber: 0, sugars: 4, source: 'label:carl-jung.de@2026-09-22' },
   },
   {
     // Те саме, що з безалкогольним вином: у полі product стоїть рід «локшина
@@ -46519,6 +46522,7 @@ const CATALOG_18: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'dry',
     priority: -1,
+    nutrition: { protein: 10.17, fat: 17.59, carbs: 60.26, fiber: 2.9, sugars: 1.98, sodium_mg: 1855, source: 'usda:171177' },
   },
   {
     key: 'r2k_sundried_tomatoes_cheese',
@@ -46535,6 +46539,7 @@ const CATALOG_18: CatalogItem[] = [
     categories: ['оливки', 'консерви', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
+    nutrition: { protein: 1.2, fat: 22.6, carbs: 0, fiber: 0, source: 'label:elolivo.ie@2026-09-22' },
   },
   {
     key: 'r2k_olive_oil_flavoured',
@@ -46544,6 +46549,7 @@ const CATALOG_18: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'spices',
     density: 0.91,
+    nutrition: { protein: 0, fat: 92, carbs: 0, fiber: 0, source: 'label:metro.ua@2026-09-22' },
   },
 ];
 
