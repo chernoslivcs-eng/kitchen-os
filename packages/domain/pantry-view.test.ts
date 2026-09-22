@@ -145,11 +145,11 @@ describe('pantryItemView', () => {
   // узагальненого рядка каталожної позиції, коли резолвер дав сильний збіг.
   it('назва продукту дому виграє в каталожного рядка, коли резолвер її впізнав сильним правилом', () => {
     // catalog_key навмисно «chicken_fillet» (kcal=114) — щоб довести, що
-    // застосувався САМЕ рядок «Гірчиця» з назви продукту (kcal=60), не каталог.
+    // застосувався САМЕ рядок «Гірчиця» з назви продукту (kcal=158), не каталог.
     const b = batch('Гірчиця Верес', { catalog_key: 'chicken_fillet', product_id: 'p1' });
     const prod = { id: 'p1', household_id: b.household_id, product: 'гірчиця', brand: 'Верес', variant: null, catalog_key: 'chicken_fillet', tags: {}, unit: null, pack_size: null, created_at: b.added_at } satisfies Parameters<typeof pantryItemView>[1];
     const v = pantryItemView(b, prod, [], new Set(), NOW);
-    expect(v.kcal).toBe(60); // «Гірчиця» (usda:172234), не chicken_fillet (114)
+    expect(v.kcal).toBe(158); // «Гірчиця» (label:veresfood.com@2026-09-22, етап 4), не chicken_fillet (114)
     expect(v.catalog_key).toBe('chicken_fillet'); // сам ключ — не чіпається, лише БЖВ
   });
   it('назва продукту дому без уточнення — резолвер мовчить, лишається каталожний рядок (як було)', () => {

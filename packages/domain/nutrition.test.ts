@@ -205,7 +205,7 @@ describe('resolveNutrition: назва продукту дому виграє в
   const catalogFallback: Nutrition = { protein: 1, fat: 1, carbs: 1, source: 'estimate' };
   it('продукт дому впізнано (exact) — його рядок, не каталожний', () => {
     const r = resolveNutrition(catalogFallback, 'Гірчиця');
-    expect(r).toEqual({ protein: 3.74, fat: 3.34, carbs: 5.83, fiber: 4, sugars: 0.92, sodium_mg: 1104, source: 'usda:172234' });
+    expect(r).toEqual({ protein: 6.4, fat: 7.8, carbs: 15.6, fiber: 0, source: 'label:veresfood.com@2026-09-22' });
   });
   it('назва без уточнення / резолвер мовчить — каталожний рядок, як і раніше', () => {
     expect(resolveNutrition(catalogFallback, 'щось геть невідоме xyz987')).toBe(catalogFallback);

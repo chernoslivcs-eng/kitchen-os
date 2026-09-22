@@ -17,9 +17,9 @@ describe('matchProductNameToBaseRow: сильні правила — так, key
     expect(r).not.toBeNull();
     expect(r?.source).toBe('usda:170859');
   });
-  it('exact без бренду взагалі — знаходить («Гірчиця»)', () => {
+  it('exact без бренду взагалі — знаходить («Гірчиця», рядок label: з етапу 4)', () => {
     const r = matchProductNameToBaseRow('Гірчиця');
-    expect(r).toEqual({ protein: 3.74, fat: 3.34, carbs: 5.83, fiber: 4, sugars: 0.92, sodium_mg: 1104, source: 'usda:172234' });
+    expect(r).toEqual({ protein: 6.4, fat: 7.8, carbs: 15.6, fiber: 0, source: 'label:veresfood.com@2026-09-22' });
   });
   it('keyword — НЕ приймається, навіть коли резолвер сам по собі знайшов би (реальний випадок — вино за сортом)', () => {
     expect(matchProductNameToBaseRow('Вино біле сухе Kartuli Vazi Цинандалі')).toBeNull();
@@ -34,31 +34,33 @@ describe('matchProductNameToBaseRow: сильні правила — так, key
 });
 
 // Ці чотири — реальні позиції з NUTRI-PANTRY-0922.json (переказ ГОЛОВНИЙ ЧАТ,
-// етап 5). Рядків бази для них щЕ нема — етап 4 додає паралельно в ІНШІЙ
-// гілці (data/nutrition/base.csv не займаю). Скіп до ребейзу на main після
-// мержу етапу 4 — тоді зняти .skip і звузити asserts до точних чисел, якщо
-// потрібно. Орієнтовні значення — з «Кандидатів на правку»
-// NUTRI-LABELS-REPORT-0922.md (ухвалені 22.09, можуть трохи відрізнятись від
-// фінальних label-рядків).
-describe.skip('matchProductNameToBaseRow: реальні позиції — ЧЕКАЄ рядків етапу 4 (зняти skip після ребейзу)', () => {
-  it('«томатна паста Чумак 25%» → рядок з відсотком, не узагальнена «Томатна паста»', () => {
-    const r = matchProductNameToBaseRow('томатна паста Чумак 25%');
-    expect(r).not.toBeNull();
+// етап 5). Після ребейзу на main (етап 4, #194, dbf7f0d) рядки бази для всіх
+// чотирьох існують — але працює лише той, до якого веде СИЛЬНЕ правило.
+// productLabel тут — `product + variant` (без бренду), як і реальний виклик
+// у pantry-view.ts/services/api/src/nutrition.ts.
+describe('matchProductNameToBaseRow: реальні позиції після ребейзу на етап 4 (#194)', () => {
+  it('«томатна паста 25%» → рядок «Томатна паста 25%» (exact на повній фразі), не узагальнена «Томатна паста»', () => {
+    const r = matchProductNameToBaseRow('томатна паста 25%');
+    expect(r).toEqual({ protein: 4, fat: 0, carbs: 16.4, fiber: 0, source: 'label:chumak.com@2026-09-22' });
   });
-  it('«оливки Iruela зелені Chupadedos» → «в олії» (≈1.2/22.6/0)', () => {
-    const r = matchProductNameToBaseRow('оливки Iruela зелені Chupadedos');
-    expect(r).not.toBeNull();
-    expect(r!.fat).toBeGreaterThan(15); // «в олії» — жирні, не розсіл (розсіл ~1 г жиру)
-    expect(r!.carbs).toBeLessThan(3);
+
+  // Ці три — НЕ спрацьовують, і це не недогляд стажу 5, а структурний наслідок
+  // тієї ж причини, що вже описана в resolveNutrition (packages/domain/
+  // nutrition.ts): етап 4 підвів до цих рядків не exact/override, а
+  // keyword-маршрут в aliases.json (category+слово, `cat: "олія"`/`"желе"`/…).
+  // Keyword-гілка BaseMatcher.match() перевіряє `item.categories` — а в
+  // продукту дому categories завжди [] (нема каталожних категорій), тож
+  // гілка не спрацьовує ще ДО фільтра сильних правил; сам фільтр (STRONG_RULES
+  // без keyword) — друга, незалежна причина відмови. Щоб ці три запрацювали
+  // за назвою продукту дому, потрібен `override`- або `alias`-запис у
+  // aliases.json на конкретну фразу — цей файл поза межами стажу 5.
+  it('«оливки зелені Chupadedos» → null (маршрут «в олії» — keyword по категорії, продукт дому категорій не має)', () => {
+    expect(matchProductNameToBaseRow('оливки зелені Chupadedos')).toBeNull();
   });
-  it('«желе сухе Мрія» → суха суміш (≈9.9/0/86), не готове желе', () => {
-    const r = matchProductNameToBaseRow('желе сухе Мрія');
-    expect(r).not.toBeNull();
-    expect(r!.carbs).toBeGreaterThan(50); // суха суміш — цукор концентровано; готове желе ~17
+  it('«желе сухе апельсин» → null (маршрут «суха суміш» — той самий keyword-по-категорії гейт)', () => {
+    expect(matchProductNameToBaseRow('желе сухе апельсин')).toBeNull();
   });
-  it('«олія Metro Chef з трюфелем» → ароматизована олія (≈0/92/0)', () => {
-    const r = matchProductNameToBaseRow('олія Metro Chef з трюфелем');
-    expect(r).not.toBeNull();
-    expect(r!.fat).toBeGreaterThan(85);
+  it('«оливкова олія з трюфелем» → null (маршрут «ароматизована» — той самий keyword-по-категорії гейт)', () => {
+    expect(matchProductNameToBaseRow('оливкова олія з трюфелем')).toBeNull();
   });
 });

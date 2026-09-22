@@ -71,8 +71,8 @@ describe('GET /v1/recipes/:id → nutrition_calc', () => {
     await repo.saveRecipe({ id, owner_id: me.user_id, origin: 'generated', title: recipe.t, descr: null, character: null, risk: null, base_servings: 1, time_total: 5, nutrition: null, payload: recipe, created_at: new Date().toISOString(), saved_at: null });
     const res = await app.inject({ method: 'GET', url: `/v1/recipes/${id}`, headers: { cookie: me.cookie } });
     const calc = (res.json() as { nutrition_calc: { per_serving: { kcal: number } } }).nutrition_calc;
-    // «Гірчиця» (usda:172234, 100 г) = 60 ккал, НЕ chicken_fillet (114 на 100 г).
-    expect(calc.per_serving.kcal).toBe(60);
+    // «Гірчиця» (label:veresfood.com@2026-09-22, етап 4, 100 г) = 158 ккал, НЕ chicken_fillet (114 на 100 г).
+    expect(calc.per_serving.kcal).toBe(158);
   });
 
   it('усі інгредієнти з джерелом, без пропусків — без ≈', async () => {
