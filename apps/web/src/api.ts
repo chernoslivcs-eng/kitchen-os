@@ -108,7 +108,7 @@ export interface Me {
   };
   session_id: string;
   /** Шерінг v3: Telegram живо привʼязаний (не /stop) — «Надіслати в Telegram» на /share. */
-  telegram_linked: boolean;
+  telegram_linked?: boolean;
 }
 
 // --- Крок О1: /admin/pulse -------------------------------------------------

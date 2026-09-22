@@ -74,7 +74,7 @@ export function SharePage() {
         if (!alive) return;
         setRecipe(recipeRes.recipe);
         setRun(pickCookRun(runsRes.runs, recipe_id, runParam));
-        setTelegramLinked(me.telegram_linked);
+        setTelegramLinked(me.telegram_linked ?? false);
         setLoadState('ready');
       } catch {
         if (alive) setLoadState('error');

@@ -62,6 +62,10 @@ function defaultFetch(url: string): Promise<Response> {
 }
 
 beforeEach(() => {
+  // jsdom не має scrollIntoView (карусель 390 центрує активний кадр ним).
+  if (!('scrollIntoView' in Element.prototype)) {
+    Object.defineProperty(Element.prototype, 'scrollIntoView', { value: () => {}, configurable: true, writable: true });
+  }
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => fakeCtx());
   vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (this: HTMLCanvasElement, cb: BlobCallback) {
     // Той самий асинхронний характер, що справжній toBlob (черга мікрозадач).
