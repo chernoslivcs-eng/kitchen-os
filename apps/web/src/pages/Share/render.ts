@@ -4,7 +4,7 @@
 // Share v3.dc.html» (істина для вигляду).
 import type { FrameData, MeasureFn, Brightness, CropState } from './frame';
 import {
-  fitTitle, fitIngredients, fitDescription, verticalFontSize, fitVerticalColumn, fitVerticalIngLine, classifyBrightness, clampCrop,
+  fitTitle, fitIngredients, fitIngredientName, fitDescription, verticalFontSize, fitVerticalColumn, fitVerticalIngLine, classifyBrightness, clampCrop,
   splitLayoutTitle, layoutGridItems, layoutChipLabel, ellipsize,
 } from './frame';
 
@@ -160,27 +160,50 @@ function drawTopSection(
   y += 48 + 30;
   noShadow(ctx);
 
+  // Хотфікс (прод, 22.09): назва без обмеження ширини налазила на сусідню
+  // колонку («анчоуси Rizzoli кантабрійські в оливковій олії» поверх
+  // «томати пелаті Metro Chef цілі очищені»). ≤2 рядки в межах colW
+  // (fitIngredientName), кількість — під назвою; висота КЛІТИНКИ залежить
+  // від числа рядків її власної назви, висота РЯДКА сітки — від вищої з
+  // двох клітинок у ньому, щоб наступний рядок нічого не накрив.
   const { shown, more } = fitIngredients(data.ingredients);
   const colW = (maxWidth - 56) / 2;
-  const cellH = 34 + 2 + 28 + 12; // qty + gap + name-line-approx + gap
+  const nameFont = `400 28px ${FONT}`;
+  const NAME_LH = 30; // = стара фіксована відстань «назва → кількість» на 1 рядку (cy+30)
+  const CELL_TAIL = 34 + 12; // рядок кількості (34px) + нижній відступ — як у старому cellH
+  const nameLinesOf = shown.map((ing) => fitIngredientName(ing.name, measure, nameFont, colW, 2));
+  const cellH = (lines: number) => lines * NAME_LH + CELL_TAIL;
+  const totalCells = shown.length + (more != null ? 1 : 0);
+  const rows = Math.ceil(totalCells / 2);
+  const rowY: number[] = [];
+  let cursorY = y;
+  for (let r = 0; r < rows; r++) {
+    rowY.push(cursorY);
+    const li = r * 2, ri = r * 2 + 1;
+    const lh = li < shown.length ? nameLinesOf[li]!.length : 1; // «ще N» — як 1-рядкова
+    const rh = ri < shown.length ? nameLinesOf[ri]!.length : 1;
+    cursorY += cellH(Math.max(lh, rh));
+  }
   shown.forEach((ing, i) => {
     const col = i % 2, row = Math.floor(i / 2);
     const cx = PAD + col * (colW + 56);
-    const cy = y + row * cellH;
+    const cy = rowY[row]!;
+    const nameLines = nameLinesOf[i]!;
     shadow(ctx, colors.shadow, 5);
     ctx.fillStyle = colors.label;
-    ctx.font = `400 28px ${FONT}`;
+    ctx.font = nameFont;
     ctx.textBaseline = 'top';
-    ctx.fillText(ing.name, cx, cy);
+    nameLines.forEach((line, li) => ctx.fillText(line, cx, cy + li * NAME_LH));
+    const qtyY = cy + nameLines.length * NAME_LH;
     ctx.fillStyle = colors.value;
     ctx.font = `600 34px ${FONT}`;
-    ctx.fillText(ing.qty, cx, cy + 30);
+    ctx.fillText(ing.qty, cx, qtyY);
     if (colors.ingSep) {
       noShadow(ctx);
       ctx.strokeStyle = colors.ingSep;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(cx, cy + 64); ctx.lineTo(cx + colW, cy + 64);
+      ctx.moveTo(cx, qtyY + 34); ctx.lineTo(cx + colW, qtyY + 34);
       ctx.stroke();
     }
   });
@@ -188,18 +211,17 @@ function drawTopSection(
     const i = shown.length;
     const col = i % 2, row = Math.floor(i / 2);
     const cx = PAD + col * (colW + 56);
-    const cy = y + row * cellH;
+    const cy = rowY[row]!;
     shadow(ctx, colors.shadow, 5);
     ctx.globalAlpha = 0.8;
     ctx.fillStyle = colors.label;
-    ctx.font = `400 28px ${FONT}`;
+    ctx.font = nameFont;
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(`ще ${more}`, cx, cy + 34);
     ctx.globalAlpha = 1;
   }
   noShadow(ctx);
-  const rows = Math.ceil((shown.length + (more != null ? 1 : 0)) / 2);
-  return y + rows * cellH;
+  return cursorY;
 }
 
 /** «Про смак» + опис + знак — нижня секція, top 1570…1810 (spec §1). */

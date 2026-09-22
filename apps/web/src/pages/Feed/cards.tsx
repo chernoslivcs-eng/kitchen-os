@@ -990,7 +990,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onNeedToList, batchLabel
       )}
       {onShare && rid && (
         <button type="button" className={styles['recipe-share']} onClick={() => onShare(scaled, rid)} aria-label="Поділитись" data-recipe-share>
-          <Icon name="sys.share" size={16} inherit decorative /><span className={styles['recipe-share-text']}>Поділитись</span>
+          <Icon name="sys.share" size={16} inherit decorative />
         </button>
       )}
     </div>
@@ -1158,7 +1158,7 @@ export function RecipeStreamCard({ card, active, onOpen, onCook, onShare, onNeed
           )}
           {onShare && scaled && rid && (
             <button type="button" className={styles['recipe-share']} onClick={() => onShare(scaled, rid)} aria-label="Поділитись" data-recipe-share>
-              <Icon name="sys.share" size={16} inherit decorative /><span className={styles['recipe-share-text']}>Поділитись</span>
+              <Icon name="sys.share" size={16} inherit decorative />
             </button>
           )}
         </div>
