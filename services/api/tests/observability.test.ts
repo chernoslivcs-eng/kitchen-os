@@ -196,13 +196,15 @@ describe('GET /v1/admin/pulse', () => {
 });
 
 describe('набір подій', () => {
-  it('закритий список — тридцять точок, не кліки підряд', () => {
+  it('закритий список — тридцять одна точка, не кліки підряд', () => {
     // Крок А1: тринадцять було до знайомства й картки «Про тебе»; вісім нових
     // закривають рівно ті два місця, де людина могла мовчки застрягти;
     // 15.09 — вісім подій Telegram-бота (пише сервер, telegram.ts botEvent);
     // 20.09 — recipe_json_failed (сервер, chat-turn): міряємо нерозбірний JSON рецепта.
-    expect(KNOWN_EVENTS.size).toBe(30);
+    // 22.09 — share (шерінг v3): веб через /v1/events, Telegram — сервер.
+    expect(KNOWN_EVENTS.size).toBe(31);
     expect(KNOWN_EVENTS.has('recipe_json_failed')).toBe(true);
+    expect(KNOWN_EVENTS.has('share')).toBe(true);
     expect(KNOWN_EVENTS.has('chat_input_abandoned')).toBe(true);
     expect(KNOWN_EVENTS.has('error_shown')).toBe(true);
   });
