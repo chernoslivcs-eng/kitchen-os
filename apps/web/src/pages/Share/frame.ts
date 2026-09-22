@@ -32,6 +32,7 @@ export interface FrameData {
   ingredients: FrameIngredient[];
   description: string;
   date: string;
+  character: string;
 }
 
 // Той самий форматер, що картка рецепта в стрічці (cards.tsx/Recipe.tsx):
@@ -48,6 +49,7 @@ export function frameDataOf(recipe: Recipe, finishedAt: string | null | undefine
     ingredients: recipe.ing.map((i) => ({ name: i.n ?? i.p ?? '', qty: ingredientQty(i) })),
     description: recipe.d,
     date: frameDate(finishedAt),
+    character: recipe.ch,
   };
 }
 
@@ -156,6 +158,69 @@ export function verticalFontSize(title: string, measure: MeasureFn, maxWidth = 1
   return null;
 }
 
+// Правка (п.13, 22.09; замінено 22.09 — власник: «хай буде дрібно, як у
+// макеті»): дві вертикальні колонки поряд із ротованою назвою, той самий
+// writing-mode — з первісного D1 (макет «Kitchen OS - Share v3.dc.html»,
+// секція D, до спрощення «без колонок»). Колонка 1 — «<характер>. <опис>»
+// 22/600; колонка 2 — інгредієнти через « · » (`ingLine` з макета: nbsp
+// усередині елемента, розрив лише на роздільнику) 22/400. Обидві line-
+// height 1.4, максимальна довжина рядка (=«висота» в ротованій системі) 700
+// з 1920. Виняток із правила «мінімум 28px» — свідомий, власник прийняв.
+function wrapTokens(tokens: string[], measure: MeasureFn, font: string, maxWidth: number, sep = ' · '): string[] {
+  if (!tokens.length) return [''];
+  const lines: string[] = [];
+  let line = tokens[0]!;
+  for (let i = 1; i < tokens.length; i++) {
+    const test = `${line}${sep}${tokens[i]}`;
+    if (measure(test, font) > maxWidth) { lines.push(line); line = tokens[i]!; }
+    else line = test;
+  }
+  lines.push(line);
+  return lines;
+}
+// Останній показаний рядок, коли рядків більше за maxLines або сам рядок
+// задовгий (нерозривний токен) — «…» несе залишок (той самий принцип, що
+// fitTitle/fitDescription).
+function capLines(lines: string[], measure: MeasureFn, font: string, maxWidth: number, maxLines: number, sep: string): string[] {
+  if (linesFit(lines, measure, font, maxWidth, maxLines)) return lines;
+  const shown = lines.slice(0, maxLines);
+  const last = shown.length - 1;
+  if (last < 0) return shown;
+  if (lines.length > maxLines) {
+    shown[last] = ellipsize([shown[last], ...lines.slice(maxLines)].join(sep), measure, font, maxWidth);
+  } else if (measure(shown[last]!, font) > maxWidth) {
+    shown[last] = ellipsize(shown[last]!, measure, font, maxWidth);
+  }
+  return shown;
+}
+
+// Колонка 1: «<характер>. <опис>» — звичайний word-wrap (проза).
+export function fitVerticalColumn(text: string, measure: MeasureFn, maxHeight = 700, size = 22, weight = 600, lineHeight = 1.4): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  const font = `${weight} ${size}px ${FONT}`;
+  const maxLines = Math.max(1, Math.floor(maxHeight / (size * lineHeight)));
+  const lines = wrapLines(trimmed, measure, font, maxHeight);
+  return capLines(lines, measure, font, maxHeight, maxLines, ' ');
+}
+
+// Колонка 2: рядок інгредієнтів — та сама формула, що `ingLine` в макеті
+// (nbsp усередині кожного елемента через replace(/ /g,' '), щоб розрив
+// рядка міг статись лише на роздільнику « · »).
+export function ingLineOf(ingredients: FrameIngredient[]): string {
+  return ingredients
+    .map((i) => (i.qty === '—' ? i.name : `${i.name} ${i.qty}`).replace(/ /g, ' '))
+    .join(' · ');
+}
+export function fitVerticalIngLine(ingredients: FrameIngredient[], measure: MeasureFn, maxHeight = 700, size = 22, weight = 400, lineHeight = 1.4): string[] {
+  if (!ingredients.length) return [];
+  const font = `${weight} ${size}px ${FONT}`;
+  const maxLines = Math.max(1, Math.floor(maxHeight / (size * lineHeight)));
+  const tokens = ingLineOf(ingredients).split(' · ');
+  const lines = wrapTokens(tokens, measure, font, maxHeight);
+  return capLines(lines, measure, font, maxHeight, maxLines, ' · ');
+}
+
 // ── Яскравість фото: середня відносна яскравість верхніх 45% + нижніх 18% ──
 // пікселів (після кропу, зменшена копія) — > 0.6 → світла, інакше темна.
 export type Brightness = 'light' | 'dark';
@@ -197,6 +262,13 @@ export function clampCrop(state: CropState): CropState {
 
 export function resetCrop(): CropState {
   return { ...CROP_DEFAULT };
+}
+
+// Правка (п.14, 22.09): кнопка «Скинути кадр» видима лише коли кроп
+// відхилився від дефолту (подвійний тап/клік більше не скидає — конфліктує
+// з новим одинарним тапом перемикання кадру).
+export function isCropDefault(crop: CropState): boolean {
+  return crop.scale === CROP_DEFAULT.scale && crop.x === CROP_DEFAULT.x && crop.y === CROP_DEFAULT.y;
 }
 
 // Правка 22.09 (п.10): перетягування було інвертоване — тягнеш униз, фото

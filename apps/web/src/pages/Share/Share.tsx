@@ -13,7 +13,7 @@ import { Icon } from '../../components/Icon/Icon';
 import { api, type Recipe, type CookRunWithRecipe } from '../../api';
 import { track } from '../../lib/track';
 import { captureClientIncident } from '../../lib/sentry';
-import { pickCookRun, frameDataOf, verticalFontSize, clampCrop, resetCrop, applyCropDrag, type FrameData, type CropState } from './frame';
+import { pickCookRun, frameDataOf, verticalFontSize, clampCrop, resetCrop, applyCropDrag, isCropDefault, type FrameData, type CropState } from './frame';
 import { drawPoster, drawVertical, drawLayout, drawClean, measureFn, FRAME_W, FRAME_H, CLEAN_LIGHT, CLEAN_DARK, type FrameKind } from './render';
 import styles from './Share.module.css';
 
@@ -159,32 +159,6 @@ export function SharePage() {
   // не шериться, тап відкриває вибір файлу замість перетягування кропу.
   const isPlaceholder = !photoUrl && activeKind !== 'clean';
 
-  // Карусель 390: центрувати активний кадр — на монтуванні й коли крапку
-  // обрали тапом (не лише коли людина сама гортає). Без цього перший кадр
-  // стояв притиснутий до лівого краю (flex justify-content: center лише
-  // всередині контенту, не рахує позицію скролу).
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const slotRefs = useRef<Partial<Record<FrameKind, HTMLDivElement | null>>>({});
-  useEffect(() => {
-    slotRefs.current[activeKind]?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'auto' });
-  }, [activeKind, frames]);
-  // Свайп рукою: під час ручного скролу вирахувати найближчий до центру кадр
-  // і синхронізувати підпис/крапки — тап по крапці ж робить зворотне (веде скрол).
-  function onCarouselScroll() {
-    const el = carouselRef.current;
-    if (!el) return;
-    const center = el.scrollLeft + el.clientWidth / 2;
-    let bestIdx = activeIdx, bestDist = Infinity;
-    frames.forEach((kind, i) => {
-      const slot = slotRefs.current[kind];
-      if (!slot) return;
-      const mid = slot.offsetLeft + slot.offsetWidth / 2;
-      const dist = Math.abs(mid - center);
-      if (dist < bestDist) { bestDist = dist; bestIdx = i; }
-    });
-    if (bestIdx !== activeIdx) setActiveIdx(bestIdx);
-  }
-
   // Полотна — по одному на доступний рендерер; ті самі елементи служать і
   // карусельним пунктом на 390, і великим прев'ю на 1440 (CSS перемикає
   // розмір/показ), тому малюються один раз незалежно від ширини екрана.
@@ -226,14 +200,23 @@ export function SharePage() {
     }
   }, [frameData, frames, isDark, crop]);
 
-  // ── Кроп: перетягування (обидві осі), пінч і колесо (масштаб 1–3×),
-  // подвійний тап/клік — скидання. Кілька активних pointerId одразу
-  // (Pointer Events дають кожному пальцю свій id) — 2 пальці = пінч,
-  // 1 — перетягування; перехід між ними скасовує drag/pinch-стан. ──
+  // ── Кроп: перетягування (обидві осі), пінч і колесо (масштаб 1–3×).
+  // Кілька активних pointerId одразу (Pointer Events дають кожному пальцю
+  // свій id) — 2 пальці = пінч, 1 — перетягування; перехід між ними скасовує
+  // drag/pinch-стан.
+  //
+  // Правка 22.09 (п.14): тап по прев'ю тепер перемикає кадр (замість
+  // свайпу каруселі) — подвійний тап/клік більше не може скидати кроп
+  // (конфлікт з одинарним тапом), скидання — окрема кнопка «Скинути кадр»
+  // нижче. Тап відрізняється від drag зсувом (<8px) і часом (<300мс) від
+  // pointerdown до pointerup — рахується НЕЗАЛЕЖНО від того, чи взагалі
+  // можливий кроп на цьому кадрі (заглушка/«Чисте тло» теж перемикаються
+  // тапом). tapRef обнуляється, щойно зʼявляється другий палець (пінч —
+  // не тап, навіть короткий). ──
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const dragRef = useRef<{ startX: number; startY: number; startCrop: CropState; w: number; h: number } | null>(null);
   const pinchRef = useRef<{ startDist: number; startScale: number } | null>(null);
-  const lastTapRef = useRef<number>(0);
+  const tapRef = useRef<{ x: number; y: number; t: number } | null>(null);
 
   function resetCropNow(): void {
     const next = resetCrop();
@@ -241,8 +224,12 @@ export function SharePage() {
     setCrop(next);
     saveCrop(runId, next);
   }
+  function advanceFrame(): void {
+    setActiveIdx((i) => (i + 1) % frames.length);
+  }
 
   function onCropPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+    tapRef.current = pointersRef.current.size === 0 ? { x: e.clientX, y: e.clientY, t: Date.now() } : null;
     if (!photoImgRef.current || activeKind === 'clean') return;
     const el = e.currentTarget;
     (el as HTMLCanvasElement).setPointerCapture(e.pointerId);
@@ -254,14 +241,6 @@ export function SharePage() {
       return;
     }
     if (pointersRef.current.size > 2) return;
-    // Один палець/миша: подвійний тап/клік у межах 300мс — скидання, не drag.
-    const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      lastTapRef.current = 0;
-      resetCropNow();
-      return;
-    }
-    lastTapRef.current = now;
     dragRef.current = { startX: e.clientX, startY: e.clientY, startCrop: crop, w: el.clientWidth, h: el.clientHeight };
   }
   function onCropPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -290,6 +269,12 @@ export function SharePage() {
       dragRef.current = null;
       saveCrop(runId, cropRef.current);
     }
+    const tap = tapRef.current;
+    tapRef.current = null;
+    if (!tap) return;
+    const dist = Math.hypot(e.clientX - tap.x, e.clientY - tap.y);
+    const elapsed = Date.now() - tap.t;
+    if (dist < 8 && elapsed < 300) advanceFrame();
   }
   // React додає onWheel як passive listener — e.preventDefault() у ньому
   // мовчки нічого не робить (сторінка все одно скролиться під час зуму
@@ -308,17 +293,6 @@ export function SharePage() {
     setCrop(next);
     saveCrop(runIdRef.current, next);
   }, []);
-  function onCropDoubleClick() {
-    if (!photoImgRef.current || activeKind === 'clean') return;
-    resetCropNow();
-  }
-  // Заглушка (правка 8): тап по кадру без фото відкриває вибір файлу —
-  // єдина дія, доступна на такому кадрі (перетягування/пінч і так вимкнені
-  // вище через !photoImgRef.current).
-  function onCanvasClick() {
-    if (isPlaceholder) fileInputRef.current?.click();
-  }
-
   // ── Фото: замінити/додати ──
   const fileInputRef = useRef<HTMLInputElement>(null);
   async function onPickPhoto(files: FileList | null) {
@@ -520,9 +494,9 @@ export function SharePage() {
 
       <div className={styles.body}>
         <div className={styles.previewCol}>
-          <div className={styles.carousel} data-frame-count={frames.length} ref={carouselRef} onScroll={onCarouselScroll}>
+          <div className={styles.carousel} data-frame-count={frames.length}>
             {frames.map((kind) => (
-              <div key={kind} ref={(el) => { slotRefs.current[kind] = el; }} className={styles.frameSlot} data-frame-slot={kind} data-active={kind === activeKind || undefined}>
+              <div key={kind} className={styles.frameSlot} data-frame-slot={kind} data-active={kind === activeKind || undefined}>
                 <canvas
                   ref={(el) => {
                     canvasRefs.current[kind] = el;
@@ -539,8 +513,6 @@ export function SharePage() {
                   onPointerMove={onCropPointerMove}
                   onPointerUp={onCropPointerUp}
                   onPointerCancel={onCropPointerUp}
-                  onDoubleClick={onCropDoubleClick}
-                  onClick={onCanvasClick}
                 />
               </div>
             ))}
@@ -553,16 +525,16 @@ export function SharePage() {
           <div className={styles.frameRow}>
             <span className={styles.frameLabel}>{FRAME_LABEL[activeKind]}{activeKind === 'poster' && photoUrl ? ' · з фото' : ''}</span>
             {frames.length > 1 && (
-              <span className={styles.dots} role="tablist" aria-label="Кадр">
-                {frames.map((kind, i) => (
-                  <button key={kind} type="button" role="tab" aria-selected={i === activeIdx}
-                    className={`${styles.dot} ${i === activeIdx ? styles.dotOn : ''}`} onClick={() => setActiveIdx(i)} data-dot={kind} />
-                ))}
-              </span>
+              <span className={styles.frameCounter} data-frame-counter>{activeIdx + 1} / {frames.length}</span>
             )}
-            <button type="button" className={`${styles.replacePhoto} ${!photoUrl ? styles.replacePhotoAdd : ''}`} onClick={() => fileInputRef.current?.click()} disabled={savingPhoto} data-pick-photo>
-              <Icon name="sys.photo" size={16} inherit decorative />{photoUrl ? 'Замінити фото' : 'Додати фото'}
-            </button>
+            <span className={styles.frameRowRight}>
+              {!isCropDefault(crop) && (
+                <button type="button" className={styles.resetCrop} onClick={resetCropNow} data-reset-crop="mobile">Скинути кадр</button>
+              )}
+              <button type="button" className={`${styles.replacePhoto} ${!photoUrl ? styles.replacePhotoAdd : ''}`} onClick={() => fileInputRef.current?.click()} disabled={savingPhoto} data-pick-photo>
+                <Icon name="sys.photo" size={16} inherit decorative />{photoUrl ? 'Замінити фото' : 'Додати фото'}
+              </button>
+            </span>
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => void onPickPhoto(e.target.files)} />
           {photoErr && <div className={styles.photoErr} data-photo-error>{photoErr}</div>}
@@ -587,9 +559,14 @@ export function SharePage() {
                 </button>
               ))}
             </div>
-            <button type="button" className={styles.replacePhotoDesktop} onClick={() => fileInputRef.current?.click()} disabled={savingPhoto}>
-              <Icon name="sys.photo" size={16} inherit decorative />{photoUrl ? 'Замінити фото' : 'Додати фото'}
-            </button>
+            <span className={styles.thumbColActions}>
+              {!isCropDefault(crop) && (
+                <button type="button" className={styles.resetCropDesktop} onClick={resetCropNow} data-reset-crop="desktop">Скинути кадр</button>
+              )}
+              <button type="button" className={styles.replacePhotoDesktop} onClick={() => fileInputRef.current?.click()} disabled={savingPhoto}>
+                <Icon name="sys.photo" size={16} inherit decorative />{photoUrl ? 'Замінити фото' : 'Додати фото'}
+              </button>
+            </span>
           </div>
 
           <div className={styles.mobileActions}>

@@ -42,21 +42,17 @@
   gap: 4px;
 }
 
-/* ── Карусель (390): кадр 236×420, сусіди визирають 24px ── */
+/* ── Прев'ю (390), правка 22.09 (п.14): один кадр по центру, БЕЗ горизон-
+ * тального скролу/каруселі — перемикання кадрів тапом по прев'ю (не
+ * свайпом). Той самий приховувальний патерн [data-active], що на 1440. */
 .previewCol { display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; }
-/* Бічний відступ = (контейнер − кадр)/2: перший/останній кадр стає по
- * центру вже на scrollLeft:0/max, сусід визирає симетрично. `justify-
- * content: center` тут пастка — коли вміст ширший за контейнер (завжди,
- * 3 кадри по 236px), браузер ЦЕНТРУЄ ВЕСЬ РЯД округ scrollLeft:0, і
- * природний (нескрольований) кадр — ДРУГИЙ, не перший; перший стає
- * недосяжним без прокрутки «в мінус», якої не буває. */
 .carousel {
-  display: flex; gap: 12px; align-items: center;
-  overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
-  padding: 0 calc((100% - 236px) / 2);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  width: 236px; height: 420px; margin: 0 auto;
 }
-.carousel::-webkit-scrollbar { display: none; }
-.frameSlot { flex: none; scroll-snap-align: center; }
+.frameSlot { position: absolute; inset: 0; display: none; }
+.frameSlot[data-active] { display: block; }
 .frameCanvas {
   display: block;
   width: 236px; height: 420px;
@@ -80,11 +76,20 @@
 
 .frameRow { display: flex; align-items: center; gap: 14px; height: 36px; padding: 0 16px; }
 .frameLabel { font-family: var(--font-body); font-size: 13px; font-weight: 500; }
-.dots { display: flex; gap: 6px; }
-.dot { width: 6px; height: 6px; border: 0; border-radius: 50%; background: var(--line2); padding: 0; cursor: pointer; }
-.dotOn { background: var(--ink); }
+/* Правка 22.09 (п.14): крапки-індикатори прибрано (перемикання — тапом по
+ * прев'ю, не свайпом) — замість них лічильник поряд із підписом кадру. */
+.frameCounter { font-family: var(--font-body); font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+/* Групує «Скинути кадр» (умовна) і «Замінити фото» праворуч разом — auto-
+ * маржа на самій .replacePhoto тут не годиться: коли reset-кнопки нема
+ * (кроп на дефолті), replacePhoto лишається одна й має лишатись праворуч. */
+.frameRowRight { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.resetCrop {
+  height: 36px; padding: 0 8px; border: 0; background: transparent;
+  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted);
+  cursor: pointer;
+}
 .replacePhoto {
-  margin-left: auto; height: 36px; padding: 0 8px; border: 0; background: transparent;
+  height: 36px; padding: 0 8px; border: 0; background: transparent;
   font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted);
   display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
 }
@@ -184,6 +189,14 @@
     align-self: flex-start; height: 36px; padding: 0 4px; border: 0; background: transparent;
     font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted);
     display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  }
+  /* Скинути кадр (п.14) — та сама умовна кнопка, що мобільна .resetCrop,
+   * поряд із «Замінити фото» тут-таки: подвійний клік більше не скидає. */
+  .thumbColActions { display: flex; align-items: center; gap: 4px; }
+  .resetCropDesktop {
+    height: 36px; padding: 0 8px; border: 0; background: transparent;
+    font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted);
+    cursor: pointer;
   }
 
   .actionsCol { width: 360px; flex: none; padding: 0; gap: 24px; }

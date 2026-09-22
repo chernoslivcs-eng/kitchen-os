@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   frameDate, frameDateWithWeekday, wrapLines, fitTitle, fitIngredients, fitDescription,
-  verticalFontSize, classifyBrightness, pickCookRun, frameDataOf, clampCrop, resetCrop, applyCropDrag,
+  verticalFontSize, fitVerticalColumn, fitVerticalIngLine, ingLineOf, classifyBrightness, pickCookRun, frameDataOf, clampCrop, resetCrop, applyCropDrag, isCropDefault,
   splitLayoutTitle, layoutGridItems, layoutChipLabel,
   type MeasureFn,
 } from './frame';
@@ -123,6 +123,50 @@ describe('verticalFontSize: 96 ≤ 1100 → 96; інакше 72 ≤ 1100 → 72;
   });
 });
 
+describe('ingLineOf: назва+кількість через nbsp, розрив лише на « · » (той самий алгоритм, що макет D1)', () => {
+  it('nbsp усередині елемента; «—» — без кількості; розрив-роздільник — звичайні пробіли', () => {
+    const line = ingLineOf([{ name: 'Джин Haister', qty: '50 мл' }, { name: 'Лід', qty: '—' }]);
+    expect(line).toBe('Джин Haister 50 мл · Лід');
+  });
+  it('порожньо — порожній рядок', () => {
+    expect(ingLineOf([])).toBe('');
+  });
+});
+
+describe('fitVerticalColumn: колонка 1 («<характер>. <опис>») — word-wrap, обрізання за maxHeight (п.13, заміна)', () => {
+  it('порожньо — []', () => {
+    expect(fitVerticalColumn('', fakeMeasure)).toEqual([]);
+  });
+  it('короткий текст — один рядок, колонка присутня', () => {
+    expect(fitVerticalColumn('Просто.', fakeMeasure)).toEqual(['Просто.']);
+  });
+  it('не влазить у maxLines — останній показаний рядок обрізається «…» з рештою (hand-verified)', () => {
+    // 6 слів по 4 символи, maxHeight=100/22px/1.4 → maxLines=3 (100/30.8=3.24);
+    // кожен рядок — 1 слово (2 слова разом 108.9 > 100). Рядки 4–6 йдуть у «…».
+    const words = ['аааа', 'бббб', 'вввв', 'гггг', 'дддд', 'ееее'];
+    const r = fitVerticalColumn(words.join(' '), fakeMeasure, 100, 22, 600, 1.4);
+    expect(r).toEqual(['аааа', 'бббб', 'вввв гг…']);
+    expect(r.length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe('fitVerticalIngLine: колонка 2 (інгредієнти) — wrap по токенах ingLine, обрізання за maxHeight (п.13, заміна)', () => {
+  it('порожньо — []', () => {
+    expect(fitVerticalIngLine([], fakeMeasure)).toEqual([]);
+  });
+  it('короткий список — один рядок, колонка присутня, порядок з рецепта', () => {
+    const r = fitVerticalIngLine([{ name: 'Джин', qty: '50 мл' }, { name: 'Лід', qty: '—' }], fakeMeasure);
+    expect(r).toEqual(['Джин 50 мл · Лід']);
+  });
+  it('не влазить у maxLines — останній показаний рядок обрізається «…» з рештою (hand-verified)', () => {
+    // Та сама геометрія, що в fitVerticalColumn, лише роздільник « · » (3 símb.) — теж 1 токен на рядок.
+    const ing = (...names: string[]) => names.map((name) => ({ name, qty: '—' }));
+    const r = fitVerticalIngLine(ing('аааа', 'бббб', 'вввв', 'гггг', 'дддд', 'ееее'), fakeMeasure, 100, 22, 400, 1.4);
+    expect(r).toEqual(['аааа', 'бббб', 'вввв · …']);
+    expect(r.length).toBeLessThanOrEqual(3);
+  });
+});
+
 describe('classifyBrightness: >0.6 середньої яскравості верху+низу — світла', () => {
   const solid = (r: number, g: number, b: number, w: number, h: number) => {
     const px = new Uint8ClampedArray(w * h * 4);
@@ -228,9 +272,24 @@ describe('clampCrop: межі масштабу 1..3 і зсуву 0..1 по об
   });
 });
 
-describe('resetCrop: скидання до 1× по центру (подвійний тап/клік)', () => {
+describe('resetCrop: скидання до 1× по центру (кнопка «Скинути кадр», п.14)', () => {
   it('завжди {scale:1, x:0.5, y:0.5} незалежно від попереднього стану', () => {
     expect(resetCrop()).toEqual({ scale: 1, x: 0.5, y: 0.5 });
+  });
+});
+
+describe('isCropDefault: чи кроп відхилився від {scale:1, x:0.5, y:0.5} (п.14)', () => {
+  it('дефолт — true', () => {
+    expect(isCropDefault({ scale: 1, x: 0.5, y: 0.5 })).toBe(true);
+  });
+  it('змінено масштаб — false', () => {
+    expect(isCropDefault({ scale: 1.5, x: 0.5, y: 0.5 })).toBe(false);
+  });
+  it('змінено зсув по x — false', () => {
+    expect(isCropDefault({ scale: 1, x: 0.6, y: 0.5 })).toBe(false);
+  });
+  it('змінено зсув по y — false', () => {
+    expect(isCropDefault({ scale: 1, x: 0.5, y: 0.4 })).toBe(false);
   });
 });
 
