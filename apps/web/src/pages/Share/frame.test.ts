@@ -1,7 +1,7 @@
 // Шерінг v3: чиста логіка кадрів (spec §4 — вимога тестів окремо від canvas).
 import { describe, it, expect } from 'vitest';
 import {
-  frameDate, frameDateWithWeekday, wrapLines, fitTitle, fitIngredients, fitDescription,
+  frameDate, frameDateWithWeekday, wrapLines, fitTitle, fitIngredients, fitIngredientName, fitDescription,
   verticalFontSize, fitVerticalColumn, fitVerticalIngLine, ingLineOf, classifyBrightness, pickCookRun, frameDataOf, clampCrop, resetCrop, applyCropDrag, isCropDefault,
   splitLayoutTitle, layoutGridItems, layoutChipLabel,
   type MeasureFn,
@@ -79,6 +79,46 @@ describe('fitIngredients: ≤8 усі, >8 → 7 + «ще N»', () => {
     const r = fitIngredients(ing(3));
     expect(r.shown.length).toBe(3);
     expect(r.more).toBeNull();
+  });
+});
+
+// Хотфікс (прод, 22.09): назва в сітці Постера/Чистого тла малювалась без
+// обмеження ширини й налазила на сусідню колонку. Реальні найдовші назви
+// з NUTRI-PANTRY-0922.json.
+describe('fitIngredientName: ≤2 рядки в межах колонки, довша — «…» на 2-му', () => {
+  it('коротка назва — один рядок', () => {
+    expect(fitIngredientName('Сіль', fakeMeasure, '400 10px Onest', 900)).toEqual(['Сіль']);
+  });
+  it('«анчоуси Rizzoli кантабрійські в оливковій олії» — не більше 2 рядків, жоден не ширший за колонку', () => {
+    const name = 'анчоуси Rizzoli кантабрійські в оливковій олії';
+    const font = '400 28px Onest';
+    const colW = 460; // (maxWidth-56)/2 при реальному maxWidth постера
+    const lines = fitIngredientName(name, fakeMeasure, font, colW);
+    expect(lines.length).toBeLessThanOrEqual(2);
+    for (const l of lines) expect(fakeMeasure(l, font)).toBeLessThanOrEqual(colW);
+  });
+  it('«вʼялені томати з сиром Helcom Antipasti Pomidory suszone nadziewane masą serową» — довша за 2 рядки, 2-й з «…»', () => {
+    const name = 'вʼялені томати з сиром Helcom Antipasti Pomidory suszone nadziewane masą serową';
+    const font = '400 28px Onest';
+    const colW = 460;
+    const lines = fitIngredientName(name, fakeMeasure, font, colW);
+    expect(lines.length).toBe(2);
+    expect(lines[1]!.endsWith('…')).toBe(true);
+    for (const l of lines) expect(fakeMeasure(l, font)).toBeLessThanOrEqual(colW);
+  });
+  it('«сушені курячі слайси Наша Ряба РябChick з перцем та паприкою» — не ширша за колонку жодним рядком', () => {
+    const name = 'сушені курячі слайси Наша Ряба РябChick з перцем та паприкою';
+    const font = '400 28px Onest';
+    const colW = 460;
+    const lines = fitIngredientName(name, fakeMeasure, font, colW);
+    expect(lines.length).toBeLessThanOrEqual(2);
+    for (const l of lines) expect(fakeMeasure(l, font)).toBeLessThanOrEqual(colW);
+  });
+  it('нерозривне (без пробілів) задовге слово на 1 рядку — «…» без падіння', () => {
+    const font = '400 28px Onest';
+    const lines = fitIngredientName('а'.repeat(80), fakeMeasure, font, 100, 2);
+    expect(lines.length).toBeLessThanOrEqual(2);
+    expect(lines[lines.length - 1]!.endsWith('…')).toBe(true);
   });
 });
 
@@ -164,6 +204,33 @@ describe('fitVerticalIngLine: колонка 2 (інгредієнти) — wrap
     const r = fitVerticalIngLine(ing('аааа', 'бббб', 'вввв', 'гггг', 'дддд', 'ееее'), fakeMeasure, 100, 22, 400, 1.4);
     expect(r).toEqual(['аааа', 'бббб', 'вввв · …']);
     expect(r.length).toBeLessThanOrEqual(3);
+  });
+  // Хотфікс (прод, 22.09): «назва кількість» — ОДИН nbsp-токен (ingLineOf),
+  // без внутрішньої точки розриву. Довга реальна назва сама на власному
+  // рядку виходила за maxWidth — перевірено реальним canvas Onest (871px
+  // токен у 700px бюджеті). Кожен рядок тепер має вкладатись у maxWidth
+  // незалежно від довжини окремого інгредієнта.
+  it('один інгредієнт довший за maxWidth сам по собі — рядок все одно не ширший за maxWidth', () => {
+    const font = '400 22px Onest';
+    const maxWidth = 700;
+    const r = fitVerticalIngLine(
+      [{ name: 'вʼялені томати з сиром Helcom Antipasti Pomidory suszone nadziewane masą serową', qty: '90 г' }],
+      fakeMeasure, maxWidth, 22, 400, 1.4,
+    );
+    for (const line of r) expect(fakeMeasure(line, font)).toBeLessThanOrEqual(maxWidth);
+  });
+  it('той самий задовгий інгредієнт серед коротших — жоден рядок не ширший за maxWidth', () => {
+    const font = '400 22px Onest';
+    const maxWidth = 700;
+    const r = fitVerticalIngLine(
+      [
+        { name: 'сіль', qty: '—' },
+        { name: 'вʼялені томати з сиром Helcom Antipasti Pomidory suszone nadziewane masą serową', qty: '90 г' },
+        { name: 'часник', qty: '3 зубчики' },
+      ],
+      fakeMeasure, maxWidth, 22, 400, 1.4,
+    );
+    for (const line of r) expect(fakeMeasure(line, font)).toBeLessThanOrEqual(maxWidth);
   });
 });
 

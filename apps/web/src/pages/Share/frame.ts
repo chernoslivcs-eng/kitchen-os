@@ -117,6 +117,18 @@ export function fitIngredients(ingredients: FrameIngredient[]): IngredientsFit {
   return { shown: ingredients.slice(0, 7), more: ingredients.length - 7 };
 }
 
+// Хотфікс (прод, 22.09): назва інгредієнта в сітці Постера/Чистого тла
+// малювалась одним fillText без обмеження ширини — довга назва («анчоуси
+// Rizzoli кантабрійські в оливковій олії») налазила на сусідню колонку.
+// ≤2 рядки в межах колонки; довша — «…» на 2-му (той самий принцип, що
+// fitVerticalColumn: wrapLines + capLines, лише maxLines фіксовано, а не
+// з maxHeight — колонка одна й та сама ширина завжди, висота клітинки
+// підлаштовується під кількість рядків, не навпаки).
+export function fitIngredientName(name: string, measure: MeasureFn, font: string, maxWidth: number, maxLines = 2): string[] {
+  const lines = wrapLines(name, measure, font, maxWidth);
+  return capLines(lines, measure, font, maxWidth, maxLines, ' ');
+}
+
 // ── Опис: ≤3 рядки 28/1.4; довший — обрізати по останньому повному реченню ──
 const SENTENCE_SPLIT = /(?<=[.!?…])\s+/;
 export function fitDescription(description: string, measure: MeasureFn, maxWidth: number, size = 28, weight = 400, maxLines = 3): string[] {
@@ -166,13 +178,23 @@ export function verticalFontSize(title: string, measure: MeasureFn, maxWidth = 1
 // усередині елемента, розрив лише на роздільнику) 22/400. Обидві line-
 // height 1.4, максимальна довжина рядка (=«висота» в ротованій системі) 700
 // з 1920. Виняток із правила «мінімум 28px» — свідомий, власник прийняв.
+// Хотфікс (прод, 22.09): токен тут — ЦІЛИЙ «назва кількість» (nbsp
+// усередині, з ingLineOf) — на відміну від слова в wrapLines, не рветься
+// нізвідки. Довга назва («вʼялені томати з сиром Helcom Antipasti
+// Pomidory suszone nadziewane masą serową 90 г») як один токен виходила
+// за maxWidth навіть сама на власному рядку — перевірено реальним canvas
+// (871px токен у 700px бюджеті). Тому кожен токен спершу підганяється під
+// maxWidth сам по собі (ellipsize, якщо задовгий) — ще ДО спроби скласти
+// рядок; далі звичайний жадібний перенос гарантовано не переповнює.
 function wrapTokens(tokens: string[], measure: MeasureFn, font: string, maxWidth: number, sep = ' · '): string[] {
   if (!tokens.length) return [''];
+  const fit = (t: string): string => (measure(t, font) <= maxWidth ? t : ellipsize(t, measure, font, maxWidth));
   const lines: string[] = [];
-  let line = tokens[0]!;
+  let line = fit(tokens[0]!);
   for (let i = 1; i < tokens.length; i++) {
-    const test = `${line}${sep}${tokens[i]}`;
-    if (measure(test, font) > maxWidth) { lines.push(line); line = tokens[i]!; }
+    const tok = fit(tokens[i]!);
+    const test = `${line}${sep}${tok}`;
+    if (measure(test, font) > maxWidth) { lines.push(line); line = tok; }
     else line = test;
   }
   lines.push(line);

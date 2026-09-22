@@ -1001,23 +1001,20 @@ a.att-chip:hover { border-color: var(--sage); }
   cursor: pointer; white-space: nowrap;
 }
 .recipe-tolist:disabled { cursor: default; color: var(--dim); border-color: var(--line); }
-/* Шерінг v3: третя дія — контур зі знаком, поруч із «Готуємо»/«У список».
-   На вузькому контейнері (та сама межа 379, що .recipe-foot тримає в ряд) —
-   квадрат 46 лише зі знаком (мокет «recipe_link · 390»). */
+/* Хотфікс (прод, 22.09): контейнерний запит не спрацьовував — «Готуємо ·
+   У список · 1 · Поділитись» вилазив за екран на 390. Рішення власника:
+   квадрат 46 лише зі знаком БЕЗ підпису, завжди, на всіх ширинах — не
+   умовно. aria-label="Поділитись" лишається (cards.tsx) — підпис зникає
+   лише візуально. */
 .recipe-share {
   flex: none;
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  height: 48px; padding: 0 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 46px; height: 46px; padding: 0;
   border: 1px solid var(--line2); border-radius: 12px;
   background: transparent; color: var(--ink);
-  font-family: var(--font-body); font-size: 15px; font-weight: 600;
-  cursor: pointer; white-space: nowrap;
+  cursor: pointer;
 }
 .recipe-share:hover { background: var(--bg); }
-@container (max-width: 379px) {
-  .recipe-share { width: 46px; height: 46px; padding: 0; }
-  .recipe-share-text { display: none; }
-}
 
 /* ── Крок 2.1: один закон низу панелі (V7) ───────────────────────────
    Смуга однакова для всіх артефактів: стан ліворуч моно, дії праворуч у
