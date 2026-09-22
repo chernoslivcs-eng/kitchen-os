@@ -32,6 +32,7 @@ export interface FrameData {
   ingredients: FrameIngredient[];
   description: string;
   date: string;
+  character: string;
 }
 
 // Той самий форматер, що картка рецепта в стрічці (cards.tsx/Recipe.tsx):
@@ -48,6 +49,7 @@ export function frameDataOf(recipe: Recipe, finishedAt: string | null | undefine
     ingredients: recipe.ing.map((i) => ({ name: i.n ?? i.p ?? '', qty: ingredientQty(i) })),
     description: recipe.d,
     date: frameDate(finishedAt),
+    character: recipe.ch,
   };
 }
 
@@ -156,10 +158,14 @@ export function verticalFontSize(title: string, measure: MeasureFn, maxWidth = 1
   return null;
 }
 
-// Правка (п.13, 22.09): інгредієнти повернуто у «Вертикаль» — назви БЕЗ
-// кількостей через « · », один блок ≤2 рядки, порядок з рецепта; що не
-// влізло — «+N» останнім елементом (той самий принцип, що fitIngredients
-// на постері, лише межа тут не за кількістю, а за шириною рядка).
+// Правка (п.13, 22.09; замінено 22.09 — власник: «хай буде дрібно, як у
+// макеті»): дві вертикальні колонки поряд із ротованою назвою, той самий
+// writing-mode — з первісного D1 (макет «Kitchen OS - Share v3.dc.html»,
+// секція D, до спрощення «без колонок»). Колонка 1 — «<характер>. <опис>»
+// 22/600; колонка 2 — інгредієнти через « · » (`ingLine` з макета: nbsp
+// усередині елемента, розрив лише на роздільнику) 22/400. Обидві line-
+// height 1.4, максимальна довжина рядка (=«висота» в ротованій системі) 700
+// з 1920. Виняток із правила «мінімум 28px» — свідомий, власник прийняв.
 function wrapTokens(tokens: string[], measure: MeasureFn, font: string, maxWidth: number, sep = ' · '): string[] {
   if (!tokens.length) return [''];
   const lines: string[] = [];
@@ -172,19 +178,47 @@ function wrapTokens(tokens: string[], measure: MeasureFn, font: string, maxWidth
   lines.push(line);
   return lines;
 }
-export function fitVerticalIngredients(ingredients: FrameIngredient[], measure: MeasureFn, maxWidth: number, size = 28, weight = 500): string[] {
-  const font = `${weight} ${size}px ${FONT}`;
-  const names = ingredients.map((i) => i.name).filter(Boolean);
-  if (!names.length) return [];
-  const full = wrapTokens(names, measure, font, maxWidth);
-  if (full.length <= 2) return full;
-  // Не влізло в 2 рядки цілком — шукаємо найбільший префікс, що влазить разом із «+N».
-  for (let k = names.length - 1; k >= 0; k--) {
-    const candidate = [...names.slice(0, k), `+${names.length - k}`];
-    const lines = wrapTokens(candidate, measure, font, maxWidth);
-    if (lines.length <= 2) return lines;
+// Останній показаний рядок, коли рядків більше за maxLines або сам рядок
+// задовгий (нерозривний токен) — «…» несе залишок (той самий принцип, що
+// fitTitle/fitDescription).
+function capLines(lines: string[], measure: MeasureFn, font: string, maxWidth: number, maxLines: number, sep: string): string[] {
+  if (linesFit(lines, measure, font, maxWidth, maxLines)) return lines;
+  const shown = lines.slice(0, maxLines);
+  const last = shown.length - 1;
+  if (last < 0) return shown;
+  if (lines.length > maxLines) {
+    shown[last] = ellipsize([shown[last], ...lines.slice(maxLines)].join(sep), measure, font, maxWidth);
+  } else if (measure(shown[last]!, font) > maxWidth) {
+    shown[last] = ellipsize(shown[last]!, measure, font, maxWidth);
   }
-  return wrapTokens([`+${names.length}`], measure, font, maxWidth);
+  return shown;
+}
+
+// Колонка 1: «<характер>. <опис>» — звичайний word-wrap (проза).
+export function fitVerticalColumn(text: string, measure: MeasureFn, maxHeight = 700, size = 22, weight = 600, lineHeight = 1.4): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  const font = `${weight} ${size}px ${FONT}`;
+  const maxLines = Math.max(1, Math.floor(maxHeight / (size * lineHeight)));
+  const lines = wrapLines(trimmed, measure, font, maxHeight);
+  return capLines(lines, measure, font, maxHeight, maxLines, ' ');
+}
+
+// Колонка 2: рядок інгредієнтів — та сама формула, що `ingLine` в макеті
+// (nbsp усередині кожного елемента через replace(/ /g,' '), щоб розрив
+// рядка міг статись лише на роздільнику « · »).
+export function ingLineOf(ingredients: FrameIngredient[]): string {
+  return ingredients
+    .map((i) => (i.qty === '—' ? i.name : `${i.name} ${i.qty}`).replace(/ /g, ' '))
+    .join(' · ');
+}
+export function fitVerticalIngLine(ingredients: FrameIngredient[], measure: MeasureFn, maxHeight = 700, size = 22, weight = 400, lineHeight = 1.4): string[] {
+  if (!ingredients.length) return [];
+  const font = `${weight} ${size}px ${FONT}`;
+  const maxLines = Math.max(1, Math.floor(maxHeight / (size * lineHeight)));
+  const tokens = ingLineOf(ingredients).split(' · ');
+  const lines = wrapTokens(tokens, measure, font, maxHeight);
+  return capLines(lines, measure, font, maxHeight, maxLines, ' · ');
 }
 
 // ── Яскравість фото: середня відносна яскравість верхніх 45% + нижніх 18% ──

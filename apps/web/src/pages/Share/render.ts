@@ -4,7 +4,7 @@
 // Share v3.dc.html» (істина для вигляду).
 import type { FrameData, MeasureFn, Brightness, CropState } from './frame';
 import {
-  fitTitle, fitIngredients, fitDescription, verticalFontSize, fitVerticalIngredients, classifyBrightness, clampCrop,
+  fitTitle, fitIngredients, fitDescription, verticalFontSize, fitVerticalColumn, fitVerticalIngLine, classifyBrightness, clampCrop,
   splitLayoutTitle, layoutGridItems, layoutChipLabel, ellipsize,
 } from './frame';
 
@@ -364,17 +364,31 @@ export function drawVertical(ctx: CanvasRenderingContext2D, data: FrameData, img
   ctx.restore();
   noShadow(ctx);
 
-  // Правка (п.13, 22.09): рядок(и) інгредієнтів — під вертикальною назвою,
-  // над датою; вміщується у проміжок 1520→1676 (низ ротованої назви →
-  // верх дати), назва не зачіпається (її стовпчик вузький, ліворуч).
-  const ingLines = fitVerticalIngredients(data.ingredients, measure, RIGHT - PAD);
-  if (ingLines.length) {
-    ctx.font = '500 28px ' + FONT;
+  // Правка (п.13, 22.09; замінено 22.09): дві вертикальні колонки поряд із
+  // назвою, той самий writing-mode (окремий, незалежний pivot праворуч від
+  // назви — «gap:36» між ними, як у первісному D1-макеті; той самий низ
+  // 1520, що назва). Колонка 1 — «<характер>. <опис>» 22/600; колонка 2 —
+  // рядок інгредієнтів 22/400, роздільник « · » (fitVerticalIngLine сам
+  // будує nbsp-захищені токени). Виняток із «мінімум 28px» — свідомий.
+  const VCOL_SIZE = 22, VCOL_LH = 1.4, VCOL_GAP = 22, VCOL_LINE_PX = VCOL_SIZE * VCOL_LH;
+  const col1Text = data.character ? `${data.character}. ${data.description}` : data.description;
+  const col1Lines = fitVerticalColumn(col1Text, measure, 700, VCOL_SIZE, 600, VCOL_LH);
+  const col2Lines = fitVerticalIngLine(data.ingredients, measure, 700, VCOL_SIZE, 400, VCOL_LH);
+  if (col1Lines.length || col2Lines.length) {
+    ctx.save();
+    ctx.translate(PAD + size + 36, 1520);
+    ctx.rotate(-Math.PI / 2);
+    shadow(ctx, 'rgba(0,0,0,.6)', 8);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillStyle = '#fff';
-    let iy = 1520 + 24;
-    for (const line of ingLines) { ctx.fillText(line, PAD, iy); iy += 38; }
+    ctx.font = `600 ${VCOL_SIZE}px ${FONT}`;
+    col1Lines.forEach((line, i) => ctx.fillText(line, 0, i * VCOL_LINE_PX));
+    ctx.font = `400 ${VCOL_SIZE}px ${FONT}`;
+    const col2Start = col1Lines.length * VCOL_LINE_PX + (col1Lines.length ? VCOL_GAP : 0);
+    col2Lines.forEach((line, i) => ctx.fillText(line, 0, col2Start + i * VCOL_LINE_PX));
+    ctx.restore();
+    noShadow(ctx);
   }
 
   let y = 1810 - 26 - 12 - 40 - 12 - 44;

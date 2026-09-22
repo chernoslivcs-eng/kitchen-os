@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   frameDate, frameDateWithWeekday, wrapLines, fitTitle, fitIngredients, fitDescription,
-  verticalFontSize, fitVerticalIngredients, classifyBrightness, pickCookRun, frameDataOf, clampCrop, resetCrop, applyCropDrag, isCropDefault,
+  verticalFontSize, fitVerticalColumn, fitVerticalIngLine, ingLineOf, classifyBrightness, pickCookRun, frameDataOf, clampCrop, resetCrop, applyCropDrag, isCropDefault,
   splitLayoutTitle, layoutGridItems, layoutChipLabel,
   type MeasureFn,
 } from './frame';
@@ -123,28 +123,47 @@ describe('verticalFontSize: 96 ≤ 1100 → 96; інакше 72 ≤ 1100 → 72;
   });
 });
 
-describe('fitVerticalIngredients: назви через « · », ≤2 рядки, порядок з рецепта; що не влізло — «+N» (п.13)', () => {
-  const ing = (...names: string[]) => names.map((name) => ({ name, qty: '10 г' }));
+describe('ingLineOf: назва+кількість через nbsp, розрив лише на « · » (той самий алгоритм, що макет D1)', () => {
+  it('nbsp усередині елемента; «—» — без кількості; розрив-роздільник — звичайні пробіли', () => {
+    const line = ingLineOf([{ name: 'Джин Haister', qty: '50 мл' }, { name: 'Лід', qty: '—' }]);
+    expect(line).toBe('Джин Haister 50 мл · Лід');
+  });
+  it('порожньо — порожній рядок', () => {
+    expect(ingLineOf([])).toBe('');
+  });
+});
+
+describe('fitVerticalColumn: колонка 1 («<характер>. <опис>») — word-wrap, обрізання за maxHeight (п.13, заміна)', () => {
   it('порожньо — []', () => {
-    expect(fitVerticalIngredients([], fakeMeasure, 888)).toEqual([]);
+    expect(fitVerticalColumn('', fakeMeasure)).toEqual([]);
   });
-  it('усе влазить в один рядок — один рядок, порядок збережено', () => {
-    const r = fitVerticalIngredients(ing('Спагетті', 'Часник'), fakeMeasure, 888);
-    expect(r).toEqual(['Спагетті · Часник']);
+  it('короткий текст — один рядок, колонка присутня', () => {
+    expect(fitVerticalColumn('Просто.', fakeMeasure)).toEqual(['Просто.']);
   });
-  it('влазить рівно у 2 рядки — жодного «+N», порядок збережено', () => {
-    // 4 слова по 4 символи; maxWidth=200 → по 2 слова на рядок (169.4 ≤ 200 < 277.2)
-    const r = fitVerticalIngredients(ing('аааа', 'бббб', 'вввв', 'гггг'), fakeMeasure, 200);
-    expect(r).toEqual(['аааа · бббб', 'вввв · гггг']);
+  it('не влазить у maxLines — останній показаний рядок обрізається «…» з рештою (hand-verified)', () => {
+    // 6 слів по 4 символи, maxHeight=100/22px/1.4 → maxLines=3 (100/30.8=3.24);
+    // кожен рядок — 1 слово (2 слова разом 108.9 > 100). Рядки 4–6 йдуть у «…».
+    const words = ['аааа', 'бббб', 'вввв', 'гггг', 'дддд', 'ееее'];
+    const r = fitVerticalColumn(words.join(' '), fakeMeasure, 100, 22, 600, 1.4);
+    expect(r).toEqual(['аааа', 'бббб', 'вввв гг…']);
+    expect(r.length).toBeLessThanOrEqual(3);
   });
-  it('не влазить навіть у 2 рядки — хвіст замінюється на «+N», порядок збережено', () => {
-    // 8 слів по 4 символи, maxWidth=200: повний список — 4 рядки (>2), тому
-    // шукаємо найбільший префікс, що влазить у 2 рядки разом із «+N»:
-    // k=3 (перші 3 слова + «+5») → ['аааа · бббб', 'вввв · +5'] (перевірено вручну).
-    const names = ['аааа', 'бббб', 'вввв', 'гггг', 'дддд', 'ееее', 'жжжж', 'зззз'];
-    const r = fitVerticalIngredients(ing(...names), fakeMeasure, 200);
-    expect(r).toEqual(['аааа · бббб', 'вввв · +5']);
-    expect(r.length).toBeLessThanOrEqual(2);
+});
+
+describe('fitVerticalIngLine: колонка 2 (інгредієнти) — wrap по токенах ingLine, обрізання за maxHeight (п.13, заміна)', () => {
+  it('порожньо — []', () => {
+    expect(fitVerticalIngLine([], fakeMeasure)).toEqual([]);
+  });
+  it('короткий список — один рядок, колонка присутня, порядок з рецепта', () => {
+    const r = fitVerticalIngLine([{ name: 'Джин', qty: '50 мл' }, { name: 'Лід', qty: '—' }], fakeMeasure);
+    expect(r).toEqual(['Джин 50 мл · Лід']);
+  });
+  it('не влазить у maxLines — останній показаний рядок обрізається «…» з рештою (hand-verified)', () => {
+    // Та сама геометрія, що в fitVerticalColumn, лише роздільник « · » (3 símb.) — теж 1 токен на рядок.
+    const ing = (...names: string[]) => names.map((name) => ({ name, qty: '—' }));
+    const r = fitVerticalIngLine(ing('аааа', 'бббб', 'вввв', 'гггг', 'дддд', 'ееее'), fakeMeasure, 100, 22, 400, 1.4);
+    expect(r).toEqual(['аааа', 'бббб', 'вввв · …']);
+    expect(r.length).toBeLessThanOrEqual(3);
   });
 });
 
