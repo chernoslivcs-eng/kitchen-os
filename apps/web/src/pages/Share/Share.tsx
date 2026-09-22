@@ -18,8 +18,8 @@ import { drawPoster, drawVertical, drawClean, measureFn, FRAME_W, FRAME_H, CLEAN
 import styles from './Share.module.css';
 
 // Баг з проду (iPhone Chrome, PR #181): user activation зʼїдав `await` перед
-// navigator.share()/a.click(). PNG готуємо ЗАЗДАЛЕГІДЬ, share()/download()
-// читають готовий blob СИНХРОННО — жодного await до жесту користувача.
+// navigator.share()/a.click(). PNG (canvasToBlobSync, правка 9) береться
+// СИНХРОННО в момент натискання — жодного await до жесту користувача.
 function isIOSChrome(): boolean {
   return typeof navigator !== 'undefined' && /CriOS\//.test(navigator.userAgent);
 }
@@ -134,15 +134,20 @@ export function SharePage() {
     if (!frameData) return false;
     return verticalFontSize(frameData.title, measureFn(measureCtx)) != null;
   }, [frameData, measureCtx]);
+  // Правка 8 (22.09): без фото Постер (і Вертикаль, якщо назва влізає) —
+  // теж у каруселі, із заглушкою (render.ts малює її сам за img=null); лише
+  // «Чисте тло» не залежить від фото взагалі. Порядок той самий, є фото чи нема.
   const frames: FrameKind[] = useMemo(() => {
-    if (!photoUrl) return ['clean'];
     return verticalFits ? ['poster', 'vertical', 'clean'] : ['poster', 'clean'];
-  }, [photoUrl, verticalFits]);
+  }, [verticalFits]);
   const [activeIdx, setActiveIdx] = useState(0);
   useEffect(() => { setActiveIdx((i) => Math.min(i, frames.length - 1)); }, [frames.length]);
   const activeKind = frames[activeIdx] ?? 'clean';
   const activeKindRef = useRef(activeKind);
   activeKindRef.current = activeKind;
+  // Заглушка: активний кадр photo-based (постер/вертикаль), фото нема —
+  // не шериться, тап відкриває вибір файлу замість перетягування кропу.
+  const isPlaceholder = !photoUrl && activeKind !== 'clean';
 
   // Карусель 390: центрувати активний кадр — на монтуванні й коли крапку
   // обрали тапом (не лише коли людина сама гортає). Без цього перший кадр
@@ -177,30 +182,28 @@ export function SharePage() {
   const thumbRefs = useRef<Partial<Record<FrameKind, HTMLCanvasElement | null>>>({});
   const [ready, setReady] = useState(false);
 
-  // PNG активного кадру готується ТУТ, одразу після того, як саме цей canvas
-  // домальовано — не в окремому ефекті, що читає canvasRefs.current пізніше:
-  // рефи канвасів (інлайн-колбек, нова ідентичність щохвилини рендеру)
-  // переприв'язуються під час кожного коміту, і ефект, що лише СЛУХАЄ `ready`,
-  // міг застати `canvasRefs.current[activeKind]` ще не приєднаним — PNG
-  // лишався вічно «Готуємо кадр…». Малювання й toBlob активного кадру —
-  // один синхронний ланцюжок від того самого canvas, без гонитви рефа.
-  const redrawAll = useCallback(async (): Promise<Blob | null> => {
-    if (!frameData) return null;
+  // Малює ВСІ канвaси (прев'ю й мініатюри) — без PNG-кодування. Правка 9:
+  // раніше той самий цикл ще й пакував активний кадр у toBlob() тут-таки —
+  // на кожен рух кропу (кожен pointermove) це перекодовувало 1080×1920 і
+  // кнопка «Поділитись» блимала «Готуємо кадр…» посеред жесту. Прев'ю й
+  // PNG розведено: прев'ю малюється завжди одразу (тут), PNG — синхронно
+  // в момент натискання (canvasToBlobSync нижче, у share/download/telegram).
+  const redrawAll = useCallback(async (): Promise<void> => {
+    if (!frameData) return;
     await document.fonts.ready;
-    let activeBlob: Blob | null = null;
     for (const kind of frames) {
       const canvas = canvasRefs.current[kind];
       if (!canvas) continue;
       canvas.width = FRAME_W; canvas.height = FRAME_H;
       const ctx = canvas.getContext('2d');
       if (!ctx) continue;
+      const cleanTheme = isDark ? CLEAN_DARK : CLEAN_LIGHT;
       if (kind === 'clean') {
-        drawClean(ctx, frameData, isDark ? CLEAN_DARK : CLEAN_LIGHT);
-      } else if (photoImgRef.current) {
-        if (kind === 'poster') drawPoster(ctx, frameData, photoImgRef.current, crop);
-        else drawVertical(ctx, frameData, photoImgRef.current, crop);
+        drawClean(ctx, frameData, cleanTheme);
+      } else if (kind === 'poster') {
+        drawPoster(ctx, frameData, photoImgRef.current, crop, cleanTheme);
       } else {
-        continue; // фото ще не завантажене — кадр домалюється, коли прийде
+        drawVertical(ctx, frameData, photoImgRef.current, crop, cleanTheme);
       }
       const thumb = thumbRefs.current[kind];
       if (thumb) {
@@ -208,12 +211,8 @@ export function SharePage() {
         const tctx = thumb.getContext('2d');
         tctx?.drawImage(canvas, 0, 0, 220, 392);
       }
-      if (kind === activeKind) {
-        activeBlob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-      }
     }
-    return activeBlob;
-  }, [frameData, frames, isDark, crop, activeKind]);
+  }, [frameData, frames, isDark, crop]);
 
   // ── Кроп: перетягування (обидві осі), пінч і колесо (масштаб 1–3×),
   // подвійний тап/клік — скидання. Кілька активних pointerId одразу
@@ -304,6 +303,12 @@ export function SharePage() {
     if (!photoImgRef.current || activeKind === 'clean') return;
     resetCropNow();
   }
+  // Заглушка (правка 8): тап по кадру без фото відкриває вибір файлу —
+  // єдина дія, доступна на такому кадрі (перетягування/пінч і так вимкнені
+  // вище через !photoImgRef.current).
+  function onCanvasClick() {
+    if (isPlaceholder) fileInputRef.current?.click();
+  }
 
   // ── Фото: замінити/додати ──
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -342,29 +347,39 @@ export function SharePage() {
     }
   }
 
-  // ── PNG активного кадру: синхронний blob, готовий заздалегідь ──
-  const blobRef = useRef<Blob | null>(null);
-  const fileRef = useRef<File | null>(null);
-  const [pngReady, setPngReady] = useState(false);
   function fileName(): string {
     return `kitchen-os-${(recipe?.t ?? 'recipe').toLowerCase().replace(/\s+/g, '-')}.png`;
   }
   useEffect(() => {
     let cancelled = false;
-    setReady(false);
-    setPngReady(false);
-    void redrawAll().then((blob) => {
-      if (cancelled) return;
-      setReady(true);
-      if (blob) {
-        blobRef.current = blob;
-        fileRef.current = new File([blob], fileName(), { type: 'image/png' });
-        setPngReady(true);
-      }
-    });
+    // Правка 9: НЕ скидаємо ready на false тут — redrawAll перемальовує
+    // прев'ю на кожен рух кропу (crop у його ідентичності), і скидання
+    // ready на кожен такий виклик знову блимало б «Готуємо кадр…» на
+    // кнопці посеред жесту. ready стає true один раз, після ПЕРШОГО
+    // малювання, і лишається true — «зайнято» видно лише на початковому
+    // завантаженні.
+    void redrawAll().then(() => { if (!cancelled) setReady(true); });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- redrawAll уже несе activeKind/crop/isDark/frames у своїй ідентичності; fileName залежить лише від recipe (стабільний за час життя сторінки)
   }, [redrawAll, photoReady]);
+
+  // PNG активного кадру — СИНХРОННО, у момент натискання (правка 9), не
+  // заздалегідь на кожен рух кропу. canvas.toDataURL сам по собі синхронний;
+  // атоб+Uint8Array перетворює base64 у Blob теж без жодного await — увесь
+  // ланцюжок клацання лишається синхронним (PR #181: navigator.share/a.click
+  // губить активацію жесту на iOS Chrome, якщо перед викликом був await).
+  function canvasToBlobSync(canvas: HTMLCanvasElement): Blob {
+    const dataUrl = canvas.toDataURL('image/png');
+    const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: 'image/png' });
+  }
+  function activePngBlob(): Blob | null {
+    const canvas = canvasRefs.current[activeKind];
+    if (!canvas || !ready) return null;
+    return canvasToBlobSync(canvas);
+  }
 
   const [busy, setBusy] = useState<'share' | 'telegram' | null>(null);
   const [copied, setCopied] = useState(false);
@@ -388,11 +403,12 @@ export function SharePage() {
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
 
-  // Синхронно з готового blobRef — жодного await до жесту (PR #181).
+  // activePngBlob() синхронний (canvasToBlobSync) — жодного await до жесту (PR #181).
   function share(): void {
     setShareError(false);
-    const file = fileRef.current, blob = blobRef.current;
-    if (!file || !blob) return;
+    const blob = activePngBlob();
+    if (!blob) return;
+    const file = new File([blob], fileName(), { type: 'image/png' });
     if (!navigator.canShare?.({ files: [file] })) { downloadBlob(blob); trackShare('save'); return; }
     setBusy('share');
     navigator.share({ files: [file] })
@@ -407,7 +423,7 @@ export function SharePage() {
       });
   }
   function download(): void {
-    const blob = blobRef.current;
+    const blob = activePngBlob();
     if (!blob) return;
     downloadBlob(blob);
     trackShare('save');
@@ -451,7 +467,7 @@ export function SharePage() {
     }
   }
   async function sendTelegram(): Promise<void> {
-    const blob = blobRef.current;
+    const blob = activePngBlob();
     if (!blob || !recipe_id) return;
     setBusy('telegram');
     setTelegramError(false);
@@ -508,16 +524,20 @@ export function SharePage() {
                   className={styles.frameCanvas}
                   data-frame={kind}
                   data-selected={kind === activeKind || undefined}
+                  data-placeholder={(!photoUrl && kind !== 'clean') || undefined}
                   aria-label={FRAME_LABEL[kind]}
                   onPointerDown={onCropPointerDown}
                   onPointerMove={onCropPointerMove}
                   onPointerUp={onCropPointerUp}
                   onPointerCancel={onCropPointerUp}
                   onDoubleClick={onCropDoubleClick}
+                  onClick={onCanvasClick}
                 />
               </div>
             ))}
           </div>
+          {/* Мобільна підказка — під каруселлю (як була); десктопна версія —
+              перший рядок правої колонки, див. .actionsCol нижче (правка 7). */}
           {photoUrl && !cropTouched && activeKind !== 'clean' && (
             <span className={styles.cropHint}>Потягни фото, щоб підібрати кадр</span>
           )}
@@ -537,12 +557,22 @@ export function SharePage() {
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => void onPickPhoto(e.target.files)} />
           {photoErr && <div className={styles.photoErr} data-photo-error>{photoErr}</div>}
+        </div>
 
+        {/* Права колонка на ≥768 — ОДНА (360), усе стеком: підказка → КАДР
+            + мініатюри → «Замінити фото» → дії → рядок лінка (правка 7,
+            мокет «/share 1440»). На <768 .thumbCol/.cropHintSide лишаються
+            приховані (display:none поза медіа-запитом) — мобільний вигляд
+            не змінився. */}
+        <div className={styles.actionsCol}>
+          {photoUrl && !cropTouched && activeKind !== 'clean' && (
+            <span className={styles.cropHintSide}>Потягни фото, щоб підібрати кадр</span>
+          )}
           <div className={styles.thumbCol} aria-hidden={frames.length < 2}>
             <span className={styles.thumbLabel}>КАДР</span>
             <div className={styles.thumbs}>
               {frames.map((kind, i) => (
-                <button key={kind} type="button" className={styles.thumbBtn} data-thumb={kind} data-selected={i === activeIdx || undefined} onClick={() => setActiveIdx(i)}>
+                <button key={kind} type="button" className={styles.thumbBtn} data-thumb={kind} data-selected={i === activeIdx || undefined} data-placeholder={(!photoUrl && kind !== 'clean') || undefined} onClick={() => setActiveIdx(i)}>
                   <canvas ref={(el) => { thumbRefs.current[kind] = el; }} className={styles.thumbCanvas} />
                   <span className={styles.thumbTag}>{FRAME_LABEL[kind]}</span>
                 </button>
@@ -552,36 +582,46 @@ export function SharePage() {
               <Icon name="sys.photo" size={16} inherit decorative />{photoUrl ? 'Замінити фото' : 'Додати фото'}
             </button>
           </div>
-        </div>
 
-        <div className={styles.actionsCol}>
           <div className={styles.mobileActions}>
-            {canSystemShare ? (
-              <button type="button" className={styles.shareBtn} onClick={share} disabled={busy !== null || !pngReady} data-share>
-                <Icon name="sys.share" size={16} inherit decorative />{!pngReady || busy === 'share' ? 'Готуємо кадр…' : 'Поділитись'}
+            {isPlaceholder ? (
+              // Заглушка (правка 8): не шериться — головна кнопка сама
+              // відкриває вибір файлу, System share/«Завантажити» недоступні.
+              <button type="button" className={styles.shareBtn} onClick={() => fileInputRef.current?.click()} disabled={savingPhoto} data-add-photo>
+                <Icon name="sys.photo" size={16} inherit decorative />Додати фото
+              </button>
+            ) : canSystemShare ? (
+              <button type="button" className={styles.shareBtn} onClick={share} disabled={busy !== null || !ready} data-share>
+                <Icon name="sys.share" size={16} inherit decorative />{!ready || busy === 'share' ? 'Готуємо кадр…' : 'Поділитись'}
               </button>
             ) : (
               // Без navigator.canShare (десктопний Chrome, деякі Android) —
               // єдина кнопка сама зберігає, тож підпис каже саме це, а не
               // «Поділитись»: окремий квадрат «Завантажити» тут не показуємо
               // (нижче), щоб не було двох однакових дій.
-              <button type="button" className={styles.shareBtn} onClick={download} disabled={!pngReady} data-share>
-                <Icon name="sys.import" size={16} inherit decorative />{!pngReady ? 'Готуємо кадр…' : 'Зберегти'}
+              <button type="button" className={styles.shareBtn} onClick={download} disabled={!ready} data-share>
+                <Icon name="sys.import" size={16} inherit decorative />{!ready ? 'Готуємо кадр…' : 'Зберегти'}
               </button>
             )}
-            {canSystemShare && (
-              <button ref={downloadBtnRef} type="button" className={styles.downloadBtn} onClick={download} disabled={!pngReady} aria-label="Завантажити PNG" title="Завантажити PNG" data-download>
+            {!isPlaceholder && canSystemShare && (
+              <button ref={downloadBtnRef} type="button" className={styles.downloadBtn} onClick={download} disabled={!ready} aria-label="Завантажити PNG" title="Завантажити PNG" data-download>
                 <Icon name="sys.import" size={16} inherit decorative />
               </button>
             )}
           </div>
 
-          {telegramLinked ? (
+          {isPlaceholder ? (
             <div className={styles.desktopActions}>
-              <button type="button" className={styles.tgBtn} onClick={() => void sendTelegram()} disabled={busy !== null || !pngReady} data-send-telegram>
+              <button type="button" className={styles.tgBtn} onClick={() => fileInputRef.current?.click()} disabled={savingPhoto} data-add-photo>
+                <Icon name="sys.photo" size={16} inherit decorative />Додати фото
+              </button>
+            </div>
+          ) : telegramLinked ? (
+            <div className={styles.desktopActions}>
+              <button type="button" className={styles.tgBtn} onClick={() => void sendTelegram()} disabled={busy !== null || !ready} data-send-telegram>
                 <Icon name="sys.share" size={16} inherit decorative />{busy === 'telegram' ? 'Надсилаю…' : 'Надіслати в Telegram'}
               </button>
-              <button type="button" className={styles.savePngBtn} onClick={download} disabled={!pngReady} data-save-png>
+              <button type="button" className={styles.savePngBtn} onClick={download} disabled={!ready} data-save-png>
                 <Icon name="sys.import" size={16} inherit decorative />Зберегти PNG
               </button>
               {telegramSent && <span className={styles.sentHint} data-telegram-sent>Надіслано в Telegram — збережи в галерею з телефона.</span>}
@@ -589,7 +629,7 @@ export function SharePage() {
             </div>
           ) : (
             <div className={styles.desktopActions}>
-              <button type="button" className={styles.tgBtn} onClick={download} disabled={!pngReady} data-save-png>
+              <button type="button" className={styles.tgBtn} onClick={download} disabled={!ready} data-save-png>
                 <Icon name="sys.import" size={16} inherit decorative />Зберегти PNG
               </button>
               <span className={styles.hintMuted}>Звʼяжи Telegram у профілі — кадр можна буде надіслати собі в чат одним тапом.</span>

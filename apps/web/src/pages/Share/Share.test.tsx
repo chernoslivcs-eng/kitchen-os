@@ -71,13 +71,18 @@ beforeEach(() => {
     Object.defineProperty(document, 'execCommand', { value: () => false, configurable: true, writable: true });
   }
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => fakeCtx());
-  vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (this: HTMLCanvasElement, cb: BlobCallback) {
-    // Той самий асинхронний характер, що справжній toBlob (черга мікрозадач).
-    queueMicrotask(() => cb(new Blob(['png'], { type: 'image/png' })));
-  });
+  // Правка 9: PNG більше не через toBlob (асинхронний) — canvasToBlobSync
+  // читає toDataURL СИНХРОННО (як і справжній canvas), тому мок теж синхронний.
+  vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => 'data:image/png;base64,cG5n');
   if (!('fonts' in document)) {
     Object.defineProperty(document, 'fonts', { value: { ready: Promise.resolve() }, configurable: true });
   }
+  // Правка 8: onPickPhoto (заглушка → фото) читає createImageBitmap — jsdom
+  // не має декодування зображень узагалі, тож повністю глушимо.
+  if (!('createImageBitmap' in window)) {
+    Object.defineProperty(window, 'createImageBitmap', { value: vi.fn(), configurable: true, writable: true });
+  }
+  vi.spyOn(window, 'createImageBitmap').mockResolvedValue({ width: 10, height: 10 } as unknown as ImageBitmap);
   if (!('createObjectURL' in URL)) Object.defineProperty(URL, 'createObjectURL', { value: () => 'blob:x', configurable: true });
   if (!('revokeObjectURL' in URL)) Object.defineProperty(URL, 'revokeObjectURL', { value: () => {}, configurable: true });
   else vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
@@ -123,16 +128,25 @@ async function mount(path = '/share/recipe-1') {
 
 const shareBtn = () => host!.querySelector<HTMLButtonElement>('[data-share]')!;
 const downloadBtn = () => host!.querySelector<HTMLButtonElement>('[data-download]')!;
+// Правка 8: без фото Постер тепер активний за замовчуванням, як заглушка
+// («Додати фото», не шериться) — тести на sync-жест share()/download()
+// перевіряють саму МЕХАНІКУ кліку, тож перемикають на «Чисте тло» (єдиний
+// кадр без фото, що лишається повністю «живим» для «Поділитись»/«Зберегти»).
+function selectClean() {
+  act(() => { host!.querySelector<HTMLButtonElement>('[data-dot="clean"]')!.click(); });
+}
 
-describe('SharePage · без фото (лише «Чисте тло») · без await перед жестом (баг PR #181)', () => {
+describe('SharePage · без await перед жестом (баг PR #181), на «Чистому тлі»', () => {
   it('кнопка «Поділитись» готова (не disabled) після підготовки PNG', async () => {
     await mount();
+    selectClean();
     expect(shareBtn().disabled).toBe(false);
     expect(shareBtn().textContent).toContain('Поділитись');
   });
 
   it('navigator.share викликається в ТОМУ Ж тіку, що клік — жодного await перед ним', async () => {
     await mount();
+    selectClean();
     let microtaskRan = false;
     void Promise.resolve().then(() => { microtaskRan = true; });
     act(() => { shareBtn().click(); });
@@ -144,6 +158,7 @@ describe('SharePage · без фото (лише «Чисте тло») · бе�
   it('AbortError (сам скасував) — тихо, без підпису-помилки й без інциденту', async () => {
     shareMock.mockRejectedValueOnce(Object.assign(new Error('cancel'), { name: 'AbortError' }));
     await mount();
+    selectClean();
     await act(async () => { shareBtn().click(); await Promise.resolve(); await Promise.resolve(); });
     expect(host!.querySelector('[data-share-error]')).toBeNull();
     expect(sentry.captureClientIncident).not.toHaveBeenCalled();
@@ -152,6 +167,7 @@ describe('SharePage · без фото (лише «Чисте тло») · бе�
   it('NotAllowedError (чи будь-яка інша відмова) — видимий підпис, інцидент, фокус на «Завантажити»', async () => {
     shareMock.mockRejectedValueOnce(Object.assign(new Error('denied'), { name: 'NotAllowedError' }));
     await mount();
+    selectClean();
     await act(async () => { shareBtn().click(); await Promise.resolve(); await Promise.resolve(); });
     expect(host!.querySelector('[data-share-error]')!.textContent).toBe('Не вдалось відкрити меню — збережи PNG');
     expect(sentry.captureClientIncident).toHaveBeenCalledWith('share-failed', expect.objectContaining({ name: 'NotAllowedError' }));
@@ -160,6 +176,7 @@ describe('SharePage · без фото (лише «Чисте тло») · бе�
 
   it('«Завантажити PNG» бере готовий blob синхронно — a.click() у тому самому тіку', async () => {
     await mount();
+    selectClean();
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     let microtaskRan = false;
     void Promise.resolve().then(() => { microtaskRan = true; });
@@ -171,12 +188,42 @@ describe('SharePage · без фото (лише «Чисте тло») · бе�
 });
 
 describe('SharePage · дані й кадри', () => {
-  it('без фото — лише «Чисте тло», без крапок каруселі', async () => {
+  // Правка 8 (22.09): без фото Постер (і Вертикаль, якщо назва влізає)
+  // лишаються в каруселі як заглушка — не лише «Чисте тло».
+  it('без фото — 2–3 кадри (заглушка постера + чисте), крапки є', async () => {
     await mount();
     expect(host!.querySelector('[data-frame="clean"]')).not.toBeNull();
-    expect(host!.querySelector('[data-frame="poster"]')).toBeNull();
-    expect(host!.querySelector('[data-frame="vertical"]')).toBeNull();
-    expect(host!.querySelectorAll('[data-dot]').length).toBe(0);
+    const poster = host!.querySelector('[data-frame="poster"]')!;
+    expect(poster).not.toBeNull();
+    expect(poster.getAttribute('data-placeholder')).toBe('true');
+    const dots = host!.querySelectorAll('[data-dot]').length;
+    expect(dots === 2 || dots === 3).toBe(true);
+  });
+
+  it('без фото, активний постер — головна кнопка «Додати фото», не шериться', async () => {
+    await mount();
+    const addPhotoBtn = host!.querySelector<HTMLButtonElement>('[data-add-photo]')!;
+    expect(addPhotoBtn).not.toBeNull();
+    expect(addPhotoBtn.textContent).toContain('Додати фото');
+    expect(host!.querySelector('[data-share]')).toBeNull();
+    expect(host!.querySelector('[data-download]')).toBeNull();
+    // Рядок лінка лишається доступним навіть на заглушці.
+    expect(host!.querySelector('[data-copy-link]')).not.toBeNull();
+  });
+
+  it('після вибору фото на заглушці — кнопка повертається до «Поділитись»', async () => {
+    await mount();
+    expect(host!.querySelector('[data-add-photo]')).not.toBeNull();
+    const input = host!.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const file = new File(['x'], 'photo.jpg', { type: 'image/jpeg' });
+    await act(async () => {
+      Object.defineProperty(input, 'files', { value: [file], configurable: true });
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    });
+    expect(host!.querySelector('[data-add-photo]')).toBeNull();
+    expect(shareBtn()).not.toBeNull();
+    expect(shareBtn().textContent).toContain('Поділитись');
   });
 
   it('назва рецепта — у шапці (1440), «Поділитись · <назва>»', async () => {
@@ -232,6 +279,7 @@ describe('SharePage · дані й кадри', () => {
 
   it('телеграм не звʼязаний — «Зберегти PNG» і підказка про профіль, без «Надіслати в Telegram»', async () => {
     await mount();
+    selectClean();
     expect(host!.querySelector('[data-send-telegram]')).toBeNull();
     expect(host!.querySelector('[data-save-png]')).not.toBeNull();
     expect(host!.textContent).toContain('Звʼяжи Telegram у профілі');
@@ -243,12 +291,14 @@ describe('SharePage · дані й кадри', () => {
       return defaultFetch(url);
     };
     await mount();
+    selectClean();
     expect(host!.querySelector('[data-send-telegram]')).not.toBeNull();
   });
 
   it('без navigator.canShare (десктопний Chrome/Android) — кнопка каже «Зберегти», без окремого квадрата завантаження', async () => {
     Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true });
     await mount();
+    selectClean();
     expect(shareBtn().textContent).toContain('Зберегти');
     expect(shareBtn().textContent).not.toContain('Поділитись');
     expect(host!.querySelector('[data-download]')).toBeNull();

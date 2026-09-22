@@ -70,8 +70,13 @@
 }
 .frameCanvas:active { cursor: grabbing; }
 .frameCanvas[data-frame="clean"] { background: var(--bg); border: 1px solid var(--line2); box-shadow: var(--sh-a), var(--sh-b); }
+/* Заглушка без фото (правка 8): постер/вертикаль без знімка малюють тон
+   застосунку (той самий, що «Чисте тло») — той самий бордер, не чорний CSS-фон. */
+.frameCanvas[data-placeholder] { background: var(--bg); border: 1px solid var(--line2); cursor: pointer; }
 
 .cropHint { font-size: 11.5px; color: var(--dim); text-align: center; height: 16px; }
+/* Той самий текст, для ≥768 — перший рядок правої колонки (правка 7). */
+.cropHintSide { display: none; }
 
 .frameRow { display: flex; align-items: center; gap: 14px; height: 36px; padding: 0 16px; }
 .frameLabel { font-family: var(--font-body); font-size: 13px; font-weight: 500; }
@@ -138,7 +143,6 @@
   .titleRecipe { display: inline; }
 
   .body { flex-direction: row; align-items: flex-start; gap: 40px; padding-top: 20px; }
-  .previewCol { flex-direction: row; align-items: flex-start; gap: 40px; flex: none; }
   .carousel {
     overflow: visible; padding: 0; scroll-snap-type: none;
     display: block; position: relative;
@@ -149,7 +153,10 @@
   .frameCanvas {
     width: 100%; height: 100%; border-radius: 20px;
   }
-  .cropHint { position: absolute; text-align: left; height: auto; margin-top: -6px; }
+  /* Мобільна підказка тут не потрібна — .cropHintSide (перший рядок правої
+     колонки) її заміняє на ≥768 (правка 7: раніше absolute над прев'ю
+     налазила на верхній край). */
+  .cropHint { display: none; }
   .frameRow { display: none; }
 
   .thumbCol { display: flex; flex-direction: column; gap: 18px; width: 360px; flex: none; }
@@ -161,16 +168,18 @@
   }
   .thumbBtn[data-selected] { outline: 2px solid var(--ink); }
   .thumbBtn[data-thumb="clean"] { background: var(--bg); border: 1px solid var(--line2); }
+  .thumbBtn[data-placeholder] { background: var(--bg); border: 1px solid var(--line2); }
   .thumbCanvas { display: block; width: 100%; height: 100%; }
   .thumbTag { position: absolute; left: 10px; bottom: 10px; font-size: 6px; color: #fff; }
-  .thumbBtn[data-thumb="clean"] .thumbTag { color: var(--muted); }
+  .thumbBtn[data-thumb="clean"] .thumbTag, .thumbBtn[data-placeholder] .thumbTag { color: var(--muted); }
   .replacePhotoDesktop {
     align-self: flex-start; height: 36px; padding: 0 4px; border: 0; background: transparent;
     font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted);
     display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
   }
 
-  .actionsCol { width: 360px; flex: none; padding: 0; }
+  .actionsCol { width: 360px; flex: none; padding: 0; gap: 24px; }
+  .cropHintSide { display: block; font-family: var(--font-body); font-size: 12px; color: var(--dim); }
   .mobileActions { display: none; }
   .desktopActions { display: flex; flex-direction: column; gap: 8px; }
   .tgBtn {

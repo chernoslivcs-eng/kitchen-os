@@ -206,9 +206,77 @@ function drawBottomSection(
   drawLogoLeft(ctx, PAD, 1766, 44, colors.logoText, colors.ring, colors.dot, colors.shadow);
 }
 
-// ── Постер: фото на весь кадр, скрим за детермінованою яскравістю ──
-export function drawPoster(ctx: CanvasRenderingContext2D, data: FrameData, img: HTMLImageElement, crop: CropState): Brightness {
+// ── Заглушка без фото (правка 8, 22.09): Постер і Вертикаль лишаються в
+// каруселі навіть без знімка — тон застосунку + діагональна штриховка 45°,
+// текст тим самим складом, що на постері, у палітрі «Чистого тла», гліф
+// камери + «Додати фото» по центру. Не шериться: Share.tsx сам вимикає
+// кнопки, коли активний саме такий кадр.
+function drawHatchedBg(ctx: CanvasRenderingContext2D, theme: CleanTheme): void {
+  ctx.fillStyle = theme.bg;
+  ctx.fillRect(0, 0, FRAME_W, FRAME_H);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, FRAME_W, FRAME_H);
+  ctx.clip();
+  ctx.strokeStyle = theme.ink;
+  ctx.globalAlpha = 0.06;
+  ctx.lineWidth = 2;
+  const step = 24;
+  const diag = FRAME_W + FRAME_H;
+  ctx.beginPath();
+  for (let x = -FRAME_H; x < diag; x += step) {
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + FRAME_H, FRAME_H);
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+function drawCameraGlyph(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, color: string): void {
+  const w = size, h = size * 0.72;
+  const x = cx - w / 2, y = cy - h / 2;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  const r = 8;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
+  ctx.stroke();
+  ctx.strokeRect(cx - w * 0.16, y - h * 0.16, w * 0.32, h * 0.2);
+  ctx.beginPath();
+  ctx.arc(cx, cy + h * 0.04, w * 0.22, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+function drawAddPhotoGlyph(ctx: CanvasRenderingContext2D, theme: CleanTheme): void {
+  const cx = FRAME_W / 2, cy = FRAME_H / 2;
+  drawCameraGlyph(ctx, cx, cy - 24, 64, theme.sage);
+  ctx.font = `600 28px ${FONT}`;
+  ctx.fillStyle = theme.sage;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Додати фото', cx, cy + 44);
+  ctx.textAlign = 'left';
+}
+// Той самий склад, що «Чисте тло» (kicker+topSection+bottomSection у
+// палітрі теми) — спільний і для drawClean, і для заглушки постера/вертикалі.
+function drawCleanContent(ctx: CanvasRenderingContext2D, data: FrameData, theme: CleanTheme, measure: MeasureFn): void {
+  drawKickerRow(ctx, data.date, theme.sage, theme.muted, 'transparent');
+  drawTopSection(ctx, data, measure, { title: theme.ink, label: theme.muted, value: theme.ink, shadow: 'transparent', ingSep: theme.line2 });
+  drawBottomSection(ctx, data, measure, { label: theme.sage, desc: theme.muted, logoText: theme.ink, ring: theme.ink, dot: theme.sage, shadow: 'transparent' });
+}
+
+// ── Постер: фото на весь кадр, скрим за детермінованою яскравістю; без
+// фото (img=null) — заглушка (theme визначає палітру заглушки). ──
+export function drawPoster(ctx: CanvasRenderingContext2D, data: FrameData, img: HTMLImageElement | null, crop: CropState, theme: CleanTheme): Brightness {
   ctx.clearRect(0, 0, FRAME_W, FRAME_H);
+  if (!img) {
+    drawHatchedBg(ctx, theme);
+    drawCleanContent(ctx, data, theme, measureFn(ctx));
+    drawAddPhotoGlyph(ctx, theme);
+    return 'light';
+  }
   drawPhoto(ctx, img, crop);
   const scheme = classifyPhotoBrightness(img, crop);
   const pal = scheme === 'light' ? LIGHT_ON_PHOTO : DARK_ON_PHOTO;
@@ -233,10 +301,17 @@ export function verticalAvailable(data: FrameData, ctx: CanvasRenderingContext2D
   return verticalFontSize(data.title, measureFn(ctx)) != null;
 }
 
-export function drawVertical(ctx: CanvasRenderingContext2D, data: FrameData, img: HTMLImageElement, crop: CropState, now = new Date()): boolean {
+export function drawVertical(ctx: CanvasRenderingContext2D, data: FrameData, img: HTMLImageElement | null, crop: CropState, theme: CleanTheme, now = new Date()): boolean {
   const measure = measureFn(ctx);
   const size = verticalFontSize(data.title, measure);
   if (size == null) return false;
+
+  if (!img) {
+    // Той самий склад, що заглушка постера (spec: «як на справжньому
+    // постері») — окремої «вертикальної» заглушки не малюємо.
+    drawPoster(ctx, data, null, crop, theme);
+    return true;
+  }
 
   ctx.clearRect(0, 0, FRAME_W, FRAME_H);
   drawPhoto(ctx, img, crop);
@@ -298,11 +373,5 @@ export function drawClean(ctx: CanvasRenderingContext2D, data: FrameData, theme:
   ctx.clearRect(0, 0, FRAME_W, FRAME_H);
   ctx.fillStyle = theme.bg;
   ctx.fillRect(0, 0, FRAME_W, FRAME_H);
-  const measure = measureFn(ctx);
-  drawKickerRow(ctx, data.date, theme.sage, theme.muted, 'transparent');
-  drawTopSection(ctx, data, measure, { title: theme.ink, label: theme.muted, value: theme.ink, shadow: 'transparent', ingSep: theme.line2 });
-  // Баг з проду (0922): logoText: theme.bg малював «Kitchen OS» майже
-  // невидимим (світлий на світлому) — текст знака має бути ink, як обводка,
-  // не тон полотна.
-  drawBottomSection(ctx, data, measure, { label: theme.sage, desc: theme.muted, logoText: theme.ink, ring: theme.ink, dot: theme.sage, shadow: 'transparent' });
+  drawCleanContent(ctx, data, theme, measureFn(ctx));
 }
