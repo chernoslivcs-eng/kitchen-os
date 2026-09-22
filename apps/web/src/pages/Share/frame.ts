@@ -70,7 +70,7 @@ export function wrapLines(text: string, measure: MeasureFn, font: string, maxWid
   return lines;
 }
 
-function ellipsize(text: string, measure: MeasureFn, font: string, maxWidth: number): string {
+export function ellipsize(text: string, measure: MeasureFn, font: string, maxWidth: number): string {
   if (measure(text, font) <= maxWidth) return text;
   let lo = 0, hi = text.length;
   while (lo < hi) {
@@ -211,6 +211,68 @@ export function applyCropDrag(start: CropState, dx: number, dy: number, boxW: nu
     x: start.x - dx / Math.max(1, boxW),
     y: start.y - dy / Math.max(1, boxH),
   });
+}
+
+// ── «Розкладка» (4-й кадр, автоматизована версія D2 «розріджений рядок»):
+// назва — дві збалансовані групи в один рядок; слова, що не влізли — «хвіст»,
+// іде в сітку разом з назвами інгредієнтів. ──
+export interface LayoutTitle {
+  size: number;       // 64 або 56
+  left: string[];     // ліва група (верхній регістр — на малюванні)
+  right: string[];    // права група; порожньо при centered
+  centered: boolean;  // єдине слово, що влізло, — по центру
+  tail: string[];     // слова понад те, що влізло в рядок — у сітку
+}
+function sumLen(words: string[]): number {
+  return words.reduce((s, w) => s + w.length, 0);
+}
+// Межа k (1..n-1), що мінімізує різницю сум довжин лівої/правої групи —
+// порядок слів не міняємо, лише вибираємо, де розрізати.
+function bestSplit(words: string[]): { left: string[]; right: string[] } {
+  let bestK = 1, bestDiff = Infinity;
+  for (let k = 1; k < words.length; k++) {
+    const diff = Math.abs(sumLen(words.slice(0, k)) - sumLen(words.slice(k)));
+    if (diff < bestDiff) { bestDiff = diff; bestK = k; }
+  }
+  return { left: words.slice(0, bestK), right: words.slice(bestK) };
+}
+export function splitLayoutTitle(title: string, measure: MeasureFn, maxWidth = 840, weight = 700): LayoutTitle {
+  const words = title.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return { size: 64, left: [], right: [], centered: true, tail: [] };
+  for (const size of [64, 56]) {
+    const font = `${weight} ${size}px ${FONT}`;
+    for (let n = words.length; n >= 1; n--) {
+      const candidate = words.slice(0, n);
+      if (n === 1) {
+        if (measure(candidate[0]!.toUpperCase(), font) <= maxWidth) {
+          return { size, left: candidate, right: [], centered: true, tail: words.slice(1) };
+        }
+        continue;
+      }
+      const { left, right } = bestSplit(candidate);
+      const w = measure(left.join(' ').toUpperCase(), font) + measure(right.join(' ').toUpperCase(), font);
+      if (w <= maxWidth) return { size, left, right, centered: false, tail: words.slice(n) };
+    }
+  }
+  // Навіть одне слово на 56 не влазить (рідкість) — усе одно центруємо.
+  return { size: 56, left: [words[0]!], right: [], centered: true, tail: words.slice(1) };
+}
+
+// Сітка 3×≤3: центр 1-го рядка — фіксовано чіп (не в цьому масиві); решта
+// 8 клітинок — спершу шматки «хвоста» назви (≤2 слова), потім назви
+// інгредієнтів без кількостей (теж ≤2 слова), у порядку рецепта, ліміт 8.
+function chunk(words: string[], size: number): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < words.length; i += size) out.push(words.slice(i, i + size).join(' '));
+  return out;
+}
+export function layoutGridItems(tail: string[], ingredients: FrameIngredient[]): string[] {
+  const tailChunks = chunk(tail, 2);
+  const ingChunks = ingredients.flatMap((i) => chunk(i.name.trim().split(/\s+/).filter(Boolean), 2));
+  return [...tailChunks, ...ingChunks].slice(0, 8);
+}
+export function layoutChipLabel(minutes: number): string {
+  return `${minutes} ХВИЛИН`;
 }
 
 // ── Вибір запису журналу: `run` із query, інакше останній не-undone з фото ──

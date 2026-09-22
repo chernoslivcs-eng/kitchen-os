@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   frameDate, frameDateWithWeekday, wrapLines, fitTitle, fitIngredients, fitDescription,
   verticalFontSize, classifyBrightness, pickCookRun, frameDataOf, clampCrop, resetCrop, applyCropDrag,
+  splitLayoutTitle, layoutGridItems, layoutChipLabel,
   type MeasureFn,
 } from './frame';
 import type { CookRunWithRecipe, Recipe } from '../../api';
@@ -259,5 +260,62 @@ describe('applyCropDrag: фото йде за пальцем/курсором (�
   it('межі — clampCrop не пускає за 0..1', () => {
     expect(applyCropDrag(start, 0, 4000, 200, 400).y).toBe(0);
     expect(applyCropDrag(start, 0, -4000, 200, 400).y).toBe(1);
+  });
+});
+
+// «Розкладка» (4-й кадр, автоматизована версія D2): назва — дві збалансовані
+// групи в один рядок; слова, що не влізли, — «хвіст» у сітку. maxWidth у цих
+// тестах — контрольований параметр (не 840 за замовчуванням), щоб ізолювати
+// саму логіку розбиття від конкретних пікселів шрифту.
+describe('splitLayoutTitle: назва — дві збалансовані групи; хвіст — що не влізло', () => {
+  it('1 слово — по центру, без хвоста', () => {
+    const r = splitLayoutTitle('Сауер', fakeMeasure, 100000);
+    expect(r).toEqual({ size: 64, left: ['Сауер'], right: [], centered: true, tail: [] });
+  });
+  it('2 слова — ліва/права група (єдина можлива межа), без хвоста', () => {
+    const r = splitLayoutTitle('Смородиновий джин', fakeMeasure, 100000);
+    expect(r).toEqual({ size: 64, left: ['Смородиновий'], right: ['джин'], centered: false, tail: [] });
+  });
+  it('5 слів, усе влазить — межа мінімізує різницю сум довжин слів', () => {
+    const r = splitLayoutTitle('ой два чотр пятьь я', fakeMeasure, 100000);
+    expect(r).toEqual({ size: 64, left: ['ой', 'два', 'чотр'], right: ['пятьь', 'я'], centered: false, tail: [] });
+  });
+  it('5 слів, вузько — зайві слова йдуть у хвіст (не в другий рядок)', () => {
+    const r = splitLayoutTitle('ой два чотр пятьь я', fakeMeasure, 500);
+    expect(r).toEqual({ size: 64, left: ['ой', 'два'], right: ['чотр'], centered: false, tail: ['пятьь', 'я'] });
+  });
+  it('7 слів, усе влазить — та сама межа-балансир на довшому списку', () => {
+    const r = splitLayoutTitle('ой два чотр пятьь я сім вісім', fakeMeasure, 100000);
+    expect(r).toEqual({ size: 64, left: ['ой', 'два', 'чотр'], right: ['пятьь', 'я', 'сім', 'вісім'], centered: false, tail: [] });
+  });
+});
+
+describe('layoutGridItems: хвіст назви перед інгредієнтами, шматки ≤2 слова, ліміт 8', () => {
+  it('хвіст, потім назви інгредієнтів (без кількостей), кожне шматками ≤2 слова', () => {
+    const tail = ['а', 'б', 'в'];
+    const ing = [
+      { name: 'Молоко', qty: '1 л' },
+      { name: 'Яйця курячі свіжі', qty: '4 шт' },
+    ];
+    expect(layoutGridItems(tail, ing)).toEqual(['а б', 'в', 'Молоко', 'Яйця курячі', 'свіжі']);
+  });
+  it('ліміт 8 — хвіст влазить повністю, інгредієнти обрізаються на межі', () => {
+    const tail = Array.from({ length: 12 }, (_, i) => `с${i}`); // 12 слів → 6 шматків по 2
+    const ing = [
+      { name: 'один два', qty: '' }, { name: 'три чотири', qty: '' }, { name: 'пʼять шість', qty: '' },
+    ]; // 3×2 слова — ще 3 шматки; разом 9, ліміт 8
+    const items = layoutGridItems(tail, ing);
+    expect(items).toHaveLength(8);
+    expect(items.slice(0, 6)).toEqual(['с0 с1', 'с2 с3', 'с4 с5', 'с6 с7', 'с8 с9', 'с10 с11']);
+    expect(items.slice(6)).toEqual(['один два', 'три чотири']); // третій інгредієнт не влазить
+  });
+  it('без хвоста — самі інгредієнти', () => {
+    expect(layoutGridItems([], [{ name: 'Сіль', qty: '' }])).toEqual(['Сіль']);
+  });
+});
+
+describe('layoutChipLabel: чіп — центр 1-го рядка сітки, поза layoutGridItems', () => {
+  it('«N ХВИЛИН»', () => {
+    expect(layoutChipLabel(35)).toBe('35 ХВИЛИН');
   });
 });
