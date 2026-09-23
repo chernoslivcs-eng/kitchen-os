@@ -1,0 +1,14 @@
+.doc { font-size: 14px; line-height: 1.6; color: var(--ink); }
+.h1 { font-size: 18px; font-weight: 700; margin: 0 0 4px; color: var(--ink); }
+.h2 { font-size: 15px; font-weight: 600; margin: 22px 0 6px; color: var(--ink); }
+.h2:first-child { margin-top: 0; }
+.p { margin: 0 0 12px; }
+.p:last-child { margin-bottom: 0; }
+.ul { margin: 0 0 12px; padding-left: 20px; }
+.ul li { margin: 0 0 4px; }
+.hr { border: 0; border-top: 1px solid var(--line); margin: 22px 0; }
+.tableWrap { overflow-x: auto; margin: 0 0 12px; }
+.table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.table th, .table td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+.table th { font-weight: 600; color: var(--muted); white-space: nowrap; }
+.link { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }

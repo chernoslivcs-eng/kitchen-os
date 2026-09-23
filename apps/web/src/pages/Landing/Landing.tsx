@@ -11,6 +11,7 @@
 // приходить сама; те, де бандл про темну мовчить, — Landing.module.css
 // (блок «темна») і QUESTIONS §16.
 import { useRef, useState, type MouseEvent } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Icon } from '../../components/Icon/Icon';
 import { SignInForm } from './SignInForm';
 import { LiveSession } from './LiveSession';
@@ -39,6 +40,7 @@ export function Landing() {
   useLightOnly();
   const bp = useBreakpoint();
   const desk = bp === 'desk', tab = bp === 'tab', mob = bp === 'mob';
+  const location = useLocation();
   const root = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState(false);
   useFrameZoom(root, desk);
@@ -226,7 +228,13 @@ export function Landing() {
             <Mark className={s.markSm} /><span className={s.footerName}>{FOOTER.brand}</span>
             <span className={s.footerTag}>{mob ? FOOTER.taglineLong : `· ${tab ? FOOTER.tagline : FOOTER.taglineLong}`}</span>
           </span>
-          <span className={s.footerLinks}>{FOOTER.links.map((l) => <span key={l}>{l}</span>)}</span>
+          <span className={s.footerLinks}>
+            {FOOTER.legalLinks.map((l) => (
+              <Link key={l.to} to={l.to} state={{ background: location }} className={s.footerLink}>{l.label}</Link>
+            ))}
+            <span>{FOOTER.contact}</span>
+            <span>{FOOTER.copyright}</span>
+          </span>
         </footer>
       </section>
     </div>

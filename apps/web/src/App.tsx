@@ -1,6 +1,6 @@
 import { Suspense, useEffect } from 'react';
 import { lazyPage } from './lib/lazyPage';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, type Location } from 'react-router-dom';
 const Landing = lazyPage(() => import('./pages/Landing/Landing').then((m) => ({ default: m.Landing })));
 const MagicLinkSent = lazyPage(() => import('./pages/MagicLinkSent/MagicLinkSent').then((m) => ({ default: m.MagicLinkSent })));
 const Feed = lazyPage(() => import('./pages/Feed/Feed').then((m) => ({ default: m.Feed })));
@@ -31,6 +31,10 @@ import { ErrorScreen } from './components/ErrorState/ErrorScreen';
 import { SERVER_DOWN } from './components/ErrorState/copy';
 const LinkExpiredPage = lazyPage(() => import('./pages/LinkGone/LinkGone').then((m) => ({ default: m.LinkExpiredPage })));
 const LinkConsumedPage = lazyPage(() => import('./pages/LinkGone/LinkGone').then((m) => ({ default: m.LinkConsumedPage })));
+// Юридичні документи (/terms /privacy /refund /contacts) — попап поверх
+// поточної сторінки, той самий чанк на всі чотири (LegalDocPage + Markdown +
+// legal/*.md невеликі разом).
+const LegalDocPage = lazyPage(() => import('./pages/Legal/LegalDocPage').then((m) => ({ default: m.LegalDocPage })));
 import { useAuth } from './store/auth';
 import { GlobalCookAlarm } from './lib/cook-watch';
 
@@ -85,30 +89,21 @@ function RedirectIfSignedIn({ children }: { children: React.ReactNode }) {
 
 const Quiet = () => <div style={{ minHeight: '100dvh', background: 'var(--bg)' }} />;
 
-function CookHost() {
-  // Пул-3: Cook Mode — поп-ап поверх будь-якого екрана. key скидає стан
-  // кроків/таймера, коли відкривають ІНШЕ готування.
-  const args = useCookStore((s) => s.args);
-  if (!args) return null;
-  return <CookOverlay key={`${args.recipeId ?? args.recipe.t}:${args.startAt ?? 0}`} />;
-}
-
-export function App() {
+// Юридичні документи (/terms /privacy /refund /contacts) — другий, окремий
+// `<Routes>` поверх основного, за патерном "background location" react-router:
+// лінк, яким відкрили попап, передає `state.background` (сторінку, з якої
+// прийшли) — основний `<Routes>` рендерить ЇЇ, а не /terms, і сторінка
+// лишається видимою "під" попапом; сама адреса в браузері — справжня /terms.
+// Прямий перехід (лінк платіжного провайдера, оновлення сторінки) без
+// background — основний `<Routes>` не знаходить маршруту й тихо падає на
+// NotFoundPage за напівпрозорим тлом попапу; сам документ це не зачіпає.
+function RootRoutes() {
+  const location = useLocation();
+  const background = (location.state as { background?: Location } | null)?.background;
   return (
-    <BrowserRouter>
-      <Boot>
-        {/* Крок О1б: місце під код інциденту, залишене в Е1, тепер заповнене.
-            captureCrash повертає вісім знаків event id — той самий, що людина
-            бачить чипом на екрані падіння й може продиктувати. */}
-        <ErrorBoundary onError={(e, info) => {
-          // Аудит 0913 C.3: офлайн-чанк — інцидент мережі, не падіння коду.
-          if (e.name === 'ChunkOfflineError') { captureClientIncident('chunk-offline'); return null; }
-          return captureCrash(e, info.componentStack);
-        }}>
-        {/* Мобільний аудит 0912 · A (№46): сторінки — лазі-чанками (lib/lazyPage);
-            поки чанк іде — те саме тихе поле, що й у RequireAuth. */}
-        <Suspense fallback={<Quiet />}>
-        <Routes>
+    <>
+      <Suspense fallback={<Quiet />}>
+        <Routes location={background ?? location}>
           <Route path="/" element={<RedirectIfSignedIn><Landing /></RedirectIfSignedIn>} />
           <Route path="/sent" element={<RedirectIfSignedIn><MagicLinkSent /></RedirectIfSignedIn>} />
           <Route element={<RequireAuth><Shell /></RequireAuth>}>
@@ -156,7 +151,42 @@ export function App() {
           <Route path="/link/consumed" element={<LinkConsumedPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-        </Suspense>
+      </Suspense>
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/terms" element={<LegalDocPage doc="terms" />} />
+          <Route path="/privacy" element={<LegalDocPage doc="privacy" />} />
+          <Route path="/refund" element={<LegalDocPage doc="refund" />} />
+          <Route path="/contacts" element={<LegalDocPage doc="contacts" />} />
+        </Routes>
+      </Suspense>
+    </>
+  );
+}
+
+function CookHost() {
+  // Пул-3: Cook Mode — поп-ап поверх будь-якого екрана. key скидає стан
+  // кроків/таймера, коли відкривають ІНШЕ готування.
+  const args = useCookStore((s) => s.args);
+  if (!args) return null;
+  return <CookOverlay key={`${args.recipeId ?? args.recipe.t}:${args.startAt ?? 0}`} />;
+}
+
+export function App() {
+  return (
+    <BrowserRouter>
+      <Boot>
+        {/* Крок О1б: місце під код інциденту, залишене в Е1, тепер заповнене.
+            captureCrash повертає вісім знаків event id — той самий, що людина
+            бачить чипом на екрані падіння й може продиктувати. */}
+        <ErrorBoundary onError={(e, info) => {
+          // Аудит 0913 C.3: офлайн-чанк — інцидент мережі, не падіння коду.
+          if (e.name === 'ChunkOfflineError') { captureClientIncident('chunk-offline'); return null; }
+          return captureCrash(e, info.componentStack);
+        }}>
+        {/* Мобільний аудит 0912 · A (№46): сторінки — лазі-чанками (lib/lazyPage);
+            поки чанк іде — те саме тихе поле, що й у RequireAuth. */}
+        <RootRoutes />
         </ErrorBoundary>
         <Suspense fallback={null}><CookHost /></Suspense>
         {/* Пул-7 №1: таймер, що вибіг поза Cook Mode, дзвонить звідусіль. */}

@@ -14,7 +14,7 @@
 // 800 мс, оптимістично, без спінерів; помилка — тост і один повтор.
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ClipboardEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, ApiError, type ProfileV2Response, type ProfileFieldV2, type ProfileNoteV2, type InviteInfo, type InviteCreated, type AccountConflict } from '../../api';
 import { PROFILE_ROWS, SECTION, PLAN_LABEL, TELEGRAM, MERGE, type ProfileRowCopy } from '../../lib/profile-copy';
 import { TABLET_MIN } from '../../lib/device';
@@ -59,6 +59,7 @@ type RetailStatus = 'loading' | 'unavailable' | 'none' | 'active' | 'expired' | 
 
 export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const me = useAuth((s) => s.me);
   const logout = useAuth((s) => s.logout);
   const openNav = useNavStore((s) => s.setOpen);
@@ -569,6 +570,15 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
           ))}
         </span>
       </div>
+      <div className={`${styles.accRow} ${styles.accRowDocs}`}>
+        <span className={styles.accKey}>{SECTION.documents}</span>
+        <span className={styles.docsLinks}>
+          <Link to="/terms" state={{ background: location }} className={styles.svcLink}>{SECTION.documentsTerms}</Link>
+          <Link to="/privacy" state={{ background: location }} className={styles.svcLink}>{SECTION.documentsPrivacy}</Link>
+          <Link to="/refund" state={{ background: location }} className={styles.svcLink}>{SECTION.documentsRefund}</Link>
+          <Link to="/contacts" state={{ background: location }} className={styles.svcLink}>{SECTION.documentsContacts}</Link>
+        </span>
+      </div>
       <div className={styles.actions}>
         <button type="button" className={styles.logout} data-tap onClick={() => void logout()}>{SECTION.logout}</button>
         <button
@@ -655,6 +665,13 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                     {row.k === 'kit' && (
                       <div className={styles.baseline} data-baseline="kit">
                         {KIT_DEFAULTS.join(' · ')} — є за замовчуванням, це не твої слова
+                      </div>
+                    )}
+                    {/* Юридичні документи (23.09): підказка під полем алергій — без
+                        чекбоксу, не блокує ввід, лише лінк на політику. */}
+                    {row.k === 'ban' && (
+                      <div className={styles.baseline} data-privacy-note="ban">
+                        <Link to="/privacy" state={{ background: location }} className={styles.baselineLink}>{SECTION.banPrivacyNote}</Link>
                       </div>
                     )}
                   </div>
