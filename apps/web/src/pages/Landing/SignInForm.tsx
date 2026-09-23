@@ -23,6 +23,7 @@
 //   GET /v1/auth/telegram/poll раз на 2 с → 'ok' ставить cookie-сесію й веде
 //   на /app.
 import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { api, type AuthMode } from '../../api';
 import { Icon } from '../../components/Icon/Icon';
 import { useMagicLink } from './useMagicLink';
@@ -108,6 +109,7 @@ export function SignInForm({ id, or = true, className }: Props) {
   const [tgNoAccount, setTgNoAccount] = useState(false);
   const [googleNoAccount, setGoogleNoAccount] = useState(false);
   const pollTimer = useRef<number | null>(null);
+  const location = useLocation();
 
   useEffect(() => {
     api.auth.providers()
@@ -261,6 +263,14 @@ export function SignInForm({ id, or = true, className }: Props) {
       {error && <div className={styles.formError} role="alert">{error}</div>}
       <span className={styles.note}>{SIGNIN.note}</span>
       {mode === 'start' && <span className={styles.note}>{AUTH_MODE.footNote}</span>}
+      {mode === 'start' && (
+        <span className={styles.note}>
+          {AUTH_MODE.consentBefore}{' '}
+          <Link to="/terms" state={{ background: location }} className={styles.consentLink}>{AUTH_MODE.consentTerms}</Link>
+          {' '}{AUTH_MODE.consentMiddle}{' '}
+          <Link to="/privacy" state={{ background: location }} className={styles.consentLink}>{AUTH_MODE.consentPrivacy}</Link>.
+        </span>
+      )}
     </div>
   );
 }

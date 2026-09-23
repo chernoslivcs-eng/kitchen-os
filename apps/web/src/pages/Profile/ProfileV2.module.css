@@ -130,6 +130,8 @@
 .counterNear, .counterLimit { color: var(--amber); }
 /* Р8: «база кухні» — caption під полем, не в ньому. */
 .baseline { padding: 0 0 8px; font-size: 12px; line-height: 1.45; color: var(--dim); }
+/* Юридичні документи (23.09): та сама caption-геометрія, лінк на /privacy під полем алергій. */
+.baselineLink { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .vetoNote { margin: 0; padding: 11px 0 0; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.45; color: var(--dim); }
 @media (min-width: 1024px) { .vetoNote { padding-top: 12px; } }
 
@@ -402,6 +404,14 @@
 }
 .tgHint { font-size: 12px; color: var(--dim); }
 .accRowTg .svcLink, .tgLinkRow .svcLink { min-height: 44px; display: inline-flex; align-items: center; }
+/* Юридичні документи (23.09): рядок «Документи» в «Акаунті» — чотири лінки тим самим .svcLink.
+   Стовпчиком, не поруч із міткою: чотири лінки на 390 переносяться на другий
+   рядок, і align-items:center звичайного .accRow центрував «Документи» по
+   висоті ДВОХ рядків — мітка візуально опинялась МІЖ ними. */
+.accRowDocs { flex-direction: column; align-items: flex-start; gap: 6px; min-height: 0; }
+.docsLinks { display: flex; flex-wrap: wrap; gap: 10px 14px; justify-content: flex-start; }
+.docsLinks .svcLink { min-height: 44px; display: inline-flex; align-items: center; }
+@media (min-width: 1024px) { .docsLinks .svcLink { min-height: 32px; } }
 @media (min-width: 1024px) { .accRowTg .svcLink, .tgLinkRow .svcLink { min-height: 32px; } }
 
 /* Злиття акаунтів (15.09): note під рядком Telegram/Пошта — amber-bg, r12; після злиття — sage-bg. */

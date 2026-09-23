@@ -62,6 +62,12 @@ export const AUTH_MODE = {
   },
   startNew: 'Зареєструватись',
   unknownKeySuffix: 'або увійди тим способом, яким реєструвався.',
+  // Юридичні документи (23.09): рядок під кнопкою реєстрації, без чекбоксу —
+  // два окремі лінки на попапи /terms і /privacy.
+  consentBefore: 'Реєструючись, ти приймаєш',
+  consentTerms: 'умови',
+  consentMiddle: 'і',
+  consentPrivacy: 'політику конфіденційності',
 };
 
 export const PAINS_H2 = 'Продукти є. Вечері немає.';
@@ -140,7 +146,16 @@ export const FOOTER = {
   brand: 'Kitchen OS',
   tagline: 'Кухня, яка памʼятає.',
   taglineLong: 'Кухня, яка памʼятає. Без реклами й проплачених пропозицій усередині.',
-  links: ['Приватність', 'Умови', 'hello@kitchen.os', '© 2026'],
+  // Юридичні документи (23.09): чотири лінки на попапи /terms /privacy
+  // /refund /contacts — платіжний провайдер перевіряє саме ці адреси.
+  legalLinks: [
+    { label: 'Приватність', to: '/privacy' },
+    { label: 'Умови', to: '/terms' },
+    { label: 'Повернення', to: '/refund' },
+    { label: 'Реквізити', to: '/contacts' },
+  ],
+  contact: 'hello@kitchen.os',
+  copyright: '© 2026',
 };
 
 // Жива сесія в лептопі (1920 · 1024) і в телефоні (390 · фінал 1920).

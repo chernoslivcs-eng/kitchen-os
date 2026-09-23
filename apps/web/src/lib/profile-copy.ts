@@ -85,6 +85,13 @@ export const SECTION = {
   /** Не сам у домі: що лишиться після видалення (рішення власника 13.09 — текст, не логіка). */
   deleteNote: (names: string) => `Комора лишиться ${names} — зникнуть лише твої дані.`,
   saveFailed: 'Не збереглось. Спробую ще',
+  // Юридичні документи (23.09): рядок «Документи» в «Акаунті» і підказка під полем алергій.
+  documents: 'Документи',
+  documentsTerms: 'Оферта',
+  documentsPrivacy: 'Приватність',
+  documentsRefund: 'Повернення',
+  documentsContacts: 'Реквізити',
+  banPrivacyNote: 'Це дані про здоровʼя. Як ми їх використовуємо',
 };
 
 export const PLAN_LABEL: Record<string, string> = { beta: 'Бета-тест' };

@@ -122,6 +122,7 @@
 .pillBtn:disabled { opacity: .6; cursor: default; }
 .pillBtnIcon { display: none; }
 .note { font-size: 13px; color: var(--dim-t); padding-top: 4px; }
+.consentLink { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
 .formError { font-size: 13px; color: var(--danger); align-self: flex-start; padding: 0 16px; }
 /* Хотфікс 15.09: «Не відкрилось? Ще раз» під час очікування Telegram — і кнопка, і лінк одразу (сам href = t.me, повторний клік). */
 .tgRetry { font-size: 13px; color: var(--ink); text-decoration: underline; margin-top: -8px; }
@@ -699,6 +700,8 @@
 .markSm > span { width: 7px; height: 7px; }
 .footerName { color: var(--ink); font-weight: 600; }
 .footerLinks { display: flex; gap: 24px; }
+.footerLink { color: inherit; text-decoration: none; }
+.footerLink:hover { text-decoration: underline; }
 .tab .final { padding: 140px 48px 32px; gap: 24px; }
 .tab .finalH2 { font-size: 52px; max-width: 760px; }
 .tab .finalP { font-size: 16px; max-width: 560px; }
