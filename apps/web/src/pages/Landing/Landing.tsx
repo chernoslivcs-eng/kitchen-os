@@ -84,7 +84,7 @@ export function Landing() {
 
         <div ref={heroRef} className={s.hero}>
           <h1 data-reveal="0" className={s.h1}><span className={s.h1a}>{HERO.a}</span><span>{HERO.b}</span></h1>
-          <p data-reveal="120" className={s.lead}>{HERO.lead}</p>
+          <p data-reveal="120" className={s.lead}>{mob ? HERO.leadMobile : HERO.lead}</p>
           <div data-reveal="240" className={s.signinWrap}><SignInForm id="l3-signin" /></div>
         </div>
 
@@ -197,22 +197,36 @@ export function Landing() {
       <section id="l3-price" data-reveal="0" className={s.price}>
         <h2 className={`${s.h2} ${s.priceH2}`}>{PRICE.h2}</h2>
         <p className={s.priceP}>{PRICE.p}</p>
+        <div className={s.trial}>
+          <span className={s.trialTitle}>{PRICE.trialTitle}</span>
+          <span className={s.trialBadge}>{PRICE.trialBadge}</span>
+        </div>
+        <p className={s.trialSub}>{PRICE.trialSub}</p>
         <div className={s.planGrid}>
           {PLANS.map((p, i) => (
-            <div key={p.key} data-reveal={i === 0 ? '0' : '120'} className={`${s.plan} ${p.key === 'home' ? s.planHome : ''}`}>
-              <span className={s.planLabel}>
-                {p.label}
-                {p.key === 'home' && desk && (
-                  <span className={s.avatars}>
-                    <span className={`${s.avatar} ${s.avatarPlum}`}>О</span><span className={`${s.avatar} ${s.avatarAmber}`}>Т</span>
-                    <span className={`${s.avatar} ${s.avatarAdd}`}><Icon name="sys.add" size={12} inherit decorative /></span>
-                  </span>
-                )}
-                {'gift' in p && <span className={s.gift}>{p.gift}</span>}
-              </span>
-              <span className={s.planPrice}><span className={s.planSum}>{p.price}</span><span className={s.planPer}>{'was' in p ? <><s>{p.was}</s> {p.per}</> : p.per}</span></span>
-              <span className={s.planList}>{p.lines.map((l) => <span key={l}>{l}</span>)}</span>
-              <a href="#l3-signin" className={`${s.planBtn} ${p.key === 'home' ? s.planBtnHome : ''}`} onClick={go}>{PRICE.cta}</a>
+            <div key={p.key} data-reveal={i === 0 ? '0' : '120'} className={s.plan}>
+              <div className={`${s.planPanel} ${p.tint === 'amber' ? s.tintAmber : s.tintSage}`}>
+                <span className={s.planHead}>
+                  <span className={s.planLabel}>{p.label}</span>
+                  <span className={s.planHeadIcon}><Icon name={p.headIcon} size={20} inherit decorative /></span>
+                </span>
+                <span className={s.planPrice}>
+                  <span className={s.planSum}>{p.price}</span>
+                  <span className={s.planPer}>/ місяць</span>
+                  <span className={s.planApprox}>{p.approx}</span>
+                </span>
+                <p className={s.planBlurb}>{p.blurb}</p>
+              </div>
+              <ul className={s.planList}>
+                {p.lines.map((l) => (
+                  <li key={l.text} className={l.soon ? s.planLineSoon : s.planLine}>
+                    <Icon name={l.icon} size={18} inherit={!l.soon} decorative />
+                    <span>{l.text}</span>
+                    {l.soon && <span className={s.planSoonBadge}>{PRICE.soon}</span>}
+                  </li>
+                ))}
+              </ul>
+              <a href="#l3-signin" className={s.planBtn} onClick={go}>{PRICE.cta}<Icon name="sys.go" size={16} inherit decorative /></a>
             </div>
           ))}
         </div>
@@ -222,7 +236,7 @@ export function Landing() {
         {desk && <div ref={illRef} className={s.illPhone}><PhoneMock variant="final" /></div>}
         <h2 className={s.finalH2}>{FINAL.h2}</h2>
         <p className={s.finalP}>{FINAL.p}</p>
-        <SignInForm or={desk} className={s.signinFinal} />
+        <SignInForm className={s.signinFinal} />
         <footer className={s.footer}>
           <span className={s.footerBrand}>
             <Mark className={s.markSm} /><span className={s.footerName}>{FOOTER.brand}</span>
