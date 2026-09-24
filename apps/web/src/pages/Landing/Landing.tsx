@@ -19,9 +19,9 @@ import { PhoneMock } from './PhoneMock';
 import { FRAGS, FRAGS_M } from './Fragments';
 import {
   NAV, HERO, SIGNIN, PAINS, PAINS_H2, HOME_IMG, ROWS, TURN, KNOWS_HEAD, KNOWS, LEDGER_HEAD, LEDGER, GUESS_CHIP,
-  HOME, RULES_H2, RULES, RULE_2, RULE_3_CHIP, PRICE, PLANS, FINAL, FOOTER,
+  HOME, RULES_H2, RULES, RULE_2, RULE_3_CHIP, PRICE, PLANS, BETA_PLAN, FINAL, FOOTER,
 } from './copy';
-import { useBreakpoint, useFrameZoom, useReveal, useGloss, useLiveStart, useScrollScene, useHeroOverflow, reducedMotion } from './useLandingMotion';
+import { useBreakpoint, useFrameZoom, useReveal, useGloss, useLiveStart, useScrollScene, reducedMotion } from './useLandingMotion';
 import styles from './Landing.module.css';
 import { useLightOnly } from '../../lib/useLightOnly';
 
@@ -48,7 +48,6 @@ export function Landing() {
   useGloss(root, bp);
   useLiveStart(root, bp);
   const { active, heroRef, headerRef, illRef } = useScrollScene(root, desk);
-  useHeroOverflow(root, heroRef, headerRef, desk);
 
   const go = (e: MouseEvent<HTMLAnchorElement>) => {
     const href = e.currentTarget.getAttribute('href');
@@ -197,23 +196,25 @@ export function Landing() {
       <section id="l3-price" data-reveal="0" className={s.price}>
         <h2 className={`${s.h2} ${s.priceH2}`}>{PRICE.h2}</h2>
         <p className={s.priceP}>{PRICE.p}</p>
-        <div className={s.trial}>
-          <span className={s.trialTitle}>{PRICE.trialTitle}</span>
-          <span className={s.trialBadge}>{PRICE.trialBadge}</span>
-        </div>
-        <p className={s.trialSub}>{PRICE.trialSub}</p>
-        <div className={s.planGrid}>
+        {!BETA_PLAN && (
+          <div className={s.trial}>
+            <span className={s.trialTitle}>{PRICE.trialTitle}</span>
+            <span className={s.trialBadge}>{PRICE.trialBadge}</span>
+          </div>
+        )}
+        {!BETA_PLAN && <p className={s.trialSub}>{PRICE.trialSub}</p>}
+        <div className={`${s.planGrid} ${BETA_PLAN ? s.planGridThree : ''}`}>
           {PLANS.map((p, i) => (
             <div key={p.key} data-reveal={i === 0 ? '0' : '120'} className={s.plan}>
-              <div className={`${s.planPanel} ${p.tint === 'amber' ? s.tintAmber : s.tintSage}`}>
+              <div className={`${s.planPanel} ${p.tint === 'amber' ? s.tintAmber : p.tint === 'sage' ? s.tintSage : s.tintPaper}`}>
                 <span className={s.planHead}>
                   <span className={s.planLabel}>{p.label}</span>
                   <span className={s.planHeadIcon}><Icon name={p.headIcon} size={20} inherit decorative /></span>
                 </span>
                 <span className={s.planPrice}>
                   <span className={s.planSum}>{p.price}</span>
-                  <span className={s.planPer}>/ місяць</span>
-                  <span className={s.planApprox}>{p.approx}</span>
+                  <span className={s.planPer}>{p.per}</span>
+                  {p.approx && <span className={s.planApprox}>{p.approx}</span>}
                 </span>
                 <p className={s.planBlurb}>{p.blurb}</p>
               </div>
@@ -226,7 +227,9 @@ export function Landing() {
                   </li>
                 ))}
               </ul>
-              <a href="#l3-signin" className={s.planBtn} onClick={go}>{PRICE.cta}<Icon name="sys.go" size={16} inherit decorative /></a>
+              {p.cta
+                ? <a href="#l3-signin" className={s.planBtn} onClick={go}>{PRICE.cta}<Icon name="sys.go" size={16} inherit decorative /></a>
+                : <span className={s.planBtnAfter}>{PRICE.afterBeta}</span>}
             </div>
           ))}
         </div>
