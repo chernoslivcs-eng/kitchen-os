@@ -84,7 +84,7 @@ export function Landing() {
 
         <div ref={heroRef} className={s.hero}>
           <h1 data-reveal="0" className={s.h1}><span className={s.h1a}>{HERO.a}</span><span>{HERO.b}</span></h1>
-          <p data-reveal="120" className={s.lead}>{HERO.lead}</p>
+          <p data-reveal="120" className={s.lead}>{mob ? HERO.leadMobile : HERO.lead}</p>
           <div data-reveal="240" className={s.signinWrap}><SignInForm id="l3-signin" /></div>
         </div>
 

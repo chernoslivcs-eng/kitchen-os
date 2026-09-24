@@ -105,7 +105,13 @@
 .tab .h1 { font-size: 64px; }
 .tab .lead { font-size: 18px; max-width: 640px; }
 .tab .signinWrap { padding-top: 8px; }
-.mob .hero { position: static; height: auto; gap: 20px; padding: 48px 20px 40px; }
+/* Базовий .hero: min-height calc(vh-80) + justify-content:center — на
+ * десктопі/таб це нормально (sticky-сцена), але .mob .hero їх не скидав:
+ * герой лишався майже на всю висоту екрана й центрував (тепер коротший
+ * після компактного входу) вміст, спускаючи h1 на ~150px нижче кадру
+ * бандла. На <768 — без min-height і без центрування, h1 одразу під
+ * шапкою, як у бандлі (padding-top 32). */
+.mob .hero { position: static; height: auto; min-height: 0; justify-content: flex-start; gap: 20px; padding: 32px 20px 40px; }
 .mob .h1 { font-size: 40px; letter-spacing: -.04em; line-height: 1.02; }
 .mob .lead { font-size: 16px; }
 .mob .signinWrap { padding-top: 4px; width: 100%; }
@@ -674,8 +680,10 @@
 .planSoonBadge { margin-left: auto; height: 22px; padding: 0 9px; border-radius: 11px; background: var(--line); color: var(--muted); display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; white-space: nowrap; }
 
 /* Наведення — лише кнопка темнішає (§1.10); картка сама не реагує. */
-.planBtn { height: 56px; border-radius: 28px; background: var(--ink); color: var(--bg); display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-size: 15.5px; font-weight: 600; transition: background 120ms var(--e); }
-.planBtn:hover { color: var(--bg); background: var(--muted); }
+/* a.planBtn (не .planBtn): .page a{color:inherit} — клас+елемент, (0,1,1) —
+ * б'є звичайний однокласовий селектор і топив текст кнопки в ink-на-ink. */
+a.planBtn { height: 56px; border-radius: 28px; background: var(--ink); color: var(--bg); display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-size: 15.5px; font-weight: 600; transition: background 120ms var(--e); }
+a.planBtn:hover { color: var(--bg); background: var(--muted); }
 
 .tab .price { padding: 120px 48px 0; gap: 16px; }
 .tab .priceH2 { max-width: 760px; }
