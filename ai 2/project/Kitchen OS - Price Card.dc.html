@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+</helmet>
+<div style="height:100%; background:#fff; border-radius:32px; corner-shape:squircle; padding:8px; display:flex; flex-direction:column; box-shadow:0 1px 2px rgba(26,28,30,.04), 0 24px 60px rgba(26,28,30,.10); font-family:Onest,system-ui,sans-serif; color:#1a1c1e; text-align:left; position:relative;">
+
+  <div style="position:relative; overflow:hidden; background:{{ panelBg }}; color:{{ panelInk }}; border-radius:25px; corner-shape:squircle; padding:{{ panelPad }}; min-height:{{ panelH }}; display:flex; flex-direction:column; box-shadow:inset 0 1px 0 rgba(255,255,255,{{ edgeA }}), inset 0 0 0 1px rgba(255,255,255,{{ ringA }});">
+    <span style="position:absolute; inset:0; pointer-events:none; background:{{ glow }};"></span>
+    <span style="position:absolute; inset:0; pointer-events:none; background-image:{{ patImg }}; background-size:{{ patSize }}; background-position:{{ patPos }}; -webkit-mask-image:{{ patMask }}; mask-image:{{ patMask }};"></span>
+    <sc-if value="{{ isMark }}" hint-placeholder-val="{{ true }}"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true" style="position:absolute; width:{{ markSize }}; height:{{ markSize }}; right:{{ markR }}; bottom:{{ markB }}; pointer-events:none;"><circle cx="24" cy="24" r="19" stroke="{{ markC }}" stroke-width="{{ markW }}" stroke-linecap="round" stroke-dasharray="104 15" transform="rotate(-58 24 24)"></circle><circle cx="24" cy="24" r="6" fill="{{ markDot }}"></circle></svg></sc-if>
+    <sc-if value="{{ isGlass }}" hint-placeholder-val="{{ false }}"><span style="position:absolute; inset:14px 14px auto auto; width:62%; height:70%; pointer-events:none; border-radius:22px; background:rgba(255,255,255,.28); -webkit-backdrop-filter:blur(18px) saturate(1.4); backdrop-filter:blur(18px) saturate(1.4); box-shadow:inset 0 1px 0 rgba(255,255,255,.8), inset 0 -1px 0 rgba(255,255,255,.25), 0 12px 30px rgba(26,28,30,.08);"></span></sc-if>
+    <div style="position:relative; display:flex; flex-direction:column; flex:1;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <span style="height:30px; padding:0 13px; border-radius:15px; background:{{ pillBg }}; color:{{ pillC }}; display:inline-flex; align-items:center; font-size:13.5px; font-weight:600; box-shadow:inset 0 0 0 1px {{ pillRing }};">{{ name }}</span>
+      <span style="color:{{ iconC }}; display:grid; place-items:center;"><i data-lucide="{{ icon }}" style="width:22px; height:22px;"></i></span>
+    </div>
+    <span style="flex:1; min-height:18px;"></span>
+    <sc-if value="{{ trial }}" hint-placeholder-val="{{ false }}">
+      <span style="align-self:flex-start; height:26px; padding:0 11px; border-radius:13px; background:{{ trialBg }}; color:{{ trialC }}; display:inline-flex; align-items:center; font-size:12.5px; font-weight:600; margin-bottom:12px;">Перші 14 днів — 0 ₴ · без картки</span>
+    </sc-if>
+    <span style="display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;"><span style="font-weight:700; font-size:{{ priceSize }}; letter-spacing:-.03em; word-spacing:-.12em; line-height:.95; font-variant-numeric:proportional-nums; font-feature-settings:'tnum' 0;">{{ uah }}</span><span style="font-size:15px; color:{{ subC }};">/ місяць</span><span style="font-size:13px; color:{{ subC }}; margin-left:6px;">{{ usd }}</span></span>
+    <span style="font-size:14.5px; line-height:1.45; color:{{ subC }}; margin-top:10px; text-wrap:pretty;">{{ who }}</span>
+    </div>
+  </div>
+
+  <div style="flex:1; padding:{{ listPad }}; display:flex; flex-direction:column; gap:13px;">
+    <sc-for list="{{ feats }}" as="ft" hint-placeholder-count="6">
+      <sc-if value="{{ ft.ok }}" hint-placeholder-val="{{ true }}"><span style="display:flex; align-items:center; gap:12px; font-size:14.5px; line-height:1.35;"><span style="width:20px; color:{{ tileC }}; display:grid; place-items:center; flex:none;">{{ ft.ic }}</span>{{ ft.t }}</span></sc-if>
+      <sc-if value="{{ ft.soon }}" hint-placeholder-val="{{ false }}"><span style="display:flex; align-items:center; gap:12px; font-size:14px; line-height:1.35; color:#6b6f74; margin-top:4px; padding-top:10px; border-top:1px dashed #e6e4de;"><span style="width:20px; color:#9a9ea3; display:grid; place-items:center; flex:none;"><i data-lucide="clock" style="width:17px; height:17px;"></i></span><span style="flex:1; min-width:0;">{{ ft.t }}</span><span style="height:22px; padding:0 9px; border-radius:11px; background:#f0eee9; color:#6b6f74; display:inline-flex; align-items:center; font-size:12px; font-weight:600; flex:none;">скоро</span></span></sc-if>
+    </sc-for>
+  </div>
+
+  <span style="position:relative; overflow:hidden; height:56px; border-radius:28px; background:{{ btnBg }}; color:#f4f3ef; display:flex; align-items:center; justify-content:center; gap:9px; font-size:15.5px; font-weight:600; cursor:pointer; box-shadow:{{ btnSh }};"><sc-if value="{{ gloss }}" hint-placeholder-val="{{ false }}"><span style="position:absolute; left:14px; right:14px; top:3px; height:40%; border-radius:24px 24px 14px 14px; background:linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0)); pointer-events:none;"></span></sc-if><span style="position:relative; display:inline-flex; align-items:center; gap:9px;">{{ cta }}<i data-lucide="arrow-right" style="width:16px; height:16px;"></i></span></span>
+
+  <sc-if value="{{ hover }}" hint-placeholder-val="{{ false }}">
+    <span style="position:absolute; right:80px; top:{{ cursorTop }};"><svg viewBox="0 0 18 22" width="18" height="22"><path d="M1 1 L1 17 L5 13 L8 20 L11 19 L8 12 L14 12 Z" fill="#1a1c1e" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"></path></svg></span>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:640},&quot;plan&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;self&quot;,&quot;home&quot;],&quot;default&quot;:&quot;self&quot;,&quot;tsType&quot;:&quot;'self'|'home'&quot;},&quot;look&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;soft&quot;,&quot;glow&quot;,&quot;glass&quot;],&quot;default&quot;:&quot;soft&quot;,&quot;tsType&quot;:&quot;'glow'|'glass'&quot;},&quot;pattern&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;mark&quot;,&quot;rings&quot;,&quot;grid&quot;,&quot;dots&quot;,&quot;none&quot;],&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;trial&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;compact&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;hover&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  icons() { const run = () => { if (window.lucide) window.lucide.createIcons({ attrs: { 'stroke-width': 1.75 } }); else setTimeout(run, 200); }; run(); }
+  componentDidMount() { this.icons(); }
+  componentDidUpdate() { this.icons(); }
+  renderVals() {
+    const home = (this.props.plan ?? 'self') === 'home';
+    const compact = !!this.props.compact;
+    const P = {
+      fridge:'<path d="M5 10V6a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v4"/><path d="M5 10h14"/><path d="M15 5.5v2.5"/><path d="M5 10v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V10"/><path d="M15 13v3.5"/>',
+      book:'<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3z"/><path d="M21 18a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1h-5a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3z"/>',
+      checks:'<path d="m3 7 2 2 4-4"/><path d="m3 17 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/><path d="M3 12h6" opacity=".45"/>',
+      cal:'<path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><circle cx="7.6" cy="15" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="15" r="1" fill="currentColor" stroke="none"/><circle cx="16.4" cy="15" r="1" fill="currentColor" stroke="none"/>',
+      cart:'<path d="M2.5 3h1.8l2.5 11.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 1.95-1.55L21 7.6H5.4"/><circle cx="8" cy="20.6" r="1.6"/><circle cx="19" cy="20.6" r="1.6"/>',
+      chat:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><circle cx="8.4" cy="11" r="1.05" fill="currentColor" stroke="none"/><circle cx="12" cy="11" r="1.05" fill="currentColor" stroke="none"/><circle cx="15.6" cy="11" r="1.05" fill="currentColor" stroke="none"/>',
+      house:'<path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9.5 21v-6a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v6"/>',
+      check:'<path d="M20 6 9 17l-5-5"/>',
+      receipt:'<path d="M5 3.5A1.5 1.5 0 0 1 6.5 2h11A1.5 1.5 0 0 1 19 3.5V22l-2.33-1.3L14.33 22 12 20.7 9.67 22 7.33 20.7 5 22Z"/><path d="M8.5 7h7"/><path d="M8.5 11h7"/><path d="M8.5 15h4.5"/>',
+    };
+    const svg = (k) => React.createElement('svg', { viewBox:'0 0 24 24', width:18, height:18, fill:'none', stroke:'currentColor', strokeWidth:1.75, strokeLinecap:'round', strokeLinejoin:'round', dangerouslySetInnerHTML:{ __html:P[k] } });
+    const ok = (t, k) => ({ t, ok:true, soon:false, ic: svg(k) });
+    return {
+      name: home ? 'Для дому' : 'Для себе',
+      icon: home ? 'users' : 'user',
+            uah: home ? '290 ₴' : '210 ₴', usd: home ? '≈ $7' : '≈ $5',
+      who: home ? 'Для кількох людей, які живуть з однією коморою.' : 'Для тих, хто вирішує свою вечерю сам.',
+      feats: home
+        ? [ok('Усе, що є в тарифі «Для себе»', 'check'), ok('Спільна комора для всіх удома', 'fridge'), ok('Спільний список покупок', 'checks'), ok('Запрошення в дім за посиланням', 'house'), { t:'Окремі смаки й обмеження', ok:false, soon:true }]
+        : [ok('Комора: чек, фото, полиця, голос', 'fridge'), ok('Строки й рецепти з того, що вдома', 'book'), ok('Кроки, таймери й журнал готувань', 'receipt'), ok('Календар, алергії й обмеження', 'cal'), ok('Список покупок і кошик у Сільпо', 'cart'), ok('Telegram: фото, голос, нагадування', 'chat')],
+      tileC: home ? '#5b7a4f' : '#1a1c1e',
+      ...(() => {
+        const look = this.props.look ?? 'soft';
+        if (look === 'soft') return {
+          isGlass: false, panelInk: '#1a1c1e', subC: '#6b6f74', edgeA: .9, ringA: 0, dotC: 'rgba(26,28,30,.07)',
+          panelBg: home ? '#e8efe3' : '#f6ecd6',
+          glow: home ? 'radial-gradient(70% 80% at 100% 0%, rgba(255,255,255,.75) 0%, rgba(255,255,255,0) 60%), radial-gradient(60% 70% at 0% 100%, rgba(91,122,79,.16) 0%, rgba(91,122,79,0) 70%)'
+                     : 'radial-gradient(70% 80% at 100% 0%, rgba(255,255,255,.75) 0%, rgba(255,255,255,0) 60%), radial-gradient(60% 70% at 0% 100%, rgba(166,124,46,.16) 0%, rgba(166,124,46,0) 70%)',
+          pillBg: '#fff', pillC: home ? '#3f5837' : '#8a6420', pillRing: 'rgba(255,255,255,0)', iconC: home ? '#5b7a4f' : '#a67c2e',
+          trialBg: '#fff', trialC: '#3f5837', btn: 'flat' };
+        if (look === 'glass') return {
+          isGlass: true, panelInk: '#1a1c1e', subC: '#4d5156', edgeA: .9, ringA: .5, dotC: 'rgba(26,28,30,.08)',
+          panelBg: home ? '#dfe9d8' : '#efe7d6',
+          glow: home ? 'radial-gradient(60% 70% at 85% 10%, #9dbf8f 0%, rgba(157,191,143,0) 70%), radial-gradient(50% 60% at 10% 100%, #c9dcb9 0%, rgba(201,220,185,0) 70%)'
+                     : 'radial-gradient(60% 70% at 85% 10%, #e8c889 0%, rgba(232,200,137,0) 70%), radial-gradient(50% 60% at 10% 100%, #f1dcc0 0%, rgba(241,220,192,0) 70%)',
+          pillBg: 'rgba(255,255,255,.7)', pillC: '#1a1c1e', pillRing: 'rgba(255,255,255,.9)', iconC: home ? '#3f5837' : '#1a1c1e',
+          trialBg: 'rgba(255,255,255,.8)', trialC: '#3f5837' };
+        return {
+          isGlass: false, panelInk: '#f4f3ef', subC: 'rgba(244,243,239,.72)', edgeA: .14, ringA: .06, dotC: 'rgba(244,243,239,.10)',
+          panelBg: '#17191b',
+          glow: home ? 'radial-gradient(75% 80% at 100% 0%, rgba(122,168,104,.75) 0%, rgba(122,168,104,0) 62%), radial-gradient(55% 60% at 0% 100%, rgba(166,124,46,.35) 0%, rgba(166,124,46,0) 70%)'
+                     : 'radial-gradient(75% 80% at 100% 0%, rgba(214,168,96,.62) 0%, rgba(214,168,96,0) 62%), radial-gradient(55% 60% at 0% 100%, rgba(138,92,120,.32) 0%, rgba(138,92,120,0) 70%)',
+          pillBg: 'rgba(244,243,239,.1)', pillC: '#f4f3ef', pillRing: 'rgba(244,243,239,.22)', iconC: '#f4f3ef',
+          trialBg: 'rgba(244,243,239,.14)', trialC: '#dfeed6' };
+      })(),
+      ...(() => {
+        const pat = this.props.pattern ?? 'none';
+        const lk0 = this.props.look ?? 'soft';
+        const tone = lk0 === 'glow' ? 'rgba(244,243,239,' : (home ? 'rgba(91,122,79,' : 'rgba(166,124,46,');
+        const mark = { isMark: pat === 'mark', markSize: compact ? '240px' : '300px', markR: compact ? '-90px' : '-110px', markB: compact ? '-120px' : '-150px', markW: compact ? '.75' : '.7', markC: tone + '.30)', markDot: tone + '.14)' };
+        if (pat === 'mark') return { ...mark, patImg: 'none', patSize: 'auto', patPos: '0 0', patMask: 'none' };
+        const lk = this.props.look ?? 'soft';
+        const c = lk === 'glow' ? 'rgba(244,243,239,' : (home ? 'rgba(63,88,55,' : 'rgba(138,100,32,');
+        if (pat === 'rings') return { ...mark,
+          patImg: 'repeating-radial-gradient(circle at 100% 0%, transparent 0 17px, ' + c + '.14) 17px 18px)',
+          patSize: 'auto', patPos: '0 0',
+          patMask: 'radial-gradient(90% 100% at 100% 0%, #000 0%, rgba(0,0,0,.35) 55%, transparent 85%)' };
+        if (pat === 'grid') return { ...mark,
+          patImg: 'linear-gradient(' + c + '.09) 1px, transparent 1px), linear-gradient(90deg, ' + c + '.09) 1px, transparent 1px)',
+          patSize: '22px 22px', patPos: '-1px -1px',
+          patMask: 'linear-gradient(200deg, #000 0%, transparent 75%)' };
+        if (pat === 'none') return { ...mark, patImg: 'none', patSize: 'auto', patPos: '0 0', patMask: 'none' };
+        return { ...mark,
+          patImg: 'radial-gradient(' + c + '.18) 1px, transparent 1.3px)',
+          patSize: '16px 16px', patPos: '0 0',
+          patMask: 'linear-gradient(200deg, #000 0%, transparent 80%)' };
+      })(),
+      ...(((this.props.look ?? 'soft') === 'soft')
+        ? { gloss:false, btnBg:'#1a1c1e', btnSh:'0 12px 40px rgba(26,28,30,.18)' }
+        : { gloss:true, btnBg:'linear-gradient(180deg, #3a3e43 0%, #1f2225 46%, #111315 100%)', btnSh:'inset 0 1px 0 rgba(255,255,255,.28), inset 0 -2px 4px rgba(0,0,0,.45), 0 10px 22px rgba(17,19,21,.28)' }),
+      cta: home ? 'Почати «Для дому»' : 'Почати «Для себе»',
+      trial: !!this.props.trial,
+      hover: !!this.props.hover,
+      cursorTop: '360px',
+      panelPad: compact ? '18px 18px 20px' : '22px 24px 24px',
+      panelH: compact ? '200px' : '236px',
+      priceSize: compact ? '52px' : '64px',
+      listPad: compact ? '18px 14px 18px' : '22px 18px 22px',
+    };
+  }
+}
+</script>
+</body>
+</html>

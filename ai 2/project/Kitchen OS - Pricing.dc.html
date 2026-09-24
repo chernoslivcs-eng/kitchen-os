@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#c9ccd0; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums; }
+a { color:inherit; text-decoration:none; } a:hover { color:#5b7a4f; }
+* { box-sizing:border-box; }
+</style>
+</helmet>
+
+<section style="padding:48px 48px 90px; display:flex; flex-direction:column; gap:40px; width:max-content;">
+
+  <div style="display:flex; flex-direction:column; gap:10px; width:1100px;">
+    <div style="font-size:12px; font-weight:500; color:#6b6f74;">Секція «Ціна» · бриф 24.09 · фінальні тексти копірайтера · на основі Landing Live</div>
+    <div style="font-weight:700; font-size:32px; letter-spacing:-.03em; line-height:1.05;">Два тижні безкоштовно, далі 210 або 290 ₴ на місяць, скасувати можна будь-коли.</div>
+    <div style="font-size:14px; line-height:1.6; color:#6b6f74; max-width:920px;">Картка: білий корпус, панель із ціною в тонах лендингу — бурштиновий для «Для себе», шавлієвий для «Для дому», з мʼяким світлом у куті; переваги рядками зі знаками продукту з Icons; чорна кнопка-пігулка, як у hero. У Tweaks лишились «glow» (темна) і «glass» для порівняння. Картки однакової висоти, кнопки на одному рівні. Пробний період — один раз: A — рядком над картками, B — плашкою в панелі.</div>
+  </div>
+
+  <sc-for list="{{ frames }}" as="f" hint-placeholder-count="6">
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <span style="font-size:12px; font-weight:600; color:#6b6f74; letter-spacing:.05em; text-transform:uppercase;">{{ f.cap }}</span>
+      <div data-screen-label="{{ f.cap }}" style="width:{{ f.w }}px; background:#f4f3ef; overflow:hidden; border-radius:{{ f.rad }}; box-shadow:0 20px 60px rgba(26,28,30,.16); display:flex; flex-direction:column;">
+
+        <div style="padding:{{ f.ctxPad }}; display:grid; grid-template-columns:{{ f.rulesCols }}; gap:{{ f.gap }}px; opacity:.55;">
+          <sc-for list="{{ f.rules }}" as="r" hint-placeholder-count="3">
+            <div style="background:#fff; border-radius:24px; padding:28px; display:flex; flex-direction:column; gap:10px; box-shadow:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07);"><span style="font-size:13px; color:#9a9ea3;">{{ r.n }}</span><span style="font-weight:600; font-size:{{ f.rulesT }}px; letter-spacing:-.02em;">{{ r.t }}</span></div>
+          </sc-for>
+        </div>
+
+        <div style="padding:{{ f.secPad }}; display:flex; flex-direction:column; align-items:center; text-align:center; gap:{{ f.headGap }}px;">
+          <h2 style="margin:0; font-weight:700; font-size:{{ f.h2 }}px; letter-spacing:-.04em; line-height:1.05; max-width:900px; text-wrap:balance;">Платиш за продукт, а не за рекламу всередині.</h2>
+          <p style="margin:0; font-size:{{ f.p }}px; line-height:1.55; color:#6b6f74; max-width:640px; text-wrap:pretty;">У рекомендацію потрапляє те, що має сенс для твоєї кухні. Не те, кому дуже хотілось продати тобі ще один соус.</p>
+
+          <sc-if value="{{ f.isA }}" hint-placeholder-val="{{ true }}">
+            <div style="margin-top:{{ f.trialTop }}px; display:flex; flex-direction:column; align-items:center; gap:6px;">
+              <span style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; justify-content:center;"><span style="font-weight:700; font-size:{{ f.trialSize }}px; letter-spacing:-.035em; line-height:1;">14 днів безкоштовно</span><span style="height:28px; padding:0 12px; border-radius:999px; background:#e8efe3; color:#3f5837; display:inline-flex; align-items:center; font-size:13px; font-weight:600; align-self:center;">без картки</span></span>
+              <span style="font-size:{{ f.p }}px; color:#6b6f74;">Далі — помісячно. Скасувати можна будь-коли.</span>
+            </div>
+          </sc-if>
+
+          <div style="display:grid; grid-template-columns:{{ f.cols }}; align-items:stretch; gap:{{ f.gap }}px; width:100%; max-width:{{ f.maxW }}px; margin-top:{{ f.cardsTop }}px;">
+            <sc-for list="{{ f.plans }}" as="pl" hint-placeholder-count="2">
+              <dc-import name="Kitchen OS - Price Card" look="{{ look }}" pattern="{{ pattern }}" plan="{{ pl.key }}" trial="{{ f.isB }}" compact="{{ f.compact }}" style="height:100%;" hint-size="100%,640px"></dc-import>
+            </sc-for>
+          </div>
+          <sc-if value="{{ f.isB }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:14px; color:#6b6f74; margin-top:6px;">Скасувати можна будь-коли.</span>
+          </sc-if>
+        </div>
+
+        <div style="padding:{{ f.nextPad }}; display:flex; justify-content:center; opacity:.55;">
+          <div style="width:{{ f.phoneW }}px; height:{{ f.phoneH }}px; background:linear-gradient(160deg, #2a2d31, #1a1c1e 40%, #0f1012); border-radius:36px 36px 0 0; padding:10px 10px 0;"><div style="width:100%; height:100%; border-radius:28px 28px 0 0; background:#f4f3ef;"></div></div>
+        </div>
+      </div>
+    </div>
+  </sc-for>
+
+  <div style="display:flex; flex-direction:column; gap:12px;">
+    <span style="font-size:12px; font-weight:600; color:#6b6f74; letter-spacing:.05em; text-transform:uppercase;">Наведення · реагує лише кнопка · рядок «скоро»</span>
+    <div style="display:flex; gap:32px; align-items:stretch; padding:40px; background:#f4f3ef; border-radius:24px; width:max-content;">
+      <div style="width:440px; display:flex; flex-direction:column; gap:12px;"><span style="font-size:11px; font-weight:600; letter-spacing:.06em; color:#9a9ea3;">СПОКІЙ</span><dc-import name="Kitchen OS - Price Card" look="{{ look }}" pattern="{{ pattern }}" plan="home" hint-size="440px,620px"></dc-import></div>
+      <div style="width:440px; display:flex; flex-direction:column; gap:12px;"><span style="font-size:11px; font-weight:600; letter-spacing:.06em; color:#9a9ea3;">НАВЕДЕННЯ НА КАРТКУ</span><dc-import name="Kitchen OS - Price Card" look="{{ look }}" pattern="{{ pattern }}" plan="home" hover="{{ true }}" hint-size="440px,620px"></dc-import></div>
+      <div style="width:300px; font-size:13.5px; line-height:1.6; color:#6b6f74; padding-top:28px; display:flex; flex-direction:column; gap:14px;"><span>Картка на наведення не реагує: ні обводки, ні підйому. Реагує лише кнопка внизу — темнішає за 120 мс, як скрізь на лендингу.</span><span>Рядок «скоро» завжди останній: пунктир відсікає його від оплаченого, замість знака — порожня пунктирна плитка з годинником, текст сірий і дрібніший, справа плашка «скоро». Коли функція запрацює, рядок отримає свій знак і стане звичайним.</span></div>
+    </div>
+  </div>
+
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;look&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;soft&quot;,&quot;glow&quot;,&quot;glass&quot;],&quot;default&quot;:&quot;soft&quot;,&quot;tsType&quot;:&quot;'soft'|'glow'|'glass'&quot;,&quot;section&quot;:&quot;Картки&quot;},&quot;pattern&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;mark&quot;,&quot;rings&quot;,&quot;grid&quot;,&quot;dots&quot;],&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Картки&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const plans = [{ key:'self' }, { key:'home' }];
+    const rules = [{ n:'01', t:'Не вгадує мовчки' }, { n:'02', t:'Не списує за припущенням' }, { n:'03', t:'Алергії — жорсткі. Побажання — гнучкі.' }];
+    const desk = (cap, w, v) => {
+      const big = w >= 1440;
+      return { cap, w, compact:false, isA: v === 'A', isB: v === 'B', rad:'0', plans, rules,
+        ctxPad: big ? '64px 120px 0' : '48px 64px 0', rulesCols:'repeat(3, minmax(0,1fr))', rulesT:20,
+        secPad: big ? '120px 120px 0' : '96px 64px 0', headGap:18, h2: big ? 52 : 46, p: big ? 18 : 17,
+        trialTop: big ? 28 : 22, trialSize: big ? 36 : 32,
+        cols:'repeat(2, minmax(0,1fr))', gap:24, maxW:920, cardsTop: v === 'A' ? 28 : 40,
+        nextPad: big ? '140px 0 0' : '110px 0 0', phoneW:300, phoneH:120 };
+    };
+    const mob = (cap, v) => ({ cap, w:390, compact:true, isA: v === 'A', isB: v === 'B', rad:'12px', plans, rules: rules.slice(2),
+      ctxPad:'32px 20px 0', rulesCols:'1fr', rulesT:17,
+      secPad:'72px 16px 0', headGap:14, h2:32, p:15, trialTop:14, trialSize:26,
+      cols:'1fr', gap:14, maxW:358, cardsTop: v === 'A' ? 18 : 24,
+      nextPad:'72px 0 0', phoneW:240, phoneH:90 });
+    return {
+      look: this.props.look ?? 'soft',
+      pattern: this.props.pattern ?? 'none',
+      frames: [
+        desk('A · 1440 · пробний період над картками', 1440, 'A'),
+        desk('B · 1440 · пробний період у панелі', 1440, 'B'),
+        desk('A · 1280', 1280, 'A'),
+        desk('B · 1280', 1280, 'B'),
+        mob('A · 390', 'A'),
+        mob('B · 390', 'B'),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+body { margin:0; background:#c9ccd0; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; }
+a { color:inherit; text-decoration:none; } a:hover { color:#5b7a4f; }
+* { box-sizing:border-box; }
+</style>
+</helmet>
+
+<section style="padding:48px 48px 90px; display:flex; flex-direction:column; gap:34px; width:max-content;">
+
+  <div style="display:flex; flex-direction:column; gap:10px; width:1100px;">
+    <div style="font-size:12px; font-weight:500; color:#6b6f74;">Блок входу · компактно · бриф 24.09 · на основі Landing Live</div>
+    <div style="font-weight:700; font-size:32px; letter-spacing:-.03em; line-height:1.05;">Три способи стовпчиком. Блок ≈ 280 px.</div>
+    <div style="font-size:14px; line-height:1.6; color:#6b6f74; max-width:900px;">Перемикач зверху, Google і Telegram — чорні пігулки стовпчиком (як «Продовжити з Google» на проді), пошта — пігулка тієї ж висоти одразу під ними, без роздільника. Тарифи → рядок «Зараз безкоштовно, поки триває бета»; картки $5 / $7 / $70 лишаються в секції «Ціна» нижче на сторінці, як у Landing Live. Заголовків і роздільника «або лінк на пошту» нема. Згода — найдрібніше. Пунктир — згин екрана; кадр продукту визирає під блоком і нічого не перекриває. Тема — світла: у Landing Live темної нема.</div>
+  </div>
+
+  <sc-for list="{{ desks }}" as="d" hint-placeholder-count="3">
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <span style="font-size:12px; font-weight:600; color:#6b6f74; letter-spacing:.05em; text-transform:uppercase;">{{ d.cap }}</span>
+      <div data-screen-label="{{ d.cap }}" style="width:{{ d.w }}px; height:{{ d.h }}px; background:linear-gradient(to bottom, #f5f0e3 0, #f4f3ef 560px); position:relative; overflow:hidden; box-shadow:0 20px 60px rgba(26,28,30,.16);">
+        <header style="height:72px; display:flex; align-items:center; justify-content:center; position:relative; padding:0 {{ d.pad }}px;">
+          <span style="position:absolute; left:{{ d.pad }}px; display:flex; align-items:center; gap:10px;"><span style="width:28px; height:28px; border-radius:50%; border:2.5px solid #1a1c1e; display:grid; place-items:center;"><span style="width:9px; height:9px; border-radius:50%; background:#5b7a4f;"></span></span><span style="font-weight:700; font-size:16px; letter-spacing:-.02em;">Kitchen OS</span></span>
+          <nav style="display:flex; gap:32px; font-size:15px; font-weight:500; color:#6b6f74;"><span>Як це працює</span><span>Ціна</span><span>Довіра</span></nav>
+          <span style="position:absolute; right:{{ d.pad }}px; height:40px; padding:0 18px; border-radius:10px; background:#fff; box-shadow:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); display:inline-flex; align-items:center; font-size:14px; font-weight:600;">Увійти</span>
+        </header>
+        <div style="display:flex; flex-direction:column; align-items:center; text-align:center; gap:{{ d.gap }}px; padding:{{ d.top }}px {{ d.pad }}px 0;">
+          <h1 style="margin:0; font-size:{{ d.h1 }}px; letter-spacing:-.045em; line-height:1; display:flex; flex-direction:column; max-width:1100px;"><span style="font-weight:400; color:#6b6f74;">Кухня, яка памʼятає.</span><span style="font-weight:700;">Готуй з того, що вже є.</span></h1>
+          <p style="margin:0; font-size:{{ d.p }}px; line-height:1.5; color:#6b6f74; max-width:{{ d.pw }}px; text-wrap:pretty;">Kitchen OS памʼятає, що є вдома, що вже відкрите і що давно дивиться на тебе з холодильника. Питаєш «що на вечерю?» — отримуєш відповідь, яка не починається з походу в магазин.</p>
+          <div style="width:480px; padding-top:4px;"><dc-import name="Kitchen OS - Sign-in Card" mode="{{ d.mode }}" st="idle" hint-size="480px,280px"></dc-import></div>
+        </div>
+        <div style="position:absolute; left:50%; transform:translateX(-50%); top:{{ d.frameTop }}px; width:{{ d.fw }}px; height:600px; background:linear-gradient(160deg, #2a2d31, #1a1c1e 40%, #0f1012); border-radius:28px; padding:16px; box-shadow:0 12px 40px rgba(26,28,30,.18);">
+          <div style="width:100%; height:100%; border-radius:16px; background:#f4f3ef;"></div>
+        </div>
+        <div style="position:absolute; left:0; right:0; top:{{ d.foldY }}px; border-top:1.5px dashed #5b7a4f;"></div>
+        <span style="position:absolute; right:16px; top:{{ d.foldLbl }}px; font-size:11px; font-weight:600; letter-spacing:.06em; color:#3f5837; background:#e8efe3; padding:3px 8px; border-radius:6px;">{{ d.foldTxt }}</span>
+      </div>
+    </div>
+  </sc-for>
+
+  <div style="display:flex; flex-direction:column; gap:12px;">
+    <span style="font-size:12px; font-weight:600; color:#6b6f74; letter-spacing:.05em; text-transform:uppercase;">390 · реєстрація · вхід</span>
+    <div style="display:flex; gap:28px; align-items:flex-start;">
+      <sc-for list="{{ mobs }}" as="m" hint-placeholder-count="2">
+        <div data-screen-label="{{ m.cap }}" style="width:390px; height:844px; background:linear-gradient(to bottom, #f5f0e3 0, #f4f3ef 480px); position:relative; overflow:hidden; border-radius:12px; box-shadow:0 20px 60px rgba(26,28,30,.16);">
+          <header style="height:60px; display:flex; align-items:center; justify-content:space-between; padding:0 20px;">
+            <span style="display:flex; align-items:center; gap:8px;"><span style="width:24px; height:24px; border-radius:50%; border:2.5px solid #1a1c1e; display:grid; place-items:center;"><span style="width:8px; height:8px; border-radius:50%; background:#5b7a4f;"></span></span><span style="font-weight:700; font-size:15px; letter-spacing:-.02em;">Kitchen OS</span></span>
+            <span style="display:flex; align-items:center; gap:8px;"><span style="height:36px; padding:0 14px; border-radius:10px; background:#fff; box-shadow:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); display:inline-flex; align-items:center; font-size:13px; font-weight:600;">Увійти</span><span style="width:36px; height:36px; border-radius:10px; display:grid; place-items:center; color:#6b6f74;"><i data-lucide="menu" style="width:18px; height:18px;"></i></span></span>
+          </header>
+          <div style="display:flex; flex-direction:column; align-items:center; text-align:center; gap:18px; padding:32px 20px 0;">
+            <h1 style="margin:0; font-size:40px; letter-spacing:-.04em; line-height:1.02; display:flex; flex-direction:column; text-wrap:balance;"><span style="font-weight:400; color:#6b6f74;">Кухня, яка памʼятає.</span><span style="font-weight:700;">Готуй з того, що вже є.</span></h1>
+            <p style="margin:0; font-size:16px; line-height:1.5; color:#6b6f74; text-wrap:pretty;">Kitchen OS памʼятає, що є вдома, що вже відкрите і що давно дивиться на тебе з холодильника.</p>
+            <div style="width:100%;"><dc-import name="Kitchen OS - Sign-in Card" mode="{{ m.mode }}" st="idle" compact="{{ true }}" hint-size="350px,280px"></dc-import></div>
+          </div>
+          <div style="margin:32px 20px 0; height:400px; background:linear-gradient(160deg, #2a2d31, #1a1c1e 40%, #0f1012); border-radius:24px; padding:8px;"><div style="width:100%; height:100%; border-radius:16px; background:#f4f3ef;"></div></div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:12px;">
+    <span style="font-size:12px; font-weight:600; color:#6b6f74; letter-spacing:.05em; text-transform:uppercase;">Стани пошти · фокус · надсилаю · помилка · лист надіслано</span>
+    <div style="display:flex; gap:28px; align-items:flex-start; padding:32px; background:#f4f3ef; border-radius:24px; width:max-content;">
+      <sc-for list="{{ states }}" as="s" hint-placeholder-count="4">
+        <div style="width:480px; display:flex; flex-direction:column; gap:12px;">
+          <span style="font-size:11px; font-weight:600; letter-spacing:.06em; color:#9a9ea3;">{{ s.cap }}</span>
+          <dc-import name="Kitchen OS - Sign-in Card" mode="reg" st="{{ s.st }}" hint-size="480px,240px"></dc-import>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:flex; gap:28px; align-items:flex-start; padding:24px 20px; background:#f4f3ef; border-radius:24px; width:max-content;">
+      <div style="width:350px; display:flex; flex-direction:column; gap:12px;"><span style="font-size:11px; font-weight:600; letter-spacing:.06em; color:#9a9ea3;">390 · ВХІД · ПОМИЛКА</span><dc-import name="Kitchen OS - Sign-in Card" mode="login" st="error" compact="{{ true }}" hint-size="350px,260px"></dc-import></div>
+      <div style="width:350px; display:flex; flex-direction:column; gap:12px;"><span style="font-size:11px; font-weight:600; letter-spacing:.06em; color:#9a9ea3;">390 · ВХІД · НАДІСЛАНО</span><dc-import name="Kitchen OS - Sign-in Card" mode="login" st="sent" compact="{{ true }}" hint-size="350px,240px"></dc-import></div>
+    </div>
+  </div>
+
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  componentDidMount() { const run = () => { if (window.lucide) window.lucide.createIcons({ attrs: { 'stroke-width': 1.75 } }); else setTimeout(run, 200); }; run(); }
+  renderVals() {
+    const d = (cap, w, h, mode) => {
+      const big = w >= 1440;
+      const top = big ? 52 : 40, h1 = big ? 72 : 60, p = big ? 19 : 17, gap = big ? 22 : 18;
+      return { cap, w, h, mode, pad: big ? 120 : 64, top, h1, p, gap, pw: big ? 760 : 680,
+        frameTop: h - (big ? 150 : 130), fw: w - (big ? 240 : 128),
+        foldY: h - 2, foldLbl: h - 26, foldTxt: `ЗГИН ${h} — ПОШТА ВИЩЕ` };
+    };
+    return {
+      desks: [d('1440×900 · Реєстрація', 1440, 900, 'reg'), d('1440×900 · Вхід', 1440, 900, 'login'), d('1280×800 · Реєстрація · найтісніше', 1280, 800, 'reg')],
+      mobs: [{ cap:'390 · Реєстрація', mode:'reg' }, { cap:'390 · Вхід', mode:'login' }],
+      states: [{ cap:'ФОКУС У ПОЛІ', st:'focus' }, { cap:'НАДСИЛАЮ', st:'busy' }, { cap:'ЛИСТ НЕ ПІШОВ', st:'error' }, { cap:'ЛИСТ НАДІСЛАНО', st:'sent' }],
+    };
+  }
+}
+</script>
+</body>
+</html>
