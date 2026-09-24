@@ -4,6 +4,10 @@
 // коли /v1/auth/providers каже telegram: true. Клік → POST begin → відкрити
 // t.me/…?start=login_<token> → опитувати GET poll раз на 2 с, поки бот не
 // підтвердить (людина тисне Start у застосунку).
+//
+// Бриф 24.09 (Sign-in Compact): тариф і перелік способів прибрано з режиму
+// «Реєстрація»; підтвердження надсилання — інлайн (зелена пігулка), не
+// перехід на /sent; підказка в полі коротшає на компактній ширині.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -17,6 +21,23 @@ const json = (o: unknown) => new Response(JSON.stringify(o), { status: 200, head
 let root: Root | undefined;
 let host: HTMLDivElement | undefined;
 
+// matchMedia — SignInForm тепер слухає (pointer: coarse) (isTouchOrNarrow,
+// імперативно на клік) і (max-width: 479px) (useCompact, реактивно на монтуванні):
+// обом треба addEventListener/removeEventListener, інакше падіння при mount.
+let mediaOverrides: Record<string, boolean> = {};
+function fakeMediaQueryList(query: string): MediaQueryList {
+  return {
+    matches: mediaOverrides[query] ?? false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  } as unknown as MediaQueryList;
+}
+
 async function mount() {
   host = document.createElement('div');
   document.body.appendChild(host);
@@ -29,7 +50,8 @@ beforeEach(() => {
   delete (window as unknown as { location?: unknown }).location;
   (window as unknown as { location: { href: string } }).location = { href: '' };
   vi.spyOn(window, 'open').mockReturnValue({} as Window);
-  vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList);
+  mediaOverrides = {};
+  vi.spyOn(window, 'matchMedia').mockImplementation(fakeMediaQueryList);
   Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
   localStorage.clear();
 });
@@ -42,6 +64,15 @@ afterEach(async () => {
 });
 
 const byText = (t: string) => [...host!.querySelectorAll<HTMLElement>('button, a')].find((b) => b.textContent?.includes(t));
+const emailInput = () => host!.querySelector<HTMLInputElement>('input[type="email"]')!;
+function setEmailValue(el: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+  setter.call(el, value);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function submitForm(el: HTMLInputElement) {
+  el.closest('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+}
 
 describe('SignInForm · Telegram (хотфікс 15.09, вхід через бота)', () => {
   it('кнопки Telegram нема, коли провайдер вимкнений', async () => {
@@ -75,7 +106,7 @@ describe('SignInForm · Telegram (хотфікс 15.09, вхід через бо
   });
 
   it('дотик/вузький екран: клік веде location.href на t.me, а не window.open', async () => {
-    vi.mocked(window.matchMedia).mockReturnValue({ matches: true } as MediaQueryList);
+    mediaOverrides['(pointer: coarse)'] = true;
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       if (url === '/v1/auth/providers') return json({ google: false, telegram: true, telegramBotId: '123456789' });
       if (url === '/v1/auth/telegram/begin') return json({ token: 'tok2', url: 'https://t.me/KitchenOSAppBot?start=login_tok2' });
@@ -156,33 +187,43 @@ describe('SignInForm · Telegram (хотфікс 15.09, вхід через бо
 describe('SignInForm · «Реєстрація / Вхід» (AUTH-BRIEF-0915)', () => {
   const providersOn = () => json({ google: true, telegram: true, telegramBotId: '123456789' });
 
-  it('дефолт без kos-had-session — «Реєстрація», тариф-картки видно', async () => {
+  it('дефолт без kos-had-session — «Реєстрація»; тарифів і роздільника нема (бриф 24.09)', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/v1/auth/providers' ? providersOn() : json({}))));
     await mount();
     const start = byText('Реєстрація')!;
     const login = byText('Вхід')!;
     expect(start.getAttribute('aria-selected')).toBe('true');
     expect(login.getAttribute('aria-selected')).toBe('false');
-    expect(host!.textContent).toContain('Бета-тест');
-    expect(host!.textContent).toContain('Базовий');
+    expect(host!.textContent).not.toContain('Бета-тест');
+    expect(host!.textContent).not.toContain('Тариф');
+    expect(host!.textContent).not.toContain('або лінк на пошту');
+    expect(host!.textContent).toContain('Зараз безкоштовно, поки триває бета');
   });
 
-  it('kos-had-session у localStorage — дефолт «Вхід», без тариф-карток', async () => {
+  it('kos-had-session у localStorage — дефолт «Вхід»', async () => {
     localStorage.setItem('kos-had-session', '1');
     vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/v1/auth/providers' ? providersOn() : json({}))));
     await mount();
     expect(byText('Вхід')!.getAttribute('aria-selected')).toBe('true');
-    expect(host!.textContent).not.toContain('Бета-тест');
+    expect(host!.textContent).toContain('Тим способом, яким заходив раніше');
   });
 
-  it('перемикач ховає тариф-картки в «Вхід» і повертає в «Реєстрація»', async () => {
+  it('перемикач міняє текст note між режимами', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/v1/auth/providers' ? providersOn() : json({}))));
     await mount();
-    expect(host!.textContent).toContain('Бета-тест');
+    expect(host!.textContent).toContain('Зараз безкоштовно, поки триває бета');
     await act(async () => { byText('Вхід')!.click(); });
-    expect(host!.textContent).not.toContain('Бета-тест');
+    expect(host!.textContent).toContain('Тим способом, яким заходив раніше');
     await act(async () => { byText('Реєстрація')!.click(); });
-    expect(host!.textContent).toContain('Бета-тест');
+    expect(host!.textContent).toContain('Зараз безкоштовно, поки триває бета');
+  });
+
+  it('рядок згоди (умови/політика) видно і в «Реєстрація», і в «Вхід» (§2.5)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/v1/auth/providers' ? providersOn() : json({}))));
+    await mount();
+    expect(host!.textContent).toContain('Реєструючись, ти приймаєш');
+    await act(async () => { byText('Вхід')!.click(); });
+    expect(host!.textContent).toContain('Реєструючись, ти приймаєш');
   });
 
   it('Telegram begin шле mode:login у тілі запиту, коли обрано «Вхід»', async () => {
@@ -221,10 +262,8 @@ describe('SignInForm · «Реєстрація / Вхід» (AUTH-BRIEF-0915)', 
     }));
     await mount();
     await act(async () => { byText('Вхід')!.click(); });
-    const input = host!.querySelector<HTMLInputElement>('input[type="email"]')!;
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-    await act(async () => { setter.call(input, 'nobody@example.com'); input.dispatchEvent(new Event('input', { bubbles: true })); });
-    await act(async () => { input.closest('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+    await act(async () => { setEmailValue(emailInput(), 'nobody@example.com'); });
+    await act(async () => { submitForm(emailInput()); });
     expect(host!.textContent).toContain('Цієї пошти ми ще не знаємо');
     await act(async () => { byText('Зареєструватись')!.click(); });
     expect(host!.textContent).not.toContain('Цієї пошти ми ще не знаємо');
@@ -257,5 +296,59 @@ describe('SignInForm · «Реєстрація / Вхід» (AUTH-BRIEF-0915)', 
     expect(byText('Вхід')!.getAttribute('aria-selected')).toBe('true');
     expect(host!.textContent).toContain('Цього Google-акаунта ми ще не знаємо');
     expect(replaceSpy).toHaveBeenCalled();
+  });
+});
+
+// ── Бриф 24.09 (Sign-in Compact §2.4, §2.6): підказка, підтвердження, помилка ──
+describe('SignInForm · компактне поле пошти (бриф 24.09)', () => {
+  it('плейсхолдер повний на звичайній ширині, короткий на <480 (§2.4)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/v1/auth/providers' ? json({ google: false, telegram: false, telegramBotId: null }) : json({}))));
+    await mount();
+    expect(emailInput().placeholder).toBe('Або пошта — пришлемо лінк');
+  });
+
+  it('надсилання успішне → інлайн-пігулка «Лист на … надіслано», не перехід на /sent (§2.6)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url === '/v1/auth/providers') return json({ google: false, telegram: false, telegramBotId: null });
+      if (url === '/v1/auth/request') return json({ ok: true });
+      return json({});
+    }));
+    await mount();
+    await act(async () => { setEmailValue(emailInput(), 'me@example.com'); });
+    await act(async () => { submitForm(emailInput()); });
+    expect(host!.textContent).toContain('Лист на me@example.com надіслано');
+    expect(host!.textContent).toContain('Відкрий пошту й натисни лінк');
+    expect(host!.querySelector('input[type="email"]')).toBeNull(); // поле зникло, не /sent-навігація
+    expect(window.location.href).toBe(''); // жодної навігації не сталось
+  });
+
+  it('«Ще раз» на підтвердженні повторно шле лист на ту саму адресу', async () => {
+    const requests: unknown[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/v1/auth/providers') return json({ google: false, telegram: false, telegramBotId: null });
+      if (url === '/v1/auth/request') { requests.push(init?.body); return json({ ok: true }); }
+      return json({});
+    }));
+    await mount();
+    await act(async () => { setEmailValue(emailInput(), 'me@example.com'); });
+    await act(async () => { submitForm(emailInput()); });
+    expect(requests).toHaveLength(1);
+    await act(async () => { byText('Ще раз')!.click(); });
+    expect(requests).toHaveLength(2);
+    expect(JSON.parse(requests[1] as string)).toMatchObject({ email: 'me@example.com' });
+  });
+
+  it('збій сервера (не 429) — дружній текст замість сирого err.message, кнопка «Ще раз» у пігулці', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url === '/v1/auth/providers') return json({ google: false, telegram: false, telegramBotId: null });
+      if (url === '/v1/auth/request') return new Response(JSON.stringify({ error: 'boom internal detail' }), { status: 500 });
+      return json({});
+    }));
+    await mount();
+    await act(async () => { setEmailValue(emailInput(), 'me@example.com'); });
+    await act(async () => { submitForm(emailInput()); });
+    expect(host!.textContent).toContain('Лист не пішов — пошта зараз не відповідає');
+    expect(host!.textContent).not.toContain('boom internal detail');
+    expect(byText('Ще раз')).not.toBeUndefined();
   });
 });

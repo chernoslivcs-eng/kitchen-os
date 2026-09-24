@@ -1,16 +1,27 @@
 // Вхід на лендінгу (Landing Live: hero і фінал). Google першим — підтверджене
 // відхилення (HANDOFF «Аудит 10.09»); логіка — useMagicLink і
 // GET /v1/auth/providers без змін, змінено лише вигляд. Кнопка Google і
-// роздільник з'являються тоді, коли провайдер увімкнено на сервері.
+// зʼявляється тоді, коли провайдер увімкнено на сервері.
 //
 // AUTH-BRIEF-0915: той самий блок — два режими, перемикач-пілюля зверху,
-// без переходу на сторінку/модалку (у продукті їх немає ніде). «Реєстрація»
-// (типово) — тариф (Бета обрана, Базовий/Сімʼя «скоро») + спосіб, будь-який
-// створює акаунт. «Вхід» (типово, якщо в браузері вже була сесія —
-// lib/session-flag) — ті самі три способи, БЕЗ тарифу, ніколи не створює:
-// невідомий ключ → рядок-note замість помилки, «Зареєструватись» перемикає
-// режим. mode:'start'|'login' летить у сервер на всіх трьох способах (ключі
-// контракту лишаються start/login — на екрані лише текст інший).
+// без переходу на сторінку/модалку (у продукті їх немає ніде). «Вхід»
+// (типово, якщо в браузері вже була сесія — lib/session-flag) — ті самі три
+// способи; невідомий ключ → рядок-note замість помилки, «Зареєструватись»
+// перемикає режим. mode:'start'|'login' летить у сервер на всіх трьох
+// способах (ключі контракту лишаються start/login — на екрані лише текст
+// інший).
+//
+// Бриф 24.09 (Sign-in Compact — виміряно: поле пошти видно без прокрутки на
+// 1440×900, 1280×800, 390×664, і з відкритою клавіатурою ≈390×350):
+//   · тариф і перелік «як заходитимеш» прибрано з режиму «Реєстрація» — вибір
+//     тарифу переїхав у профіль → «Підписка» (сам перелік способів видно
+//     з кнопок, підпис над ними зайвий);
+//   · роздільник «або лінк на пошту» прибрано;
+//   · три способи однакової висоти стовпчиком; підказка в полі коротшає на
+//     вузькій ширині (<480), бо повний текст обрізається кнопкою;
+//   · підтвердження надсилання — інлайн у картці (зелена пігулка на місці
+//     поля), не перехід на /sent (useMagicLink.ts);
+//   · рядок згоди — в обох режимах тепер, дрібніше.
 //
 // Telegram (TELEGRAM-AUTH-PAY-PLAN-0915; хотфікс 15.09 — ЗАМІНА Login
 // Widget): на десктопі офіційний віджет мовчав («Запит на вхід» не
@@ -28,7 +39,6 @@ import { api, type AuthMode } from '../../api';
 import { Icon } from '../../components/Icon/Icon';
 import { useMagicLink } from './useMagicLink';
 import { SIGNIN, AUTH_MODE } from './copy';
-import { PLAN_OPTIONS } from '@kitchen/domain/plans';
 import { hadSession } from '../../lib/session-flag';
 import styles from './Landing.module.css';
 
@@ -70,6 +80,25 @@ function openTelegram(url: string): void {
 
 const TELEGRAM_POLL_MS = 2_000;
 
+// Бриф §2.4: підказка в полі коротшає на компактній ширині — повний текст
+// обрізається кнопкою «Надіслати лінк» (перевірено programmatично:
+// scrollWidth > clientWidth в усіх мобільних кадрах макета).
+const COMPACT_QUERY = '(max-width: 479px)';
+function hasMatchMedia(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function';
+}
+function useCompact(): boolean {
+  const [compact, setCompact] = useState(() => hasMatchMedia() && window.matchMedia(COMPACT_QUERY).matches);
+  useEffect(() => {
+    if (!hasMatchMedia()) return;
+    const q = window.matchMedia(COMPACT_QUERY);
+    const on = () => setCompact(q.matches);
+    q.addEventListener('change', on);
+    return () => q.removeEventListener('change', on);
+  }, []);
+  return compact;
+}
+
 // AUTH-BRIEF-0915: Google-колбек (mode:'login' + невідома пошта) веде назад
 // на лендинг із ?err=no_account&via=google — читаємо раз (SignInForm
 // монтується двічі, hero й фінал) і прибираємо з адреси, той самий патерн,
@@ -89,18 +118,16 @@ function consumeGoogleNoAccountError(): boolean {
 
 interface Props {
   id?: string;
-  /** Роздільник «або лінк на пошту»: у hero всюди; у фіналі — лише на 1920 (кадри 1024/390 його не мають). */
-  or?: boolean;
   className?: string;
 }
 
 type UnknownMethod = 'telegram' | 'email' | 'google' | null;
 
-export function SignInForm({ id, or = true, className }: Props) {
+export function SignInForm({ id, className }: Props) {
   // Дефолт: «Реєстрація» для нових людей; «Вхід», якщо цей браузер уже мав
   // тут сесію (kos-had-session, ставить store/auth.ts на успішному refresh()).
   const [mode, setMode] = useState<AuthMode>(() => (hadSession() ? 'login' : 'start'));
-  const { email, setEmail, error, noAccount: emailNoAccount, loading, submit } = useMagicLink(mode);
+  const { email, setEmail, error, noAccount: emailNoAccount, loading, sent, submit, resend } = useMagicLink(mode);
   const [googleOn, setGoogleOn] = useState(false);
   const [telegramOn, setTelegramOn] = useState(false);
   const [tgWaiting, setTgWaiting] = useState(false);
@@ -110,6 +137,7 @@ export function SignInForm({ id, or = true, className }: Props) {
   const [googleNoAccount, setGoogleNoAccount] = useState(false);
   const pollTimer = useRef<number | null>(null);
   const location = useLocation();
+  const compact = useCompact();
 
   useEffect(() => {
     api.auth.providers()
@@ -175,7 +203,6 @@ export function SignInForm({ id, or = true, className }: Props) {
     ? (tgNoAccount ? 'telegram' : emailNoAccount ? 'email' : googleNoAccount ? 'google' : null)
     : null;
 
-  const anyProviderOn = googleOn || telegramOn;
   return (
     <div id={id} className={`${styles.signin} ${className ?? ''}`}>
       <div className={styles.authSwitch} role="tablist" aria-label="Реєстрація або вхід">
@@ -194,30 +221,6 @@ export function SignInForm({ id, or = true, className }: Props) {
           {AUTH_MODE.login}
         </button>
       </div>
-
-      {mode === 'start' && (
-        <>
-          <span className={styles.authLabel}>{AUTH_MODE.tariffLabel}</span>
-          <div className={styles.tariffList}>
-            {PLAN_OPTIONS.map((p) => (
-              <div key={p.id} className={`${styles.tariff} ${p.available ? styles.tariffOn : styles.tariffOff}`}>
-                <div>
-                  <div className={styles.tariffName}>{p.name}</div>
-                  <div className={styles.tariffBlurb}>{p.blurb}</div>
-                </div>
-                <div className={styles.tariffRight}>
-                  <span className={styles.tariffPrice}>{p.price}</span>
-                  <span className={`${styles.tariffPill} ${p.available ? styles.tariffPillOn : styles.tariffPillSoon}`}>
-                    {p.available ? AUTH_MODE.tariffChosen : AUTH_MODE.tariffSoon}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <span className={styles.note}>{AUTH_MODE.tariffNote}</span>
-          <span className={styles.authLabel}>{AUTH_MODE.methodsLabel}</span>
-        </>
-      )}
 
       {googleOn && (
         <button type="button" className={styles.google} onClick={() => { window.location.href = api.auth.googleUrl(mode); }}>
@@ -240,7 +243,32 @@ export function SignInForm({ id, or = true, className }: Props) {
         </>
       )}
       {tgError && <div className={styles.formError} role="alert">{tgError}</div>}
-      <span className={styles.note}>{mode === 'start' ? AUTH_MODE.methodsNoteStart : AUTH_MODE.methodsNoteLogin}</span>
+
+      {/* Бриф §2.6: «надіслано» — зелена пігулка на місці поля, не окрема сторінка. */}
+      {sent ? (
+        <div className={styles.sentPill}>
+          <span className={styles.sentText}>
+            <span className={styles.sentTitle}>{SIGNIN.sentTo(sent)}</span>
+            <span className={styles.sentSub}>{SIGNIN.sentHint}</span>
+          </span>
+          <button type="button" className={styles.sentRetry} onClick={() => void resend()}>{SIGNIN.retry}</button>
+        </div>
+      ) : (
+        <form className={`${styles.pill} ${error ? styles.pillError : ''}`} onSubmit={submit} noValidate>
+          <input
+            type="email" inputMode="email" autoComplete="email" enterKeyHint="go" placeholder={compact ? SIGNIN.emailShort : SIGNIN.emailFull} required
+            value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email"
+          />
+          <button type="submit" className={styles.pillBtn} disabled={loading} aria-label={error ? SIGNIN.retry : SIGNIN.send}>
+            <span className={styles.pillBtnText}>{loading ? SIGNIN.sending : error ? SIGNIN.retry : SIGNIN.send}</span>
+            {/* 390: кнопка колом зі знаком «Надіслати» (бандл малює arrow-right; у словнику «надіслати» — sys.send, Р41). */}
+            <span className={styles.pillBtnIcon}><Icon name="sys.send" size={16} inherit decorative /></span>
+          </button>
+        </form>
+      )}
+      {error && <div className={styles.formError} role="alert">{error}</div>}
+
+      <span className={styles.note}>{mode === 'start' ? AUTH_MODE.noteStart : AUTH_MODE.noteLogin}</span>
       {unknownMethod && (
         <div className={styles.authNote} role="alert">
           {AUTH_MODE.unknownKey[unknownMethod]}{' '}
@@ -248,29 +276,12 @@ export function SignInForm({ id, or = true, className }: Props) {
           {AUTH_MODE.unknownKeySuffix}
         </div>
       )}
-      {anyProviderOn && or && <div className={styles.or}><span />{SIGNIN.or}<span /></div>}
-      <form className={styles.pill} onSubmit={submit} noValidate>
-        <input
-          type="email" inputMode="email" autoComplete="email" enterKeyHint="go" placeholder={SIGNIN.email} required
-          value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email"
-        />
-        <button type="submit" className={styles.pillBtn} disabled={loading} aria-label={SIGNIN.send}>
-          <span className={styles.pillBtnText}>{loading ? SIGNIN.sending : SIGNIN.send}</span>
-          {/* 390: кнопка колом зі знаком «Надіслати» (бандл малює arrow-right; у словнику «надіслати» — sys.send, Р41). */}
-          <span className={styles.pillBtnIcon}><Icon name="sys.send" size={16} inherit decorative /></span>
-        </button>
-      </form>
-      {error && <div className={styles.formError} role="alert">{error}</div>}
-      <span className={styles.note}>{SIGNIN.note}</span>
-      {mode === 'start' && <span className={styles.note}>{AUTH_MODE.footNote}</span>}
-      {mode === 'start' && (
-        <span className={styles.note}>
-          {AUTH_MODE.consentBefore}{' '}
-          <Link to="/terms" state={{ background: location }} className={styles.consentLink}>{AUTH_MODE.consentTerms}</Link>
-          {' '}{AUTH_MODE.consentMiddle}{' '}
-          <Link to="/privacy" state={{ background: location }} className={styles.consentLink}>{AUTH_MODE.consentPrivacy}</Link>.
-        </span>
-      )}
+      <span className={styles.consent}>
+        {AUTH_MODE.consentBefore}{' '}
+        <Link to="/terms" state={{ background: location }} className={styles.consentLink}>{AUTH_MODE.consentTerms}</Link>
+        {' '}{AUTH_MODE.consentMiddle}{' '}
+        <Link to="/privacy" state={{ background: location }} className={styles.consentLink}>{AUTH_MODE.consentPrivacy}</Link>.
+      </span>
     </div>
   );
 }

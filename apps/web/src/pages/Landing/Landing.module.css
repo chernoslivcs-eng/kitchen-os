@@ -110,18 +110,28 @@
 .mob .lead { font-size: 16px; }
 .mob .signinWrap { padding-top: 4px; width: 100%; }
 
-/* ── вхід · 1920: 520, Google 56/28, пілюля 56, кнопка 44/22; 1024: 480/54; 390: 100 %/52 ── */
-.signin { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 520px; max-width: 100%; }
-.google { height: 56px; width: 100%; border-radius: 28px; background: var(--ink); color: var(--bg); display: inline-flex; align-items: center; justify-content: center; gap: 12px; font-size: 16px; font-weight: 600; box-shadow: var(--sh2); }
-.or { display: flex; align-items: center; gap: 14px; width: 100%; font-size: 13px; color: var(--dim-t); padding: 6px 0; }
-.or > span { flex: 1; height: 1px; background: var(--line2); }
-.pill { display: flex; gap: 6px; height: 56px; padding: 6px; border-radius: 28px; background: var(--card); box-shadow: var(--sh); width: 100%; margin: 0; }
+/* ── вхід, компактно (бриф 24.09 Sign-in Compact): 520, три способи 52/26,
+ * кнопка в пілюлі 42/21; 390: 100 %/50. Виміряно на макеті: поле пошти без
+ * прокрутки на 1440×900, 1280×800, 390×664, і з клавіатурою (≈390×350). ── */
+.signin { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 520px; max-width: 100%; }
+.google { height: 52px; width: 100%; border-radius: 26px; background: var(--ink); color: var(--bg); display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-size: 15px; font-weight: 600; box-shadow: var(--sh2); }
+.pill { display: flex; gap: 6px; height: 52px; padding: 5px; border-radius: 26px; background: var(--card); box-shadow: var(--sh-a), var(--sh-b); width: 100%; margin: 0; }
+.pill:focus-within { box-shadow: 0 0 0 2px var(--sage), 0 0 0 6px rgba(85, 114, 74, .16); }
+.pillError { box-shadow: 0 0 0 1.5px var(--danger), var(--sh-a), var(--sh-b); }
 .pill input { flex: 1; min-width: 0; border: 0; background: none; padding: 0 16px; font-size: 15px; color: var(--ink); text-align: left; }
 .pill input::placeholder { color: var(--dim-t); }
-.pillBtn { height: 44px; padding: 0 18px; border-radius: 22px; border: 1px solid var(--line2); display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; white-space: nowrap; flex: none; color: var(--ink); }
+.pillBtn { height: 42px; padding: 0 18px; border-radius: 21px; border: 1px solid var(--line2); display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; white-space: nowrap; flex: none; color: var(--ink); }
 .pillBtn:disabled { opacity: .6; cursor: default; }
 .pillBtnIcon { display: none; }
+/* «Надіслано» — зелена пігулка інлайн на місці поля (useMagicLink.ts: sent), не /sent. */
+.sentPill { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 16px; border-radius: 18px; background: var(--sage-bg); }
+.sentText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sentTitle { font-size: 14px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.sentSub { font-size: 12.5px; color: var(--muted); }
+.sentRetry { flex: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--sage); background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .note { font-size: 13px; color: var(--dim-t); padding-top: 4px; }
+/* Рядок згоди — в обох режимах (§2.5), дрібніше за note. */
+.consent { font-size: 11.5px; color: var(--dim-t); text-align: center; }
 .consentLink { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
 .formError { font-size: 13px; color: var(--danger); align-self: flex-start; padding: 0 16px; }
 /* Хотфікс 15.09: «Не відкрилось? Ще раз» під час очікування Telegram — і кнопка, і лінк одразу (сам href = t.me, повторний клік). */
@@ -135,42 +145,22 @@
 .authSeg { flex: 1; border: 0; border-radius: 19px; background: transparent; color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; }
 .authSegOn { background: var(--ink); color: var(--bg); }
 
-/* Тариф («Реєстрація») — лейбл-підпис карток (12/500 muted uppercase, як лейбли
- * карток деінде), три рядки-картки r14, обрана — контур чорнило + пілюля
- * sage «обрано»; недоступні — opacity .45, пілюля «скоро», не клікаються. */
-.authLabel { width: 100%; font-size: 12px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; }
-.tariffList { display: flex; flex-direction: column; gap: 8px; width: 100%; }
-.tariff { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line2); background: var(--card); text-align: left; }
-.tariffOn { border-color: var(--ink); }
-.tariffOff { opacity: .45; }
-.tariffName { font-size: 14px; font-weight: 600; }
-.tariffBlurb { font-size: 13px; color: var(--muted); }
-.tariffPrice { font-size: 13px; color: var(--muted); white-space: nowrap; }
-.tariffRight { display: flex; align-items: center; gap: 10px; flex: none; }
-.tariffPill { height: 22px; padding: 0 8px; border-radius: 999px; display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; white-space: nowrap; flex: none; }
-.tariffPillOn { background: var(--sage-bg); color: var(--sage); }
-.tariffPillSoon { background: var(--line); color: var(--muted); }
-
 /* Невідомий ключ («Вхід») — той самий тип рядка, що telegramError, лише
  * amber: 14 px, r12. «Зареєструватись» підкреслена дія, перемикає режим. */
 .authNote { width: 100%; padding: 10px 14px; border-radius: 12px; background: var(--amber-bg); color: var(--ink); font-size: 14px; line-height: 1.45; }
 .authNoteAction { font: inherit; color: inherit; background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
 
-.tab .signin { width: 480px; gap: 14px; }
-.tab .google { height: 54px; border-radius: 27px; font-size: 15px; }
-.tab .or { padding: 4px 0; }
-.tab .pill { height: 54px; border-radius: 27px; }
-.tab .pillBtn { height: 42px; border-radius: 21px; }
-.tab .note { padding-top: 0; }
-.mob .signin { width: 100%; gap: 12px; }
-.mob .google { height: 52px; border-radius: 26px; gap: 10px; font-size: 15px; }
-.mob .or { font-size: 12px; gap: 12px; padding: 0; }
-.mob .pill { height: 52px; padding: 5px; border-radius: 26px; }
+.tab .signin { width: 480px; gap: 12px; }
+.mob .signin { width: 100%; gap: 10px; }
+.mob .google { height: 50px; border-radius: 25px; gap: 10px; font-size: 15px; }
+.mob .pill { height: 50px; padding: 5px; border-radius: 25px; }
 .mob .pill input { padding: 0 14px; font-size: 16px; } /* 0912 B (№14): 14 → 16, без зуму iOS */
-.mob .pillBtn { width: 42px; height: 42px; padding: 0; border-radius: 21px; border: 0; background: var(--ink); color: var(--bg); display: grid; place-items: center; }
+.mob .pillBtn { width: 40px; height: 40px; padding: 0; border-radius: 20px; border: 0; background: var(--ink); color: var(--bg); display: grid; place-items: center; }
 .mob .pillBtnText { display: none; }
 .mob .pillBtnIcon { display: grid; }
+.mob .sentPill { padding: 8px 14px; }
 .mob .note { font-size: 12px; padding-top: 0; }
+.mob .consent { font-size: 11px; }
 .desk .signinFinal { gap: 12px; padding-top: 8px; }
 .desk .signinFinal .note { font-size: 12px; padding-top: 0; }
 .tab .signinFinal, .mob .signinFinal { padding-top: 8px; }
@@ -651,43 +641,63 @@
 .price { padding: 160px 160px 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; scroll-margin-top: 80px; }
 .priceH2 { max-width: 1000px; text-wrap: balance; }
 .priceP { font-size: 18px; line-height: 1.55; color: var(--muted); max-width: 720px; }
-.planGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; width: 100%; max-width: 1400px; text-align: left; padding-top: 36px; }
-.plan { background: var(--card); border-radius: 24px; padding: 32px; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--sh); }
-.planHome { background: var(--ink); color: var(--bg); box-shadow: var(--sh2); }
-.planLabel { font-size: 13px; color: var(--dim-t); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.planHome .planLabel, .planHome .planPer, .planHome .planList { color: var(--ink-2); }
-.avatars { display: flex; }
-.avatar { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--ink); display: grid; place-items: center; font-size: 11px; font-weight: 600; color: #fff; }
-.avatar + .avatar { margin-left: -8px; }
-.avatarPlum { background: var(--plum); }
-.avatarAmber { background: var(--amber); }
-.avatarAdd { background: var(--bg); color: var(--ink); }
-.gift { height: 22px; padding: 0 8px; border-radius: 999px; background: var(--amber-bg); color: var(--amber); display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; white-space: nowrap; margin-right: auto; }
-.planPrice { display: flex; align-items: baseline; gap: 8px; }
-.planSum { font-weight: 700; font-size: 48px; letter-spacing: -.04em; }
+
+/* Пробний період — одна обіцянка над картками, не властивість тарифу
+ * (бриф 24.09 §1: варіант A — не повторювати «14 днів» у кожній панелі). */
+.trial { display: flex; align-items: center; justify-content: center; gap: 12px; padding-top: 12px; }
+.trialTitle { font-size: 36px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: proportional-nums; color: var(--ink); }
+.trialBadge { height: 28px; padding: 0 12px; border-radius: 999px; background: var(--sage-bg); color: var(--sage); display: inline-flex; align-items: center; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.trialSub { font-size: 14px; color: var(--muted); margin-top: -8px; }
+
+/* Дві картки-вітрини (§1.4): білий корпус, тонована панель із ціною вгорі —
+ * без темної planHome, без avatars: секція показує, не обирає. */
+.planGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; width: 100%; max-width: 920px; text-align: left; padding-top: 16px; }
+.plan { background: var(--card); border-radius: 32px; padding: 8px; box-shadow: 0 1px 2px rgba(26, 28, 30, .04), 0 24px 60px rgba(26, 28, 30, .1); display: flex; flex-direction: column; }
+.planPanel { border-radius: 25px; padding: 22px 24px 24px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9); display: flex; flex-direction: column; gap: 14px; }
+.tintAmber { background: var(--amber-bg); }
+.tintSage { background: var(--sage-bg); }
+.planHead { display: flex; align-items: center; justify-content: space-between; }
+.planLabel { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.planHeadIcon { display: inline-flex; }
+.tintAmber .planHeadIcon { color: var(--amber); }
+.tintSage .planHeadIcon { color: var(--sage); }
+.planPrice { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.planSum { font-size: 64px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: proportional-nums; color: var(--ink); }
 .planPer { font-size: 15px; color: var(--muted); }
-.planList { font-size: 15px; line-height: 1.7; color: var(--muted); display: flex; flex-direction: column; }
-.planBtn { margin-top: auto; height: 48px; border-radius: 12px; border: 1px solid var(--line2); display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; }
-.planBtn:hover { color: inherit; }
-.planBtnHome { background: var(--bg); color: var(--ink); border: 0; }
+.planApprox { font-size: 13px; color: var(--muted); }
+.planBlurb { font-size: 14px; line-height: 1.4; color: var(--muted); margin: 0; }
+
+.planList { list-style: none; margin: 0; padding: 22px 18px; display: flex; flex-direction: column; gap: 13px; font-size: 14.5px; color: var(--ink); }
+.planLine { display: flex; align-items: center; gap: 12px; }
+/* «Скоро» (§1.8) — пунктир зверху відсікає від оплаченого; сірий і на 0.5px дрібніший. */
+.planLineSoon { display: flex; align-items: center; gap: 12px; padding-top: 10px; margin-top: 3px; border-top: 1px dashed var(--line2); color: var(--dim); font-size: 14px; }
+.planSoonBadge { margin-left: auto; height: 22px; padding: 0 9px; border-radius: 11px; background: var(--line); color: var(--muted); display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+/* Наведення — лише кнопка темнішає (§1.10); картка сама не реагує. */
+.planBtn { height: 56px; border-radius: 28px; background: var(--ink); color: var(--bg); display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-size: 15.5px; font-weight: 600; transition: background 120ms var(--e); }
+.planBtn:hover { color: var(--bg); background: var(--muted); }
+
 .tab .price { padding: 120px 48px 0; gap: 16px; }
 .tab .priceH2 { max-width: 760px; }
 .tab .priceP { font-size: 16px; max-width: 600px; }
-.tab .planGrid { gap: 16px; padding-top: 24px; }
-.tab .plan { border-radius: 20px; padding: 24px; gap: 14px; }
-.tab .planLabel { font-size: 12px; }
-.tab .planSum { font-size: 40px; }
-.tab .planPer, .tab .planList { font-size: 14px; }
-.tab .planBtn { height: 46px; font-size: 14px; }
+.tab .trialTitle { font-size: 32px; }
+.tab .planGrid { gap: 16px; max-width: 720px; padding-top: 12px; }
+.tab .plan { border-radius: 28px; }
+.tab .planPanel { padding: 18px 20px 20px; }
+.tab .planSum { font-size: 52px; }
+.tab .planList { font-size: 14px; padding: 18px 16px; }
+.tab .planBtn { height: 52px; font-size: 14.5px; }
 .mob .price { padding: 80px 20px 0; gap: 16px; align-items: stretch; }
 .mob .priceP { font-size: 15px; line-height: 1.5; max-width: none; }
-.mob .planGrid { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -20px; padding: 16px 20px 8px; scrollbar-width: none; max-width: none; width: auto; }
-.mob .planGrid::-webkit-scrollbar { display: none; }
-.mob .plan { flex: none; width: 300px; scroll-snap-align: center; border-radius: 20px; padding: 24px; gap: 14px; }
-.mob .planLabel { font-size: 12px; }
-.mob .planSum { font-size: 40px; }
-.mob .planPer, .mob .planList { font-size: 14px; }
-.mob .planBtn { height: 46px; font-size: 14px; }
+.mob .trial { flex-wrap: wrap; gap: 10px; }
+.mob .trialTitle { font-size: 26px; }
+.mob .trialSub { margin-top: -4px; }
+/* На 390 — стовпчиком, не горизонтальний снап-скрол (§1.11: дві картки — не потребують снапу). */
+.mob .planGrid { grid-template-columns: 1fr; gap: 14px; max-width: none; padding-top: 12px; }
+.mob .planPanel { padding: 18px 18px 20px; }
+.mob .planSum { font-size: 52px; }
+.mob .planList { font-size: 14px; padding: 18px 16px; }
+.mob .planBtn { height: 52px; font-size: 15px; }
 
 /* ── фінал · 1920: 200/160/48, телефон 300 із маскою, h2 72 ≤1100, p 18 ≤640; 1024: 140/48/32, 52; 390: 96/20/32, 36 ── */
 .final { padding: 200px 160px 48px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 28px; }
