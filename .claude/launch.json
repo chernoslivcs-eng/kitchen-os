@@ -277,6 +277,47 @@
       "port": 3010
     },
     {
+      "name": "polish-api",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "PORT=3015 pnpm -C .worktrees/share-v3-polish exec tsx scripts/stand-seed.mts"
+      ],
+      "port": 3015
+    },
+    {
+      "name": "polish-web-app",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:3015",
+        "pnpm",
+        "-C",
+        ".worktrees/share-v3-polish",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--port",
+        "5207",
+        "--strictPort"
+      ],
+      "port": 5207
+    },
+    {
+      "name": "polish-harness-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "-C",
+        ".worktrees/share-v3-polish",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--port",
+        "5206",
+        "--strictPort"
+      ],
+      "port": 5206
+    },
+    {
       "name": "hf-web",
       "runtimeExecutable": "env",
       "runtimeArgs": [
