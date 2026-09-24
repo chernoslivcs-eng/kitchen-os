@@ -1,16 +1,15 @@
 // @vitest-environment jsdom
 //
-// Хотфікс (лендинг, режим «Реєстрація»): hero — min-height замість height,
-// росте під довший блок входу (тариф + спосіб + пошта). useHeroOverflow
-// рахує --hero-extra — на скільки hero перевищив vh−headerH (+32px запасу),
-// щоб .laptopWrap (Landing.module.css, margin-top: -0.18vh + var(--hero-extra))
-// не наповз на форму. useScrollScene — гасіння hero чекає, поки scrollY не
-// перевищить той самий overflow, інакше форма гасне, поки її ще заповнюють.
+// useScrollScene — гасіння hero на скрол чекає, поки scrollY не перевищить
+// те, наскільки hero виступає за vh−headerH, інакше форма гасне, поки її ще
+// заповнюють. (useHeroOverflow/--hero-extra — прибрано постановкою 25.09:
+// існували лише для компенсації старої проценто-vh моделі .laptopWrap,
+// яку замінено фіксованим відступом; див. Landing.module.css.)
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { useRef } from 'react';
-import { useHeroOverflow, useScrollScene } from './useLandingMotion';
+import { useScrollScene } from './useLandingMotion';
 
 let root: Root | undefined;
 let host: HTMLDivElement | undefined;
@@ -26,55 +25,6 @@ afterEach(async () => {
   host?.remove();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-});
-
-describe('useHeroOverflow · --hero-extra', () => {
-  function Host() {
-    const rootRef = useRef<HTMLDivElement>(null);
-    const heroRef = useRef<HTMLDivElement>(null);
-    const headerRef = useRef<HTMLElement>(null);
-    useHeroOverflow(rootRef, heroRef, headerRef, true);
-    return (
-      <div ref={rootRef} data-root>
-        <header ref={headerRef} data-testid="header" />
-        <div ref={heroRef} data-testid="hero" />
-      </div>
-    );
-  }
-
-  async function mount(heroH: number, headerH: number, innerH: number, innerW: number) {
-    vi.stubGlobal('innerHeight', innerH);
-    vi.stubGlobal('innerWidth', innerW);
-    host = document.createElement('div');
-    document.body.appendChild(host);
-    root = createRoot(host);
-    await act(async () => { root!.render(<Host />); });
-    mockRect(host.querySelector<HTMLElement>('[data-testid=hero]')!, heroH);
-    mockRect(host.querySelector<HTMLElement>('[data-testid=header]')!, headerH);
-    await act(async () => { window.dispatchEvent(new Event('resize')); });
-  }
-
-  it('hero не перевищує vh−headerH — --hero-extra 0px (режим «Вхід», як і завжди)', async () => {
-    await mount(700, 80, 1080, 1920); // 700 < 1080-80=1000
-    expect(host!.querySelector('[data-root]')!.getAttribute('style')).toContain('--hero-extra: 0px');
-  });
-
-  it('hero виріс за vh−headerH (тариф-картки «Реєстрація») — --hero-extra = приріст + 32px запасу, z=1 на 1920', async () => {
-    await mount(1062.5, 80, 1080, 1920); // 1062.5 - (1080-80) = 62.5; z=1 → +32 = 94.5 → 95
-    expect(host!.querySelector('[data-root]')!.getAttribute('style')).toContain('--hero-extra: 95px');
-  });
-
-  it('на вужчому 1280 (zoom < 1) компенсація ділиться на z — не дублює zoom', async () => {
-    // 1280/1920 = .667; headerH виміряний як реальний px (уже враховує zoom)
-    await mount(713.7, 53.33, 720, 1280); // extraReal = 713.7-(720-53.33)=47.03; z=.667
-    const style = host!.querySelector('[data-root]')!.getAttribute('style')!;
-    const m = style.match(/--hero-extra:\s*(\d+)px/);
-    expect(m).toBeTruthy();
-    const val = Number(m![1]);
-    // (47.03+32)/.667 ≈ 118.5 — допускаємо заокруглення в межах ±2px.
-    expect(val).toBeGreaterThan(115);
-    expect(val).toBeLessThan(122);
-  });
 });
 
 describe('useScrollScene · гасіння hero чекає overflow вищого hero', () => {
