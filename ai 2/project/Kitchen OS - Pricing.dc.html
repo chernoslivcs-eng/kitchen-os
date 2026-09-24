@@ -22,7 +22,7 @@ a { color:inherit; text-decoration:none; } a:hover { color:#5b7a4f; }
   <div style="display:flex; flex-direction:column; gap:10px; width:1100px;">
     <div style="font-size:12px; font-weight:500; color:#6b6f74;">Секція «Ціна» · бриф 24.09 · фінальні тексти копірайтера · на основі Landing Live</div>
     <div style="font-weight:700; font-size:32px; letter-spacing:-.03em; line-height:1.05;">Два тижні безкоштовно, далі 210 або 290 ₴ на місяць, скасувати можна будь-коли.</div>
-    <div style="font-size:14px; line-height:1.6; color:#6b6f74; max-width:920px;">Картка: білий корпус, панель із ціною в тонах лендингу — бурштиновий для «Для себе», шавлієвий для «Для дому», з мʼяким світлом у куті; переваги рядками зі знаками продукту з Icons; чорна кнопка-пігулка, як у hero. У Tweaks лишились «glow» (темна) і «glass» для порівняння. Картки однакової висоти, кнопки на одному рівні. Пробний період — один раз: A — рядком над картками, B — плашкою в панелі.</div>
+    <div style="font-size:14px; line-height:1.6; color:#6b6f74; max-width:920px;">Картка: білий корпус, панель із ціною в тонах лендингу — бурштиновий для «Для себе», шавлієвий для «Для дому», з мʼяким світлом у куті; переваги рядками зі знаками продукту з Icons; чорна кнопка-пігулка, як у hero. У Tweaks лишились «glow» (темна) і «glass» для порівняння. Картки однакової висоти, кнопки на одному рівні. Обрано варіант A: пробний період один раз, рядком над картками. Кнопка в обох картках однакова — «Почати з того, що є»: лендінг — вітрина, тариф обирають у профілі → «Підписка».</div>
   </div>
 
   <sc-for list="{{ frames }}" as="f" hint-placeholder-count="6">
@@ -42,7 +42,7 @@ a { color:inherit; text-decoration:none; } a:hover { color:#5b7a4f; }
 
           <sc-if value="{{ f.isA }}" hint-placeholder-val="{{ true }}">
             <div style="margin-top:{{ f.trialTop }}px; display:flex; flex-direction:column; align-items:center; gap:6px;">
-              <span style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; justify-content:center;"><span style="font-weight:700; font-size:{{ f.trialSize }}px; letter-spacing:-.035em; line-height:1;">14 днів безкоштовно</span><span style="height:28px; padding:0 12px; border-radius:999px; background:#e8efe3; color:#3f5837; display:inline-flex; align-items:center; font-size:13px; font-weight:600; align-self:center;">без картки</span></span>
+              <span style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; justify-content:center;"><span style="font-weight:700; font-size:{{ f.trialSize }}px; letter-spacing:-.035em; font-variant-numeric:proportional-nums; font-feature-settings:'tnum' 0; line-height:1;">14 днів безкоштовно</span><span style="height:28px; padding:0 12px; border-radius:999px; background:#e8efe3; color:#3f5837; display:inline-flex; align-items:center; font-size:13px; font-weight:600; align-self:center;">без картки</span></span>
               <span style="font-size:{{ f.p }}px; color:#6b6f74;">Далі — помісячно. Скасувати можна будь-коли.</span>
             </div>
           </sc-if>
@@ -69,7 +69,7 @@ a { color:inherit; text-decoration:none; } a:hover { color:#5b7a4f; }
     <div style="display:flex; gap:32px; align-items:stretch; padding:40px; background:#f4f3ef; border-radius:24px; width:max-content;">
       <div style="width:440px; display:flex; flex-direction:column; gap:12px;"><span style="font-size:11px; font-weight:600; letter-spacing:.06em; color:#9a9ea3;">СПОКІЙ</span><dc-import name="Kitchen OS - Price Card" look="{{ look }}" pattern="{{ pattern }}" plan="home" hint-size="440px,620px"></dc-import></div>
       <div style="width:440px; display:flex; flex-direction:column; gap:12px;"><span style="font-size:11px; font-weight:600; letter-spacing:.06em; color:#9a9ea3;">НАВЕДЕННЯ НА КАРТКУ</span><dc-import name="Kitchen OS - Price Card" look="{{ look }}" pattern="{{ pattern }}" plan="home" hover="{{ true }}" hint-size="440px,620px"></dc-import></div>
-      <div style="width:300px; font-size:13.5px; line-height:1.6; color:#6b6f74; padding-top:28px; display:flex; flex-direction:column; gap:14px;"><span>Картка на наведення не реагує: ні обводки, ні підйому. Реагує лише кнопка внизу — темнішає за 120 мс, як скрізь на лендингу.</span><span>Рядок «скоро» завжди останній: пунктир відсікає його від оплаченого, замість знака — порожня пунктирна плитка з годинником, текст сірий і дрібніший, справа плашка «скоро». Коли функція запрацює, рядок отримає свій знак і стане звичайним.</span></div>
+      <div style="width:300px; font-size:13.5px; line-height:1.6; color:#6b6f74; padding-top:28px; display:flex; flex-direction:column; gap:14px;"><span>Картка на наведення не реагує: ні обводки, ні підйому. Реагує лише кнопка внизу — темнішає за 120 мс, як скрізь на лендингу.</span><span>Рядок «скоро» завжди останній: пунктир відсікає його від оплаченого, замість знака — сірий годинник, текст сірий і дрібніший, справа плашка «скоро». Коли функція запрацює, рядок отримає свій знак і стане звичайним.</span></div>
     </div>
   </div>
 
@@ -99,12 +99,9 @@ class Component extends DCLogic {
       pattern: this.props.pattern ?? 'none',
       frames: [
         desk('A · 1440 · пробний період над картками', 1440, 'A'),
-        desk('B · 1440 · пробний період у панелі', 1440, 'B'),
-        desk('A · 1280', 1280, 'A'),
-        desk('B · 1280', 1280, 'B'),
-        mob('A · 390', 'A'),
-        mob('B · 390', 'B'),
-      ],
+                desk('A · 1280', 1280, 'A'),
+                mob('A · 390', 'A'),
+              ],
     };
   }
 }
