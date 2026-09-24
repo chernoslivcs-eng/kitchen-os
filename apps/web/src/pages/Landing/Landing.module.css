@@ -673,7 +673,10 @@
 .planApprox { font-size: 13px; color: var(--muted); }
 .planBlurb { font-size: 14px; line-height: 1.4; color: var(--muted); margin: 0; }
 
-.planList { list-style: none; margin: 0; padding: 22px 18px; display: flex; flex-direction: column; gap: 13px; font-size: 14.5px; color: var(--ink); }
+/* flex:1 — картки рівної висоти (grid align-items:stretch), але «Для дому»
+ * має менше рядків (5 проти 6): без flex:1 список сідає на свою природну
+ * висоту, і кнопка не притиснута до низу — права висить на 14–16px вище. */
+.planList { list-style: none; margin: 0; padding: 22px 18px; display: flex; flex-direction: column; gap: 13px; font-size: 14.5px; color: var(--ink); flex: 1; }
 .planLine { display: flex; align-items: center; gap: 12px; }
 /* «Скоро» (§1.8) — пунктир зверху відсікає від оплаченого; сірий і на 0.5px дрібніший. */
 .planLineSoon { display: flex; align-items: center; gap: 12px; padding-top: 10px; margin-top: 3px; border-top: 1px dashed var(--line2); color: var(--dim); font-size: 14px; }
