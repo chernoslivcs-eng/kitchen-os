@@ -125,7 +125,7 @@ class Component extends DCLogic {
       ...(((this.props.look ?? 'soft') === 'soft')
         ? { gloss:false, btnBg:'#1a1c1e', btnSh:'0 12px 40px rgba(26,28,30,.18)' }
         : { gloss:true, btnBg:'linear-gradient(180deg, #3a3e43 0%, #1f2225 46%, #111315 100%)', btnSh:'inset 0 1px 0 rgba(255,255,255,.28), inset 0 -2px 4px rgba(0,0,0,.45), 0 10px 22px rgba(17,19,21,.28)' }),
-      cta: home ? 'Почати «Для дому»' : 'Почати «Для себе»',
+      cta: 'Почати з того, що є',
       trial: !!this.props.trial,
       hover: !!this.props.hover,
       cursorTop: '360px',

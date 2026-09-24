@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+</helmet>
+<div style="width:100%; display:flex; flex-direction:column; align-items:stretch; gap:10px; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; text-align:left;">
+
+  <div style="align-self:center; display:flex; gap:2px; padding:3px; border-radius:22px; background:#fff; box-shadow:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07);">
+    <button onClick="{{ toReg }}" style="height:34px; padding:0 18px; border-radius:17px; border:0; background:{{ regBg }}; color:{{ regC }}; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">Реєстрація</button>
+    <button onClick="{{ toLogin }}" style="height:34px; padding:0 18px; border-radius:17px; border:0; background:{{ logBg }}; color:{{ logC }}; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">Вхід</button>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:8px; padding-top:4px;">
+    <button style="height:{{ h }}; border-radius:{{ r }}; border:0; background:#1a1c1e; box-shadow:0 12px 40px rgba(26,28,30,.18); color:#f4f3ef; font-family:inherit; font-size:{{ fs }}; font-weight:600; display:flex; align-items:center; justify-content:center; gap:10px; cursor:pointer; white-space:nowrap;">
+      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path></svg>
+      {{ gLabel }}
+    </button>
+    <button style="height:{{ h }}; border-radius:{{ r }}; border:0; background:#1a1c1e; box-shadow:0 12px 40px rgba(26,28,30,.18); color:#f4f3ef; font-family:inherit; font-size:{{ fs }}; font-weight:600; display:flex; align-items:center; justify-content:center; gap:10px; cursor:pointer; white-space:nowrap;">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#2AABEE"></circle><path fill="#fff" d="M5.4 11.8l10.9-4.2c.5-.2 1 .1.8.9l-1.9 8.8c-.1.6-.5.8-1 .5l-2.8-2.1-1.4 1.3c-.2.2-.3.3-.6.3l.2-2.9 5.2-4.7c.2-.2 0-.3-.3-.1L8 13.6l-2.8-.9c-.6-.2-.6-.6.2-.9z"></path></svg>
+      {{ tLabel }}
+    </button>
+  </div>
+
+  <sc-if value="{{ showField }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; gap:6px; height:{{ h }}; padding:5px; border-radius:{{ r }}; background:#fff; box-shadow:{{ fieldSh }}; box-sizing:border-box;">
+      <span style="flex:1; min-width:0; display:flex; align-items:center; padding:0 14px; font-size:{{ fs }}; color:{{ fieldC }}; overflow:hidden; white-space:nowrap;">{{ fieldText }}<sc-if value="{{ caret }}" hint-placeholder-val="{{ false }}"><span style="display:inline-block; width:1.5px; height:18px; background:#5b7a4f; margin-left:1px;"></span></sc-if></span>
+      <span style="height:100%; padding:0 18px; border-radius:{{ r }}; border:1px solid #e6e4de; box-sizing:border-box; background:#fff; color:#1a1c1e; display:inline-flex; align-items:center; font-size:14px; font-weight:600; white-space:nowrap; flex:none; opacity:{{ btnOp }};">{{ btnLabel }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+    <span style="font-size:13px; line-height:1.45; color:#b3463b; text-align:center; text-wrap:pretty; padding:0 8px;">Лист не пішов — пошта зараз не відповідає. Спробуй ще раз за хвилину або зайди через Google чи Telegram.</span>
+  </sc-if>
+
+  <sc-if value="{{ isSent }}" hint-placeholder-val="{{ false }}">
+    <div style="min-height:{{ h }}; border-radius:{{ r }}; background:#e8efe3; padding:10px 20px; display:flex; align-items:center; gap:12px; box-sizing:border-box;">
+      <span style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;"><span style="font-size:14px; font-weight:600; color:#3f5837;">Лист на yana.k@gmail.com надіслано</span><span style="font-size:12.5px; color:#3f5837;">Відкрий пошту й натисни лінк — діє 15 хвилин.</span></span>
+      <span style="font-size:13px; font-weight:600; color:#3f5837; text-decoration:underline; text-underline-offset:3px; white-space:nowrap;">Ще раз</span>
+    </div>
+  </sc-if>
+
+  <div style="display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center; padding-top:2px;">
+    <span style="font-size:13px; color:#6b6f74;">{{ note }}</span>
+    <span style="font-size:11.5px; color:#9a9ea3;">Продовжуючи, погоджуєшся з <a style="color:#6b6f74; text-decoration:underline; text-underline-offset:2px;">умовами</a> і <a style="color:#6b6f74; text-decoration:underline; text-underline-offset:2px;">політикою приватності</a>.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:480,&quot;height&quot;:260},&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;reg&quot;,&quot;login&quot;],&quot;default&quot;:&quot;reg&quot;,&quot;tsType&quot;:&quot;'reg'|'login'&quot;},&quot;st&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;idle&quot;,&quot;focus&quot;,&quot;busy&quot;,&quot;error&quot;,&quot;sent&quot;],&quot;default&quot;:&quot;idle&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;compact&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { mode: null };
+  renderVals() {
+    const mode = this.state.mode ?? this.props.mode ?? 'reg';
+    const st = this.props.st ?? 'idle';
+    const compact = !!this.props.compact;
+    const reg = mode === 'reg';
+    const focus = st === 'focus', err = st === 'error', sent = st === 'sent', busy = st === 'busy';
+    const typed = focus || err || busy;
+    const sh = '0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07)';
+    return {
+      h: compact ? '50px' : '52px', r: compact ? '25px' : '26px', fs: compact ? '14px' : '15px',
+      gLabel: 'Продовжити з Google', tLabel: 'Продовжити з Telegram',
+      regBg: reg ? '#1a1c1e' : 'transparent', regC: reg ? '#f4f3ef' : '#6b6f74',
+      logBg: reg ? 'transparent' : '#1a1c1e', logC: reg ? '#6b6f74' : '#f4f3ef',
+      toReg: () => this.setState({ mode:'reg' }), toLogin: () => this.setState({ mode:'login' }),
+      showField: !sent, isSent: sent, isError: err,
+      fieldText: typed ? 'yana.k@gmail.com' : 'Або пошта — пришлемо лінк',
+      fieldC: typed ? '#1a1c1e' : '#9a9ea3',
+      caret: focus,
+      fieldSh: focus ? '0 0 0 2px #5b7a4f, 0 0 0 6px rgba(91,122,79,.16)' : err ? '0 0 0 1.5px #b3463b, ' + sh : sh,
+      btnLabel: busy ? 'Надсилаю…' : err ? 'Ще раз' : 'Надіслати лінк',
+      btnOp: busy ? .6 : 1,
+      note: reg ? 'Зараз безкоштовно, поки триває бета. Пароля немає.' : 'Тим способом, яким заходив раніше. Пароля немає.',
+    };
+  }
+}
+</script>
+</body>
+</html>
