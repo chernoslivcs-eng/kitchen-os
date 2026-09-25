@@ -12,6 +12,8 @@
 // (блок «темна») і QUESTIONS §16.
 import { useRef, useState, type MouseEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { api } from '../../api';
+import { setIntent } from '../../lib/billing-intent';
 import { Icon } from '../../components/Icon/Icon';
 import { SignInForm } from './SignInForm';
 import { LiveSession } from './LiveSession';
@@ -58,6 +60,26 @@ export function Landing() {
     setMenu(false);
     t.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
   };
+
+  // Постановка 2026-09-25 (біллінг LiqPay) §2, §5: !BETA_PLAN — картки
+  // тарифів ведуть на checkout, не на #l3-signin. order_id іде в
+  // localStorage ДО редиректу (див. lib/billing-intent.ts), бо сторінка тут
+  // закінчується — вебхук і повернення прийдуть пізніше, можливо в іншій
+  // вкладці. checkingOut — щоб подвійний клік не бив по ліміту 10/год.
+  const [checkingOut, setCheckingOut] = useState<'self' | 'home' | null>(null);
+  async function checkout(plan: 'self' | 'home') {
+    if (checkingOut) return;
+    setCheckingOut(plan);
+    try {
+      const { url, order_id } = await api.billing.intent(plan);
+      setIntent(order_id);
+      window.location.assign(url);
+    } catch {
+      // Мережа впала або ліміт по IP — кнопка просто лишається активною,
+      // спроба ще раз нічого не псує (checkout у LiqPay читає намір заново).
+      setCheckingOut(null);
+    }
+  }
 
   const img = (name: string, w: number, h: number, cls?: string) => (
     // 0912 A (№49): на 390 картинка стоїть у ~320 px — віддаємо половинну (-sm), повну лише широким; пріоритет низький, це не перший екран.
@@ -227,9 +249,18 @@ export function Landing() {
                   </li>
                 ))}
               </ul>
-              {p.cta
-                ? <a href="#l3-signin" className={s.planBtn} onClick={go}>{PRICE.cta}<Icon name="sys.go" size={16} inherit decorative /></a>
-                : <span className={s.planBtnAfter}>{PRICE.afterBeta}</span>}
+              {!p.cta ? (
+                <span className={s.planBtnAfter}>{PRICE.afterBeta}</span>
+              ) : p.key === 'beta' ? (
+                <a href="#l3-signin" className={s.planBtn} onClick={go}>{PRICE.cta}<Icon name="sys.go" size={16} inherit decorative /></a>
+              ) : (
+                <button
+                  type="button" className={s.planBtn} disabled={checkingOut !== null}
+                  onClick={() => void checkout(p.key === 'solo' ? 'self' : 'home')}
+                >
+                  {PRICE.cta}<Icon name="sys.go" size={16} inherit decorative />
+                </button>
+              )}
             </div>
           ))}
         </div>
