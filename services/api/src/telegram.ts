@@ -25,6 +25,8 @@ import { createPending } from '@kitchen/domain';
 import { localDay } from './local-day.js';
 import type { AttachmentStore } from './attachment-store.js';
 import { runChatTurn, ChatTurnHttpError, type ChatRouteOpts, type ChatTurnInput, type ChatTurnOutput } from './chat-turn.js';
+import { betaFlag, entitlementOf } from '@kitchen/domain/subscription';
+import { PAYWALL, SUBSCRIPTION_PATH } from '@kitchen/domain/paywall';
 import { settleTelemetry, type TelemetryHost } from './telemetry.js';
 import { flushSentry } from './sentry.js';
 import { makeRateLimiter } from './rate-limit.js';
@@ -379,6 +381,21 @@ export async function webLink(deps: TelegramDeps, user_id: string): Promise<WebL
   };
 }
 
+/**
+ * Режим без підписки (спек 2026-09-25 §3): та сама репліка, що у вебі, плюс
+ * кнопка на екран «Підписка» через звичайний одноразовий вхід із бота.
+ */
+async function paywallReply(deps: TelegramDeps, user_id: string): Promise<TelegramReply> {
+  const web = await webLink(deps, user_id);
+  return { messages: [PAYWALL.chat.text], html: false, keyboard: [[{ text: PAYWALL.chat.cta, url: web(SUBSCRIPTION_PATH) }]] };
+}
+
+/** Чи дім зараз лише читає. Рахується на кожне звернення, як у вебі. */
+async function readOnlyHousehold(deps: TelegramDeps, household_id: string): Promise<boolean> {
+  const sub = await deps.repo.getSubscription(household_id);
+  return entitlementOf(sub, deps.now?.() ?? new Date(), { beta: betaFlag() }) === 'read_only';
+}
+
 /** Власник 15.09: подія з бота → app_event (та сама таблиця й формат, що /v1/events/track).
  *  Пристрою нема — писав сервер. Не кидає: телеметрія не має права зіпсувати відповідь. */
 export async function botEvent(deps: TelegramDeps, user_id: string, name: string, props: Record<string, unknown> = {}): Promise<void> {
@@ -481,6 +498,8 @@ export async function handleTelegramFile(deps: TelegramDeps, u: IncomingFile): P
     if (u.source === 'photo' && nothing) messages.push(escapeHtml(COPY.photoHint));
     return messages.length ? { messages, html: true } : plain(COPY.photoHint);
   } catch (err) {
+    // Те саме, що в textTurn: 402 — це відповідь, а не збій (спек §2, фото теж під воротами).
+    if (err instanceof ChatTurnHttpError && err.status === 402 && linked) return paywallReply(deps, linked.user_id);
     if (!(err instanceof ChatTurnHttpError)) log.error({ err: String(err), telegram_user_id: u.telegram_user_id }, 'telegram-file-failed');
     return plain(COPY.replyFailed);
   } finally {
@@ -783,6 +802,9 @@ async function textTurn(deps: TelegramDeps, user_id: string, telegram_user_id: n
   } catch (err) {
     // 502 model_unavailable і решта — той самий текст, що бачить веб (E1); інцидент
     // уже записано всередині ходу, як і для вебу.
+    // 402 — не помилка ходу, а відповідь: дім без підписки. Прикрашати її
+    // префіксом «Почув: …» не треба, вона сама собою повна.
+    if (err instanceof ChatTurnHttpError && err.status === 402) return paywallReply(deps, user_id);
     if (!(err instanceof ChatTurnHttpError)) log.error({ err: String(err), telegram_user_id }, 'telegram-turn-failed');
     return { messages: [...(prefix ? [prefix] : []), COPY.replyFailed], html: false };
   } finally {
@@ -813,6 +835,12 @@ export async function handleTelegramVoice(deps: TelegramDeps, u: IncomingVoice):
   if (!linked) return plain(COPY.startFirst);
   if (!limiter.check(String(u.telegram_user_id))) return plain(COPY.tooMany);
   await botEvent(deps, linked.user_id, 'tg_message', { kind: 'voice' });
+  // До STT: транскрипція коштує грошей, а розбирати результат ми все одно не
+  // будемо (спек §2 — «telegram-stt не викликається»).
+  {
+    const household_id = await householdOf(deps.repo, linked.user_id);
+    if (household_id && await readOnlyHousehold(deps, household_id)) return paywallReply(deps, linked.user_id);
+  }
   if ((u.duration ?? 0) > TELEGRAM_VOICE_MAX_SEC || (u.file_size ?? 0) > TELEGRAM_VOICE_MAX_BYTES) return plain(COPY.voiceTooLong);
   if (!deps.downloadFile) return plain(COPY.voiceUnclear);
   const log = deps.log ?? (console as unknown as FastifyBaseLogger);

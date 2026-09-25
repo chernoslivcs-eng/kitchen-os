@@ -5,6 +5,9 @@
 // відповідей).
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+const log = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {}, trace: () => {}, fatal: () => {}, child: () => log } as never;
+const host = { log, telemetry: [] } as never;
+
 const callChat = vi.fn();
 vi.mock('../src/model.js', async (orig) => ({ ...(await orig<Record<string, unknown>>()), callChat }));
 
@@ -27,7 +30,7 @@ describe('runChatTurn без підписки', () => {
     const repo = new InMemoryRepo();
     const { user_id, household_id } = await repo.createUserWithHousehold('p@x.test', 'P');
     await repo.saveSubscription(sub(household_id, 'lapsed'));
-    const err = await runChatTurn(repo, new InMemoryStore(), {}, { user: { user_id, household_id }, text: 'що на вечерю?', channel: 'web' })
+    const err = await runChatTurn(repo, new InMemoryStore(), {}, { user: { user_id, household_id }, text: 'що на вечерю?', channel: 'web', host, log })
       .then(() => null, (e: unknown) => e);
     expect(err).toBeInstanceOf(ChatTurnHttpError);
     expect((err as InstanceType<typeof ChatTurnHttpError>).status).toBe(402);
@@ -42,7 +45,7 @@ describe('runChatTurn без підписки', () => {
     const repo = new InMemoryRepo();
     const { user_id, household_id } = await repo.createUserWithHousehold('q@x.test', 'Q');
     await repo.saveSubscription({ ...sub(household_id, 'trial') as object, trial_ends_at: new Date(Date.now() + 86_400_000).toISOString() } as never);
-    const err = await runChatTurn(repo, new InMemoryStore(), {}, { user: { user_id, household_id }, text: 'привіт', channel: 'web' })
+    const err = await runChatTurn(repo, new InMemoryStore(), {}, { user: { user_id, household_id }, text: 'привіт', channel: 'web', host, log })
       .then(() => null, (e: unknown) => e);
     // Далі хід упирається в модель (її мок нічого не віддає) — важливо лише,
     // що це НЕ 402: ворота пропустили.
