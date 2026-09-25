@@ -14,6 +14,9 @@ import { attachmentsRoutes } from './routes/attachments.js';
 import { authRoutes } from './routes/auth.js';
 import { invitesRoutes } from './routes/invites.js';
 import { meRoute } from './routes/me.js';
+import { subscriptionRoute } from './routes/subscription.js';
+import { FakeBillingProvider } from './billing/fake-provider.js';
+import type { BillingProvider } from './billing/provider.js';
 import { pantryRoute } from './routes/pantry.js';
 import { recipesRoutes } from './routes/recipes.js';
 import { shoppingRoutes } from './routes/shopping.js';
@@ -59,6 +62,8 @@ import { retailRoutes, type RetailOpts } from './routes/retail.js';
 const SENTRY_FLUSH_MS = 1000;
 
 export interface BuildAppOpts {
+  /** Провайдер оплат; типово фейк — стенд і тести не ходять у LiqPay. */
+  billing?: BillingProvider;
   /** Тести: власний логер Fastify (рівень + потік). */
   logger?: FastifyServerOptions['logger'];
   rateLimits?: {
@@ -175,6 +180,7 @@ export function buildApp(
   const retail = retailRoutes(app, repo, opts.retail);
   invitesRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.invite });
   meRoute(app, repo);
+  subscriptionRoute(app, repo, opts.billing ?? new FakeBillingProvider(), process.env.APP_URL ?? 'http://localhost:5173');
   pantryRoute(app, repo);
   shoppingRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
   eventsRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
