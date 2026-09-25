@@ -12,6 +12,8 @@
 //
 //   npx tsx scripts/stand-seed.mts            # API на :3010, вхід dev@local.test
 //   PORT=3011 npx tsx scripts/stand-seed.mts
+//   STAND_SUBSCRIPTION=trial npx tsx scripts/stand-seed.mts   # стан підписки для пар паувола
+//   STAND_FAKE_AUTH=1 npx tsx scripts/stand-seed.mts          # усі кнопки на екрані входу
 //
 // Далі web: API_URL=http://localhost:3010 pnpm --filter @kitchen/web dev
 // і side-by-side.mjs з --url http://localhost:5173 --email dev@local.test.
@@ -25,6 +27,8 @@ import { buildApp } from '../services/api/src/server.ts';
 import { InMemoryStore } from '../services/api/src/attachment-store.ts';
 import { ConsoleMailer } from '../services/api/src/mailer.ts';
 import { makeTelegramBot } from '../services/api/src/telegram-bot.ts';
+import type { HouseholdSubscription, SubscriptionState } from '../packages/domain/subscription.ts';
+import type { BuildAppOpts } from '../services/api/src/server.ts';
 
 const EMAIL = process.env.STAND_EMAIL ?? 'dev@local.test';
 const PORT = Number(process.env.PORT ?? 3010);
@@ -199,7 +203,52 @@ const retailStub = {
     }),
   },
 };
-const app = buildApp(repo, store, new ConsoleMailer(), { retail: retailStub });
+// Р§Task 8: стан підписки — за env, щоб знімати пари екранів паувола без
+// проду й без справжньої оплати. Дати підбираємо так, щоб кожен стан щось
+// РОЗПОВІДАВ: пробний — за три дні до кінця (це день листа й банера),
+// скасований — з доступом, який ще не скінчився.
+//
+//   STAND_SUBSCRIPTION=trial npx tsx scripts/stand-seed.mts
+//
+// Без змінної підписки немає зовсім — це дім бети, як і було досі.
+const SUB_STATES: SubscriptionState[] = ['beta', 'trial', 'active', 'cancelled', 'past_due', 'lapsed'];
+const subState = process.env.STAND_SUBSCRIPTION as SubscriptionState | undefined;
+if (subState) {
+  if (!SUB_STATES.includes(subState)) {
+    console.error(`stand-seed: STAND_SUBSCRIPTION=${subState} — не стан підписки. Є: ${SUB_STATES.join(', ')}`);
+    process.exit(1);
+  }
+  const base: HouseholdSubscription = {
+    household_id, state: subState, plan: 'home', trial_used_at: null, trial_ends_at: null,
+    next_charge_at: null, access_until: null, provider_order_id: 'stand-order', card_mask: '4242',
+    paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null, updated_at: iso(0),
+  };
+  const byState: Record<SubscriptionState, Partial<HouseholdSubscription>> = {
+    // Бета: платіжних даних ще нема взагалі, інакше екран показує чужу картку.
+    beta: { plan: null, provider_order_id: null, card_mask: null, paid_by_user_id: null },
+    trial: { trial_used_at: iso(-11), trial_ends_at: iso(3), next_charge_at: iso(3) },
+    active: { trial_used_at: iso(-45), next_charge_at: iso(20) },
+    cancelled: { trial_used_at: iso(-60), access_until: iso(10) },
+    past_due: { trial_used_at: iso(-60), next_charge_at: iso(-2) },
+    lapsed: { trial_used_at: iso(-90), access_until: iso(-8) },
+  };
+  await repo.saveSubscription({ ...base, ...byState[subState] });
+}
+
+// Р§Task 8: фейкові провайдери входу — щоб екран входу мав усі три кнопки.
+// Обмін кодом теж фейковий, але сам редирект іде на справжній accounts.google.com:
+// кнопка на кадрі є, наскрізного входу через Google на стенді немає.
+const fakeAuth: BuildAppOpts = process.env.STAND_FAKE_AUTH === '1'
+  ? {
+    google: {
+      clientId: 'stand.apps.googleusercontent.com', clientSecret: 'stand',
+      exchange: async () => ({ sub: 'stand-google', email: EMAIL, email_verified: true, name: 'Пилип' }),
+    },
+    telegramAuth: { botToken: 'stand:token', botId: '1', botUsername: 'KitchenOSStandBot' },
+  }
+  : {};
+
+const app = buildApp(repo, store, new ConsoleMailer(), { retail: retailStub, ...fakeAuth });
 await app.listen({ port: PORT, host: '127.0.0.1' });
 // Р147/Р149: dev-бот polling'ом проти цього ж репозиторію в памʼяті (scripts/telegram-dev.mts);
 // хід чату — той самий, що /v1/chat (з моделлю, якщо ключ не затерто).
@@ -207,4 +256,4 @@ if (process.env.TELEGRAM_DEV_BOT_TOKEN) {
   const bot = makeTelegramBot(process.env.TELEGRAM_DEV_BOT_TOKEN, { repo, store, appUrl: process.env.APP_URL ?? 'http://localhost:5173', log: app.log });
   void bot.start({ onStart: (me) => console.log(`stand-seed: Telegram dev-бот @${me.username} слухає (polling)`) });
 }
-console.log(`stand-seed: API на :${PORT} · дім ${household_id.slice(0, 8)} · вхід ${EMAIL} · ${(await repo.listBatches(household_id)).length} партій`);
+console.log(`stand-seed: API на :${PORT} · дім ${household_id.slice(0, 8)} · вхід ${EMAIL} · ${(await repo.listBatches(household_id)).length} партій${subState ? ` · підписка ${subState}` : ''}${process.env.STAND_FAKE_AUTH === '1' ? ' · фейкові провайдери входу' : ''}`);

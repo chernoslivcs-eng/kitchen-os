@@ -73,7 +73,11 @@ export function billingRoutes(app: FastifyInstance, repo: Repo, billing: Billing
       date_start: trial_ends_at,
       result_url: `${appUrl}/?intent=${order_id}#l3-signin`,
     });
-    return { url };
+    // order_id віддаємо разом з адресою: він уже є всередині result_url, але
+    // лендінг має покласти його собі ДО того, як людина піде в LiqPay. Хто
+    // закрив вкладку замість повернення по result_url, інакше лишається без
+    // жодного способу привʼязати сплачене.
+    return { url, order_id };
   });
 
   app.post<{ Body: { order_id?: string } }>('/v1/billing/bind', { preHandler: authenticated(repo) }, async (req, reply) => {
