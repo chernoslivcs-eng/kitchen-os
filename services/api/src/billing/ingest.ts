@@ -30,14 +30,34 @@ export async function ingestProviderEvent(
 ): Promise<IngestResult> {
   const sub = await repo.findSubscriptionByOrder(ev.order_id);
   if (sub) {
+    // Та сама картка на тому самому замовленні вже застосована — це повторна
+    // доставка. Застосувати її вдруге означало б перезібрати рядок з нуля:
+    // оплачена підписка впала б назад у пробну, а слід листа про кінець
+    // пробного стерся б і лист пішов би ще раз.
+    //
+    // Порівнюємо саме токен, а не сам факт підписки: людина могла дати НОВУ
+    // картку на те саме замовлення, і це вже не повтор, а зміна.
+    if (ev.kind === 'subscribed' && ev.card_token != null && sub.card_token === ev.card_token) {
+      return { target: 'household', state: sub.state };
+    }
+
     const full: ProviderEvent = ev.kind === 'subscribed'
       // Дім уже відомий, і дата пробного вже порахована checkout-ом — беремо
       // її звідти, а не рахуємо заново.
       ? { kind: 'subscribed', order_id: ev.order_id, household_id: sub.household_id, plan: sub.plan ?? 'self', card_mask: ev.card_mask ?? sub.card_mask, card_token: ev.card_token ?? sub.card_token, trial_ends_at: sub.trial_ends_at, paid_by_user_id: sub.paid_by_user_id ?? '' }
       : ev;
     const r = applyProviderEvent(sub, full, now);
+
+    // Гроші — першими. insertPayment ідемпотентний по provider_payment_id
+    // (= invoiceId), і його `false` — єдине надійне «цю подію ми вже бачили».
+    // Якщо спершу зберегти підписку, то повторний вебхук про те саме списання
+    // зсуне next_charge_at ще на місяць, а другого платежу так і не буде:
+    // місяць даром. А mono бʼє до трьох спроб, поки не побачить 200.
+    if (r.payment) {
+      const fresh = await repo.insertPayment(r.payment);
+      if (!fresh) return { target: 'household', state: sub.state };
+    }
     await repo.saveSubscription(r.sub);
-    if (r.payment) await repo.insertPayment(r.payment);
     return { target: 'household', state: r.sub.state };
   }
 

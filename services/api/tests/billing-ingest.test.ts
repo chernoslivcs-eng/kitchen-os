@@ -108,3 +108,65 @@ describe('ingestProviderEvent · card_token', () => {
   });
 });
 
+// Повторна доставка вебхука. Не гіпотеза: mono бʼє до 3 спроб, поки не
+// побачить 200, а порядок доставки в них не гарантований — це написано в їхній
+// же документації. Обидва випадки нижче були справжніми й коштували грошей.
+describe('ingestProviderEvent · повтори й запізнілі події', () => {
+  const paid = async () => {
+    const repo = new InMemoryRepo();
+    const { user_id, household_id } = await repo.createUserWithHousehold(`${randomUUID()}@x.test`, 'R');
+    await repo.saveSubscription({
+      household_id, state: 'trial', plan: 'home', trial_used_at: '2026-10-01T00:00:00.000Z',
+      trial_ends_at: '2026-10-15T00:00:00.000Z', next_charge_at: '2026-10-15T00:00:00.000Z',
+      access_until: null, provider_order_id: 'ord-r', card_mask: '1902', card_token: 'tok-r',
+      paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null,
+      updated_at: '2026-10-01T00:00:00.000Z',
+    });
+    return { repo, household_id };
+  };
+  const success = (provider_payment_id: string) =>
+    ({ kind: 'success' as const, order_id: 'ord-r', amount: 290, provider_payment_id });
+
+  it('той самий invoiceId удруге не зсуває дату списання', async () => {
+    const { repo, household_id } = await paid();
+    await ingestProviderEvent(repo, success('inv-1'), NOW, log);
+    const first = (await repo.getSubscription(household_id))!.next_charge_at;
+    const again = await ingestProviderEvent(repo, success('inv-1'), NOW, log);
+
+    // Інакше загублена відповідь на вебхук дарувала б місяць: платіж один,
+    // а місяців два.
+    expect((await repo.getSubscription(household_id))!.next_charge_at).toBe(first);
+    expect(await repo.listPayments(household_id)).toHaveLength(1);
+    expect(again).toEqual({ target: 'household', state: 'active' });
+  });
+
+  it('наступне списання (інший invoiceId) дату таки зсуває', async () => {
+    const { repo, household_id } = await paid();
+    await ingestProviderEvent(repo, success('inv-1'), NOW, log);
+    const first = (await repo.getSubscription(household_id))!.next_charge_at;
+    await ingestProviderEvent(repo, success('inv-2'), NOW, log);
+    expect((await repo.getSubscription(household_id))!.next_charge_at).not.toBe(first);
+    expect(await repo.listPayments(household_id)).toHaveLength(2);
+  });
+
+  it('запізнілий subscribed із тим самим токеном не скидає оплачену підписку в пробну', async () => {
+    const { repo, household_id } = await paid();
+    await ingestProviderEvent(repo, success('inv-1'), NOW, log);
+    const active = (await repo.getSubscription(household_id))!;
+
+    await ingestProviderEvent(repo, { kind: 'subscribed', order_id: 'ord-r', card_mask: '1902', card_token: 'tok-r' }, NOW, log);
+
+    const after = (await repo.getSubscription(household_id))!;
+    expect(after.state).toBe(active.state);
+    expect(after.next_charge_at).toBe(active.next_charge_at);
+    // Заразом не стирається слід листа — інакше він пішов би вдруге.
+    expect(after.trial_mail_sent_at).toBe(active.trial_mail_sent_at);
+  });
+
+  it('але НОВА картка на тому самому замовленні застосовується', async () => {
+    const { repo, household_id } = await paid();
+    await ingestProviderEvent(repo, { kind: 'subscribed', order_id: 'ord-r', card_mask: '7777', card_token: 'tok-новий' }, NOW, log);
+    expect(await repo.getSubscription(household_id)).toMatchObject({ card_token: 'tok-новий', card_mask: '7777' });
+  });
+});
+
