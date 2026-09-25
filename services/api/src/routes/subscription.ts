@@ -1,7 +1,7 @@
 // Екран «Підписка» (спек 2026-09-25 §4): єдине місце платіжних дій. Бачать і
 // можуть діяти ВСІ члени дому — підписка належить дому, не людині.
 //
-// Провайдер сховано за інтерфейсом; справжній LiqPay і його вебхук — окремий
+// Провайдер сховано за інтерфейсом; справжній адаптер і його вебхук — окремий
 // план біллінгу, який викликатиме той самий `applyProviderEvent`.
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
@@ -63,7 +63,8 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
     });
     const url = await billing.checkoutUrl({
       order_id, household_id, plan, amount: PLAN_PRICE_UAH[plan],
-      date_start: trial_ends_at ?? now.toISOString(),
+      // Картка ляже в гаманець дому: наступного разу провайдер упізнає його.
+      wallet_id: household_id,
       result_url: `${appUrl}/profile/subscription?order=${order_id}`,
     });
     return { url };
@@ -95,7 +96,7 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
     return { subscription: await view(household_id), effective_at: plan === 'home' ? null : sub.next_charge_at };
   });
 
-  // Тільки для стенда й тестів: справжній вебхук LiqPay (підпис, мапінг
+  // Тільки для стенда й тестів: справжній вебхук провайдера (підпис, мапінг
   // статусів) живе окремо — інша модель довіри. Спільне в них лише те, що
   // відбувається ПІСЛЯ довіри: ingestProviderEvent.
   //

@@ -94,7 +94,12 @@ export function applyProviderEvent(sub: HouseholdSubscription | null, ev: Provid
       // для дому, який пробний уже витратив (списання буде саме в неї), але
       // другим пробним це не стає.
       trial_used_at: sub?.trial_used_at ?? (trial ? at : null), trial_ends_at: trialEnds,
-      next_charge_at: trial ? trialEnds : addMonth(now), access_until: null,
+      // Без пробного перше списання — ЗАРАЗ, і зробить його наш крон. Тут
+      // колись стояло addMonth(now): за LiqPay це було правильно, бо він сам
+      // списував у момент підписання, а місяць відлічувався від того списання.
+      // У mono в момент підписання не списує ніхто, тож addMonth дарував би
+      // місяць кожному, хто пробний уже витратив.
+      next_charge_at: trial ? trialEnds : at, access_until: null,
       provider_order_id: ev.order_id, card_mask: ev.card_mask, card_token: ev.card_token, paid_by_user_id: ev.paid_by_user_id,
       // Нове оформлення — новий цикл: попередження про кінець пробного
       // рахується від цього trial_ends_at, старий слід тут тільки заважав би.

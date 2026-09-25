@@ -55,28 +55,27 @@ describe('/v1/subscription', () => {
     expect((billing.calls[0]!.args as { amount: number }).amount).toBe(290);
   });
 
-  // Спек біллінгу §9.1: одна дата на два місця — у нас і в провайдера.
-  it('checkout кладе trial_ends_at у підписку й те саме число віддає провайдеру', async () => {
+  // Спек біллінгу §9.1 у версії mono: дата живе ТІЛЬКИ в нас. Провайдер її
+  // не знає й знати не може — списання робить наш крон, а не він.
+  it('checkout кладе trial_ends_at у підписку; провайдеру дати не віддаємо', async () => {
     const A = await lapsed('c3@example.com');
     const t0 = Date.now();
     await app.inject({ method: 'POST', url: '/v1/subscription/checkout', headers: { cookie: A.cookie }, payload: { plan: 'self' } });
     const saved = await repo.getSubscription(A.household_id);
-    const sent = (billing.calls[0]!.args as { date_start: string }).date_start;
-    expect(saved?.trial_ends_at).toBe(sent);
-    const days = (new Date(sent).getTime() - t0) / 86_400_000;
+    const days = (new Date(saved!.trial_ends_at!).getTime() - t0) / 86_400_000;
     expect(days).toBeGreaterThan(13.9);
     expect(days).toBeLessThan(14.1);
+    expect(billing.calls[0]!.args).not.toHaveProperty('date_start');
   });
 
-  it('пробний уже використаний → date_start «зараз», дати пробного нема', async () => {
+  it('пробний уже використаний → дати пробного нема; картку все одно беремо', async () => {
     const A = await lapsed('c2@example.com');
     const sub = (await repo.getSubscription(A.household_id))!;
     await repo.saveSubscription({ ...sub, trial_used_at: '2026-01-01T00:00:00.000Z' });
-    const t0 = Date.now();
     await app.inject({ method: 'POST', url: '/v1/subscription/checkout', headers: { cookie: A.cookie }, payload: { plan: 'self' } });
     expect((await repo.getSubscription(A.household_id))?.trial_ends_at).toBeNull();
-    const sent = new Date((billing.calls[0]!.args as { date_start: string }).date_start).getTime();
-    expect(Math.abs(sent - t0)).toBeLessThan(5000);
+    // Гаманець — дім: наступного разу провайдер упізнає ту саму картку.
+    expect((billing.calls[0]!.args as { wallet_id: string }).wallet_id).toBe(A.household_id);
   });
 
   it('вже активний → 409, у провайдера нічого не питали', async () => {

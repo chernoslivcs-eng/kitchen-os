@@ -38,15 +38,17 @@ describe('applyProviderEvent', () => {
     expect(r.sub.next_charge_at).toBe('2026-10-20T00:00:00.000Z');
     expect(r.sub.trial_used_at).toBe(now.toISOString());
   });
-  it('subscribed без пробного (повернення) → active, наступне списання через місяць', () => {
+  it('subscribed без пробного (повернення) → active, списання одразу', () => {
     const prev = base({ state: 'lapsed', trial_used_at: '2026-01-01T00:00:00Z' });
     const r = applyProviderEvent(prev, { kind: 'subscribed', household_id: 'h1', order_id: 'o2', plan: 'self', card_mask: '1111', card_token: null, trial_ends_at: null, paid_by_user_id: 'u2' }, now);
     expect(r.sub.state).toBe('active');
-    expect(r.sub.next_charge_at).toBe('2026-11-01T12:00:00.000Z');
+    // Було '2026-11-01' — за LiqPay, який списував сам у момент підписання.
+    // У mono не списує ніхто, поки не прийде наш крон.
+    expect(r.sub.next_charge_at).toBe('2026-10-01T12:00:00.000Z');
   });
   // Намір із лендінга несе дату пробного навіть тоді, коли дім свій пробний уже
-  // витратив: списання все одно буде в цю дату, бо вона стоїть у LiqPay. Але
-  // ДРУГИМ пробним це не стає — `trial_used_at` лишається першим.
+  // витратив: списання все одно буде в цю дату, бо саме її ми поклали в
+  // next_charge_at. Але ДРУГИМ пробним це не стає — `trial_used_at` перший.
   it('дата пробного на домі, що вже мав пробний → trial_used_at не переписується', () => {
     const prev = base({ state: 'lapsed', trial_used_at: '2026-01-01T00:00:00.000Z' });
     const r = applyProviderEvent(prev, { kind: 'subscribed', household_id: 'h1', order_id: 'o3', plan: 'self', card_mask: '1', card_token: null, trial_ends_at: '2026-10-20T00:00:00.000Z', paid_by_user_id: 'u3' }, now);
@@ -134,6 +136,30 @@ describe('card_token', () => {
     const r = applyProviderEvent(subscribed(), { kind: 'failure', order_id: 'o1' }, now);
     expect(r.sub.state).toBe('past_due');
     expect(r.sub.card_token).toBe('tok-1');
+  });
+});
+
+// mono: ніхто не списує в момент підписання — списує наш крон у next_charge_at.
+// За LiqPay цього було не видно: він сам списував у date_start.
+describe('перше списання без пробного', () => {
+  const now = new Date('2026-10-05T10:00:00.000Z');
+  it('пробного немає → next_charge_at «зараз», а не через місяць', () => {
+    const r = applyProviderEvent(null, {
+      kind: 'subscribed', household_id: 'h1', order_id: 'o1', plan: 'self',
+      card_mask: '4242', card_token: 'tok', trial_ends_at: null, paid_by_user_id: 'u1',
+    }, now);
+    expect(r.sub.state).toBe('active');
+    // Інакше той, хто вже витратив пробний, отримував би ще місяць безплатно:
+    // картка збережена, доступ відкритий, а крон не бачить дім у черзі.
+    expect(r.sub.next_charge_at).toBe(now.toISOString());
+  });
+
+  it('пробний є → перше списання в його кінці', () => {
+    const r = applyProviderEvent(null, {
+      kind: 'subscribed', household_id: 'h1', order_id: 'o1', plan: 'self',
+      card_mask: '4242', card_token: 'tok', trial_ends_at: '2026-10-19T00:00:00.000Z', paid_by_user_id: 'u1',
+    }, now);
+    expect(r.sub.next_charge_at).toBe('2026-10-19T00:00:00.000Z');
   });
 });
 
