@@ -42,14 +42,30 @@ export function betaFlag(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.SUBSCRIPTION_BETA !== '0';
 }
 
+/**
+ * Скільки триває пробний. Домен його НЕ рахує — дата приходить у події
+ * готовою (спек біллінгу §9.1). Константу використовує лише той, хто створює
+ * checkout або намір, через `trialEndsFrom`: це має бути ТЕ САМЕ число, що
+ * пішло в LiqPay як `subscribe_date_start`.
+ */
 export const TRIAL_DAYS = 14;
+/**
+ * Намір із лендінга (оформлення до реєстрації) живе стільки. Строго менше за
+ * TRIAL_DAYS — інакше перше списання могло б прийти для наміру, який ще не
+ * привʼязаний до дому, і гроші не було б куди записати. На це є тест.
+ */
+export const INTENT_TTL_DAYS = 7;
 export const PAST_DUE_GRACE_DAYS = 7;
 const DAY = 86_400_000;
 const addDays = (iso: string | Date, d: number) => new Date(new Date(iso).getTime() + d * DAY).toISOString();
+/** Дата кінця пробного — рахується ОДИН раз, у checkout або при створенні наміру. */
+export const trialEndsFrom = (now: Date): string => addDays(now, TRIAL_DAYS);
 const addMonth = (iso: string | Date) => { const x = new Date(iso); x.setUTCMonth(x.getUTCMonth() + 1); return x.toISOString(); };
 
 export type ProviderEvent =
-  | { kind: 'subscribed'; household_id: string; order_id: string; plan: Plan; card_mask: string | null; trial: boolean; paid_by_user_id: string }
+  // `trial_ends_at` — не «чи є пробний», а САМЕ ЧИСЛО, яке вже стоїть у
+  // провайдера. null — без пробного, списання одразу.
+  | { kind: 'subscribed'; household_id: string; order_id: string; plan: Plan; card_mask: string | null; trial_ends_at: string | null; paid_by_user_id: string }
   | { kind: 'success'; order_id: string; amount: number; provider_payment_id: string }
   | { kind: 'failure'; order_id: string }
   | { kind: 'unsubscribed'; order_id: string };
@@ -64,11 +80,15 @@ export interface PaymentRow {
 export function applyProviderEvent(sub: HouseholdSubscription | null, ev: ProviderEvent, now: Date): { sub: HouseholdSubscription; payment?: Omit<PaymentRow, 'id'> } {
   const at = now.toISOString();
   if (ev.kind === 'subscribed') {
-    const trialEnds = ev.trial ? addDays(now, TRIAL_DAYS) : null;
+    const trialEnds = ev.trial_ends_at;
+    const trial = trialEnds != null;
     return { sub: {
-      household_id: ev.household_id, state: ev.trial ? 'trial' : 'active', plan: ev.plan,
-      trial_used_at: ev.trial ? at : sub?.trial_used_at ?? null, trial_ends_at: trialEnds,
-      next_charge_at: ev.trial ? trialEnds : addMonth(now), access_until: null,
+      household_id: ev.household_id, state: trial ? 'trial' : 'active', plan: ev.plan,
+      // Перший пробний лишається першим: намір із лендінга несе дату навіть
+      // для дому, який пробний уже витратив (списання буде саме в неї), але
+      // другим пробним це не стає.
+      trial_used_at: sub?.trial_used_at ?? (trial ? at : null), trial_ends_at: trialEnds,
+      next_charge_at: trial ? trialEnds : addMonth(now), access_until: null,
       provider_order_id: ev.order_id, card_mask: ev.card_mask, paid_by_user_id: ev.paid_by_user_id,
       // Нове оформлення — новий цикл: попередження про кінець пробного
       // рахується від цього trial_ends_at, старий слід тут тільки заважав би.
