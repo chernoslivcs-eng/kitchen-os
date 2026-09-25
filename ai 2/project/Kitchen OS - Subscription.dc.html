@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+body { margin:0; background:#dcdad4; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; }
+a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
+* { box-sizing:border-box; }
+button { font-family:inherit; cursor:pointer; color:inherit; }
+</style>
+</helmet>
+
+<section style="padding:48px 48px 100px; display:flex; flex-direction:column; gap:40px; width:max-content;">
+
+  <div style="display:flex; flex-direction:column; gap:10px; width:1100px;">
+    <span style="font-size:12px; font-weight:500; color:#6b6f74;">Підписка · бриф 25.09 · спек lapsed-subscription-design</span>
+    <span style="font-weight:700; font-size:32px; letter-spacing:-.03em; line-height:1.05;">Усе платіжне — в одному місці профілю. Решта застосунку лише повідомляє рядком.</span>
+    <span style="font-size:14px; line-height:1.6; color:#6b6f74; max-width:900px;">Шість станів дому: верхній рядок + кнопки, під ним історія списань. Тексти — від копірайтера, без змін. Змінні заповнено прикладами; перемикач «Змінні» в Tweaks показує їх як {дата}, {сума}. Бурштин — лише в past_due, червоного нема.</span>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <span style="font-size:12px; font-weight:600; color:#6b6f74; letter-spacing:.05em; text-transform:uppercase;">1 · Екран «Підписка» · 1440</span>
+    <div style="display:flex; flex-wrap:wrap; gap:28px; max-width:2960px; align-items:flex-start;">
+      <sc-for list="{{ states }}" as="s" hint-placeholder-count="6">
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <span style="font-size:11px; font-weight:600; letter-spacing:.06em; color:#9a9ea3;">{{ s.key }}</span>
+          <div data-screen-label="Підписка · 1440 · {{ s.key }}" style="width:1440px; min-height:900px; background:#f4f3ef; border-radius:12px; overflow:hidden; box-shadow:0 20px 60px rgba(26,28,30,.12); display:flex;">
+            <div style="width:232px; flex:none; border-right:1px solid #e6e4de; padding:24px 14px; display:flex; flex-direction:column; gap:4px;">
+              <span style="display:flex; align-items:center; gap:10px; padding:0 10px 22px; font-weight:700; font-size:17px; letter-spacing:-.02em;"><span style="width:22px; height:22px; border-radius:50%; border:2.5px solid #1a1c1e; display:grid; place-items:center;"><span style="width:7px; height:7px; border-radius:50%; background:#5b7a4f;"></span></span>Kitchen OS</span>
+              <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+                <span style="height:44px; padding:0 12px; border-radius:10px; display:flex; align-items:center; gap:12px; font-size:14.5px; color:#1a1c1e;"><i data-lucide="{{ n.ic }}" style="width:18px; height:18px;"></i>{{ n.t }}</span>
+              </sc-for>
+              <span style="flex:1;"></span>
+              <span style="height:44px; padding:0 12px; border-radius:10px; display:flex; align-items:center; gap:12px; font-size:14.5px; font-weight:600; background:#fff; box-shadow:0 1px 2px rgba(26,28,30,.06);"><span style="width:22px; height:22px; border-radius:50%; background:#e8efe3; color:#3f5837; font-size:11px; font-weight:700; display:grid; place-items:center;">Я</span>Профіль</span>
+            </div>
+            <div style="flex:1; min-width:0; padding:40px 64px 56px; display:flex; flex-direction:column; gap:28px;">
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <span style="display:flex; align-items:center; gap:6px; font-size:13.5px; color:#6b6f74;">Профіль<i data-lucide="chevron-right" style="width:14px; height:14px;"></i></span>
+                <span style="font-weight:700; font-size:32px; letter-spacing:-.03em;">Підписка</span>
+              </div>
+              <div style="max-width:780px; background:#fff; border-radius:20px; padding:26px 28px; display:flex; flex-direction:column; gap:18px; box-shadow:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.05);">
+                <div style="display:flex; align-items:flex-start; gap:14px;">
+                  <span style="width:10px; height:10px; border-radius:50%; background:{{ s.dot }}; flex:none; margin-top:10px;"></span>
+                  <div style="display:flex; flex-direction:column; gap:8px; min-width:0;">
+                    <span style="font-size:22px; font-weight:600; letter-spacing:-.02em; line-height:1.3; text-wrap:pretty;">{{ s.top }}</span>
+                    <sc-if value="{{ s.hasCard }}" hint-placeholder-val="{{ true }}"><span style="display:flex; align-items:center; gap:8px; font-size:14px; color:#6b6f74;"><i data-lucide="credit-card" style="width:16px; height:16px;"></i>картка {{ s.card }}</span></sc-if>
+                  </div>
+                </div>
+                <sc-if value="{{ s.hasBtns }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex; gap:10px; padding-left:24px;">
+                    <sc-for list="{{ s.btns }}" as="b" hint-placeholder-count="2">
+                      <sc-if value="{{ b.ink }}" hint-placeholder-val="{{ false }}"><button style="height:46px; padding:0 22px; border-radius:23px; border:0; background:#1a1c1e; color:#f4f3ef; font-size:14.5px; font-weight:600;">{{ b.t }}</button></sc-if>
+                      <sc-if value="{{ b.out }}" hint-placeholder-val="{{ true }}"><button style="height:46px; padding:0 22px; border-radius:23px; border:1px solid #e6e4de; background:#fff; font-size:14.5px; font-weight:600;">{{ b.t }}</button></sc-if>
+                      <sc-if value="{{ b.ghost }}" hint-placeholder-val="{{ false }}"><button style="height:46px; padding:0 16px; border:0; background:transparent; color:#6b6f74; font-size:14.5px; font-weight:500;">{{ b.t }}</button></sc-if>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+              <sc-if value="{{ s.lapsed }}" hint-placeholder-val="{{ false }}">
+                <div style="display:grid; grid-template-columns:repeat(2, 380px); gap:20px; align-items:stretch;">
+                  <dc-import name="Kitchen OS - Price Card" plan="self" compact="{{ true }}" cta="Оформити" hint-size="380px,560px"></dc-import>
+                  <dc-import name="Kitchen OS - Price Card" plan="home" compact="{{ true }}" cta="Оформити" hint-size="380px,560px"></dc-import>
+                </div>
+              </sc-if>
+              <sc-if value="{{ s.hasHist }}" hint-placeholder-val="{{ true }}">
+                <div style="max-width:780px; display:flex; flex-direction:column; gap:12px;">
+                  <span style="font-size:13px; font-weight:600; color:#6b6f74;">Історія списань</span>
+                  <div style="background:#fff; border-radius:16px; padding:4px 24px;">
+                    <sc-for list="{{ s.hist }}" as="h" hint-placeholder-count="3">
+                      <div style="min-height:56px; display:grid; grid-template-columns:90px 90px 1fr 120px 110px; align-items:center; gap:12px; font-size:14px; border-bottom:1px solid #f0eee9; font-variant-numeric:tabular-nums;">
+                        <span>{{ h.d }}</span><span style="font-weight:600;">{{ h.sum }}</span>
+                        <span style="display:flex; align-items:center; gap:8px; color:{{ h.stC }};"><span style="width:6px; height:6px; border-radius:50%; background:{{ h.stC }};"></span>{{ h.st }}</span>
+                        <span style="color:#6b6f74;">{{ h.who }}</span>
+                        <sc-if value="{{ h.rcpt }}" hint-placeholder-val="{{ true }}"><span style="display:flex; align-items:center; gap:6px; color:#5b7a4f; font-weight:500;"><i data-lucide="file-text" style="width:15px; height:15px;"></i>Квитанція</span></sc-if>
+                        <sc-if value="{{ h.noRcpt }}" hint-placeholder-val="{{ false }}"><span style="color:#9a9ea3;">—</span></sc-if>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <span style="font-size:12px; font-weight:600; color:#6b6f74; letter-spacing:.05em; text-transform:uppercase;">1 · Екран «Підписка» · 390×664 (гортається всередині)</span>
+    <div style="display:flex; flex-wrap:wrap; gap:24px; max-width:2600px; align-items:flex-start;">
+      <sc-for list="{{ states }}" as="s" hint-placeholder-count="6">
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <span style="font-size:11px; font-weight:600; letter-spacing:.06em; color:#9a9ea3;">{{ s.key }}</span>
+          <div data-screen-label="Підписка · 390 · {{ s.key }}" style="width:390px; height:664px; background:#f4f3ef; border-radius:12px; overflow:hidden; box-shadow:0 20px 60px rgba(26,28,30,.14); display:flex; flex-direction:column;">
+            <div style="height:56px; flex:none; display:flex; align-items:center; gap:4px; padding:0 8px; border-bottom:1px solid #e6e4de;">
+              <span style="width:44px; height:44px; display:grid; place-items:center;"><i data-lucide="chevron-left" style="width:20px; height:20px;"></i></span>
+              <span style="font-weight:700; font-size:18px; letter-spacing:-.02em;">Підписка</span>
+            </div>
+            <div style="flex:1; min-height:0; overflow-y:auto; padding:16px 16px 28px; display:flex; flex-direction:column; gap:20px;">
+              <div style="background:#fff; border-radius:18px; padding:20px; display:flex; flex-direction:column; gap:16px;">
+                <div style="display:flex; align-items:flex-start; gap:12px;">
+                  <span style="width:9px; height:9px; border-radius:50%; background:{{ s.dot }}; flex:none; margin-top:8px;"></span>
+                  <div style="display:flex; flex-direction:column; gap:6px; min-width:0;">
+                    <span style="font-size:18px; font-weight:600; letter-spacing:-.015em; line-height:1.35; text-wrap:pretty;">{{ s.top }}</span>
+                    <sc-if value="{{ s.hasCard }}" hint-placeholder-val="{{ true }}"><span style="display:flex; align-items:center; gap:8px; font-size:13.5px; color:#6b6f74;"><i data-lucide="credit-card" style="width:15px; height:15px;"></i>картка {{ s.card }}</span></sc-if>
+                  </div>
+                </div>
+                <sc-if value="{{ s.hasBtns }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex; flex-direction:column; gap:8px;">
+                    <sc-for list="{{ s.btns }}" as="b" hint-placeholder-count="2">
+                      <sc-if value="{{ b.ink }}" hint-placeholder-val="{{ false }}"><button style="height:48px; border-radius:24px; border:0; background:#1a1c1e; color:#f4f3ef; font-size:15px; font-weight:600;">{{ b.t }}</button></sc-if>
+                      <sc-if value="{{ b.out }}" hint-placeholder-val="{{ true }}"><button style="height:48px; border-radius:24px; border:1px solid #e6e4de; background:#fff; font-size:15px; font-weight:600;">{{ b.t }}</button></sc-if>
+                      <sc-if value="{{ b.ghost }}" hint-placeholder-val="{{ false }}"><button style="height:44px; border:0; background:transparent; color:#6b6f74; font-size:14.5px; font-weight:500;">{{ b.t }}</button></sc-if>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+              <sc-if value="{{ s.lapsed }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; flex-direction:column; gap:14px;">
+                  <dc-import name="Kitchen OS - Price Card" plan="self" compact="{{ true }}" cta="Оформити" hint-size="100%,540px"></dc-import>
+                  <dc-import name="Kitchen OS - Price Card" plan="home" compact="{{ true }}" cta="Оформити" hint-size="100%,540px"></dc-import>
+                </div>
+              </sc-if>
+              <sc-if value="{{ s.hasHist }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  <span style="font-size:13px; font-weight:600; color:#6b6f74; padding:0 4px;">Історія списань</span>
+                  <div style="background:#fff; border-radius:16px; padding:2px 16px;">
+                    <sc-for list="{{ s.hist }}" as="h" hint-placeholder-count="3">
+                      <div style="padding:12px 0; display:flex; flex-direction:column; gap:4px; border-bottom:1px solid #f0eee9; font-size:14px; font-variant-numeric:tabular-nums;">
+                        <div style="display:flex; align-items:center; gap:10px;"><span style="flex:1;">{{ h.d }} · <span style="font-weight:600;">{{ h.sum }}</span></span><span style="display:flex; align-items:center; gap:6px; font-size:13px; color:{{ h.stC }};"><span style="width:6px; height:6px; border-radius:50%; background:{{ h.stC }};"></span>{{ h.st }}</span></div>
+                        <div style="display:flex; align-items:center; gap:10px; font-size:13px; color:#6b6f74;"><span style="flex:1;">{{ h.who }}</span><sc-if value="{{ h.rcpt }}" hint-placeholder-val="{{ true }}"><span style="min-height:28px; display:flex; align-items:center; gap:5px; color:#5b7a4f; font-weight:500;"><i data-lucide="file-text" style="width:14px; height:14px;"></i>Квитанція</span></sc-if></div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <span style="font-size:12px; font-weight:600; color:#6b6f74; letter-spacing:.05em; text-transform:uppercase;">2 · Аркуші · 390×664</span>
+    <div style="display:flex; gap:24px; align-items:flex-start;">
+      <sc-for list="{{ sheets }}" as="sh" hint-placeholder-count="2">
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <span style="font-size:11px; font-weight:600; letter-spacing:.06em; color:#9a9ea3;">{{ sh.cap }}</span>
+          <div data-screen-label="Аркуш · {{ sh.cap }}" style="width:390px; height:664px; background:#f4f3ef; border-radius:12px; overflow:hidden; box-shadow:0 20px 60px rgba(26,28,30,.14); position:relative;">
+            <div style="height:56px; display:flex; align-items:center; gap:4px; padding:0 8px; border-bottom:1px solid #e6e4de;"><span style="width:44px; height:44px; display:grid; place-items:center;"><i data-lucide="chevron-left" style="width:20px; height:20px;"></i></span><span style="font-weight:700; font-size:18px;">Підписка</span></div>
+            <div style="margin:16px; height:150px; background:#fff; border-radius:18px;"></div>
+            <div style="position:absolute; inset:0; background:rgba(26,28,30,.38);"></div>
+            <div style="position:absolute; left:0; right:0; bottom:0; background:#f4f3ef; border-radius:24px 24px 0 0; padding:10px 16px 24px; display:flex; flex-direction:column; gap:14px;">
+              <span style="align-self:center; width:40px; height:4px; border-radius:2px; background:#d6d3cc;"></span>
+              <div style="display:flex; align-items:center; justify-content:space-between;"><span style="font-weight:700; font-size:20px; letter-spacing:-.02em;">{{ sh.title }}</span><span style="width:44px; height:44px; margin-right:-10px; display:grid; place-items:center; color:#6b6f74;"><i data-lucide="x" style="width:20px; height:20px;"></i></span></div>
+              <sc-if value="{{ sh.isChange }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  <sc-for list="{{ sh.plans }}" as="p" hint-placeholder-count="2">
+                    <div style="border-radius:18px; padding:16px 18px; background:{{ p.bg }}; box-shadow:{{ p.ring }}; display:flex; flex-direction:column; gap:10px;">
+                      <div style="display:flex; align-items:center; justify-content:space-between;">
+                        <span style="height:28px; padding:0 12px; border-radius:14px; background:{{ p.pillBg }}; color:{{ p.pillC }}; display:inline-flex; align-items:center; font-size:13px; font-weight:600;">{{ p.name }}</span>
+                        <sc-if value="{{ p.sel }}" hint-placeholder-val="{{ false }}"><span style="width:24px; height:24px; border-radius:50%; background:#1a1c1e; color:#f4f3ef; display:grid; place-items:center;"><i data-lucide="check" style="width:14px; height:14px;"></i></span></sc-if>
+                        <sc-if value="{{ p.unsel }}" hint-placeholder-val="{{ true }}"><span style="width:24px; height:24px; border-radius:50%; border:1.5px solid #d6d3cc;"></span></sc-if>
+                      </div>
+                      <span style="display:flex; align-items:baseline; gap:6px;"><span style="font-weight:700; font-size:30px; letter-spacing:-.03em; font-variant-numeric:proportional-nums;">{{ p.uah }}</span><span style="font-size:14px; color:#6b6f74;">/ місяць</span></span>
+                      <span style="font-size:13.5px; color:#6b6f74; line-height:1.4;">{{ p.who }}</span>
+                    </div>
+                  </sc-for>
+                  <span style="display:flex; align-items:flex-start; gap:8px; font-size:14px; line-height:1.45; padding:4px 2px 0;"><i data-lucide="calendar" style="width:16px; height:16px; flex:none; margin-top:2px; color:#5b7a4f;"></i>{{ sh.note }}</span>
+                  <button style="height:52px; border-radius:26px; border:0; background:#1a1c1e; color:#f4f3ef; font-size:15.5px; font-weight:600; margin-top:4px;">Змінити</button>
+                </div>
+              </sc-if>
+              <sc-if value="{{ sh.isCancel }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; flex-direction:column; gap:18px;">
+                  <p style="margin:0; font-size:16px; line-height:1.5; text-wrap:pretty;">{{ sh.body }}</p>
+                  <div style="display:flex; flex-direction:column; gap:8px;">
+                    <button style="height:52px; border-radius:26px; border:0; background:#1a1c1e; color:#f4f3ef; font-size:15.5px; font-weight:600;">Скасувати підписку</button>
+                    <button style="height:52px; border-radius:26px; border:1px solid #e6e4de; background:#fff; font-size:15.5px; font-weight:600;">Лишити</button>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <span style="font-size:12px; font-weight:600; color:#6b6f74; letter-spacing:.05em; text-transform:uppercase;">3 · Банер станів · 1440 · над вмістом, на всю ширину колонки</span>
+    <div style="display:flex; flex-direction:column; gap:20px;">
+      <sc-for list="{{ banners }}" as="bn" hint-placeholder-count="4">
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <span style="font-size:11px; font-weight:600; letter-spacing:.06em; color:#9a9ea3;">{{ bn.key }}</span>
+          <div data-screen-label="Банер · 1440 · {{ bn.key }}" style="width:1440px; height:190px; background:#f4f3ef; border-radius:12px; overflow:hidden; box-shadow:0 14px 40px rgba(26,28,30,.1); display:flex; position:relative;">
+            <div style="width:232px; flex:none; border-right:1px solid #e6e4de; padding:24px 14px; display:flex; flex-direction:column; gap:4px;">
+              <span style="display:flex; align-items:center; gap:10px; padding:0 10px 22px; font-weight:700; font-size:17px; letter-spacing:-.02em;"><span style="width:22px; height:22px; border-radius:50%; border:2.5px solid #1a1c1e; display:grid; place-items:center;"><span style="width:7px; height:7px; border-radius:50%; background:#5b7a4f;"></span></span>Kitchen OS</span>
+              <span style="height:44px; padding:0 12px; border-radius:10px; display:flex; align-items:center; gap:12px; font-size:14.5px; font-weight:600; background:#fff;"><i data-lucide="message-square" style="width:18px; height:18px;"></i>Стрічка</span>
+              <span style="height:44px; padding:0 12px; display:flex; align-items:center; gap:12px; font-size:14.5px;"><i data-lucide="archive" style="width:18px; height:18px;"></i>Комора</span>
+            </div>
+            <div style="flex:1; min-width:0; display:flex; flex-direction:column;">
+              <div style="min-height:52px; padding:8px 12px 8px 24px; display:flex; align-items:center; gap:14px; background:{{ bn.bg }}; border-bottom:1px solid {{ bn.line }};">
+                <i data-lucide="{{ bn.ic }}" style="width:17px; height:17px; flex:none; color:{{ bn.icC }};"></i>
+                <span style="flex:1; min-width:0; font-size:14.5px; color:{{ bn.c }};">{{ bn.t }}</span>
+                <sc-if value="{{ bn.hasBtn }}" hint-placeholder-val="{{ false }}"><button style="height:36px; padding:0 16px; border-radius:18px; border:0; background:#1a1c1e; color:#f4f3ef; font-size:13.5px; font-weight:600; flex:none;">{{ bn.btn }}</button></sc-if>
+              </div>
+              <div style="padding:26px 40px; display:flex; flex-direction:column; gap:14px; opacity:.5;">
+                <span style="width:420px; height:14px; border-radius:7px; background:#e6e4de;"></span>
+                <span style="width:560px; height:14px; border-radius:7px; background:#ebe9e3;"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <span style="font-size:12px; font-weight:600; color:#6b6f74; letter-spacing:.05em; text-transform:uppercase;">3 · Банер станів · 390 · під шапкою, до двох рядків</span>
+    <div style="display:flex; gap:24px; align-items:flex-start;">
+      <sc-for list="{{ banners }}" as="bn" hint-placeholder-count="4">
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <span style="font-size:11px; font-weight:600; letter-spacing:.06em; color:#9a9ea3;">{{ bn.key }}</span>
+          <div data-screen-label="Банер · 390 · {{ bn.key }}" style="width:390px; height:240px; background:#f4f3ef; border-radius:12px; overflow:hidden; box-shadow:0 14px 40px rgba(26,28,30,.1); display:flex; flex-direction:column;">
+            <div style="height:56px; flex:none; display:flex; align-items:center; padding:0 16px; font-weight:700; font-size:18px; border-bottom:1px solid #e6e4de;">Стрічка</div>
+            <div style="padding:10px 12px 10px 16px; display:flex; align-items:center; gap:12px; background:{{ bn.bg }}; border-bottom:1px solid {{ bn.line }};">
+              <i data-lucide="{{ bn.ic }}" style="width:16px; height:16px; flex:none; color:{{ bn.icC }};"></i>
+              <span style="flex:1; min-width:0; font-size:13.5px; line-height:1.4; color:{{ bn.c }}; text-wrap:pretty;">{{ bn.t }}</span>
+              <sc-if value="{{ bn.hasBtn }}" hint-placeholder-val="{{ false }}"><button style="height:44px; padding:0 14px; border-radius:22px; border:0; background:#1a1c1e; color:#f4f3ef; font-size:13px; font-weight:600; flex:none;">{{ bn.btn }}</button></sc-if>
+            </div>
+            <div style="padding:20px 16px; display:flex; flex-direction:column; gap:12px; opacity:.5;">
+              <span style="width:260px; height:12px; border-radius:6px; background:#e6e4de;"></span>
+              <span style="width:320px; height:12px; border-radius:6px; background:#ebe9e3;"></span>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <span style="font-size:12px; font-weight:600; color:#6b6f74; letter-spacing:.05em; text-transform:uppercase;">4 · Паювел у чаті · людина щойно надіслала — у стрічці лише відповідь асистента</span>
+    <div style="display:flex; gap:28px; align-items:flex-start;">
+
+      <div data-screen-label="Паювел · 1440" style="width:1440px; height:900px; background:#f4f3ef; border-radius:12px; overflow:hidden; box-shadow:0 20px 60px rgba(26,28,30,.12); display:flex;">
+        <div style="width:232px; flex:none; border-right:1px solid #e6e4de; padding:24px 14px; display:flex; flex-direction:column; gap:4px;">
+          <span style="display:flex; align-items:center; gap:10px; padding:0 10px 22px; font-weight:700; font-size:17px; letter-spacing:-.02em;"><span style="width:22px; height:22px; border-radius:50%; border:2.5px solid #1a1c1e; display:grid; place-items:center;"><span style="width:7px; height:7px; border-radius:50%; background:#5b7a4f;"></span></span>Kitchen OS</span>
+          <sc-for list="{{ navActive }}" as="n" hint-placeholder-count="5">
+            <span style="height:44px; padding:0 12px; border-radius:10px; display:flex; align-items:center; gap:12px; font-size:14.5px; background:{{ n.bg }}; font-weight:{{ n.w }};"><i data-lucide="{{ n.ic }}" style="width:18px; height:18px;"></i>{{ n.t }}</span>
+          </sc-for>
+        </div>
+        <div style="flex:1; min-width:0; display:flex; flex-direction:column;">
+          <div style="min-height:52px; padding:8px 12px 8px 24px; display:flex; align-items:center; gap:14px; background:#ecebe6; border-bottom:1px solid #e1dfd8;">
+            <i data-lucide="pause" style="width:17px; height:17px; color:#6b6f74;"></i>
+            <span style="flex:1; font-size:14.5px;">Підписка закінчилась — усе лишив як було.</span>
+            <button style="height:36px; padding:0 16px; border-radius:18px; border:0; background:#1a1c1e; color:#f4f3ef; font-size:13.5px; font-weight:600;">Продовжити</button>
+          </div>
+          <div style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; padding:0 40px 20px;">
+            <div style="width:100%; max-width:760px; display:flex; flex-direction:column; gap:22px;">
+              <div style="align-self:flex-end; max-width:70%; background:#1a1c1e; color:#f4f3ef; border-radius:18px 18px 6px 18px; padding:12px 16px; font-size:15px; line-height:1.45; opacity:.55;">Що приготувати з курки й броколі?</div>
+              <div style="display:flex; gap:12px; align-items:flex-start; opacity:.55;"><span style="width:28px; height:28px; border-radius:50%; border:2.5px solid #1a1c1e; display:grid; place-items:center; flex:none;"><span style="width:8px; height:8px; border-radius:50%; background:#5b7a4f;"></span></span><div style="background:#fff; border-radius:6px 18px 18px 18px; padding:12px 16px; font-size:15px; line-height:1.5;">Курка з броколі в соєвому соусі — 25 хвилин, одна сковорода.</div></div>
+              <span style="align-self:center; font-size:12px; color:#9a9ea3;">12 вересня</span>
+              <div style="display:flex; gap:12px; align-items:flex-start;">
+                <span style="width:28px; height:28px; border-radius:50%; border:2.5px solid #1a1c1e; display:grid; place-items:center; flex:none;"><span style="width:8px; height:8px; border-radius:50%; background:#5b7a4f;"></span></span>
+                <div style="display:flex; flex-direction:column; gap:10px; max-width:560px;">
+                  <div style="background:#fff; border-radius:6px 18px 18px 18px; padding:14px 18px; font-size:15px; line-height:1.55; text-wrap:pretty;">Я зберіг те, що в нас уже є. Зараз я не розбираю нові повідомлення, чеки, фото й голос і не веду комору далі. Поки зупинимось тут — не найгірше місце для паузи.</div>
+                  <button style="align-self:flex-start; height:44px; padding:0 20px; border-radius:22px; border:0; background:#1a1c1e; color:#f4f3ef; font-size:14.5px; font-weight:600; display:flex; align-items:center; gap:8px;">Продовжити<i data-lucide="arrow-right" style="width:15px; height:15px;"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="padding:0 40px 28px; display:flex; justify-content:center;">
+            <div style="width:100%; max-width:760px; height:56px; background:#fff; border-radius:28px; border:1px solid #e6e4de; display:flex; align-items:center; gap:10px; padding:0 8px 0 14px;">
+              <span style="width:40px; height:40px; display:grid; place-items:center; color:#6b6f74;"><i data-lucide="camera" style="width:19px; height:19px;"></i></span>
+              <span style="flex:1; font-size:15px; color:#9a9ea3;">Напиши, що є вдома</span>
+              <span style="width:40px; height:40px; display:grid; place-items:center; color:#6b6f74;"><i data-lucide="mic" style="width:19px; height:19px;"></i></span>
+              <span style="width:40px; height:40px; border-radius:50%; background:#1a1c1e; color:#f4f3ef; display:grid; place-items:center;"><i data-lucide="arrow-up" style="width:18px; height:18px;"></i></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div data-screen-label="Паювел · 390" style="width:390px; height:664px; background:#f4f3ef; border-radius:12px; overflow:hidden; box-shadow:0 20px 60px rgba(26,28,30,.14); display:flex; flex-direction:column;">
+        <div style="height:56px; flex:none; display:flex; align-items:center; padding:0 16px; font-weight:700; font-size:18px; border-bottom:1px solid #e6e4de;">Стрічка</div>
+        <div style="padding:10px 12px 10px 16px; display:flex; align-items:center; gap:12px; background:#ecebe6; border-bottom:1px solid #e1dfd8;">
+          <i data-lucide="pause" style="width:16px; height:16px; flex:none; color:#6b6f74;"></i>
+          <span style="flex:1; font-size:13.5px; line-height:1.4;">Підписка закінчилась — усе лишив як було.</span>
+          <button style="height:44px; padding:0 14px; border-radius:22px; border:0; background:#1a1c1e; color:#f4f3ef; font-size:13px; font-weight:600;">Продовжити</button>
+        </div>
+        <div style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:flex-end; gap:16px; padding:0 16px 14px;">
+          <span style="align-self:center; font-size:12px; color:#9a9ea3;">12 вересня</span>
+          <div style="display:flex; gap:10px; align-items:flex-start;">
+            <span style="width:26px; height:26px; border-radius:50%; border:2.5px solid #1a1c1e; display:grid; place-items:center; flex:none;"><span style="width:7px; height:7px; border-radius:50%; background:#5b7a4f;"></span></span>
+            <div style="display:flex; flex-direction:column; gap:10px; min-width:0;">
+              <div style="background:#fff; border-radius:6px 18px 18px 18px; padding:13px 15px; font-size:15px; line-height:1.5; text-wrap:pretty;">Я зберіг те, що в нас уже є. Зараз я не розбираю нові повідомлення, чеки, фото й голос і не веду комору далі. Поки зупинимось тут — не найгірше місце для паузи.</div>
+              <button style="align-self:flex-start; height:44px; padding:0 20px; border-radius:22px; border:0; background:#1a1c1e; color:#f4f3ef; font-size:14.5px; font-weight:600; display:flex; align-items:center; gap:8px;">Продовжити<i data-lucide="arrow-right" style="width:15px; height:15px;"></i></button>
+            </div>
+          </div>
+        </div>
+        <div style="padding:0 12px 10px;">
+          <div style="height:52px; background:#fff; border-radius:26px; border:1px solid #e6e4de; display:flex; align-items:center; gap:4px; padding:0 6px 0 8px;">
+            <span style="width:40px; height:40px; display:grid; place-items:center; color:#6b6f74;"><i data-lucide="camera" style="width:19px; height:19px;"></i></span>
+            <span style="flex:1; font-size:15px; color:#9a9ea3;">Напиши, що є вдома</span>
+            <span style="width:40px; height:40px; border-radius:50%; background:#1a1c1e; color:#f4f3ef; display:grid; place-items:center;"><i data-lucide="mic" style="width:18px; height:18px;"></i></span>
+          </div>
+        </div>
+        <div style="height:60px; flex:none; border-top:1px solid #e6e4de; display:flex; justify-content:space-around; align-items:center;">
+          <sc-for list="{{ navActive }}" as="n" hint-placeholder-count="5"><span style="width:44px; height:44px; display:grid; place-items:center; color:{{ n.c }};"><i data-lucide="{{ n.ic }}" style="width:20px; height:20px;"></i></span></sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <span style="font-size:11px; font-weight:600; letter-spacing:.06em; color:#9a9ea3;">TELEGRAM · ДЛЯ ОРІЄНТИРУ</span>
+        <div data-screen-label="Паювел · Telegram" style="width:360px; height:520px; background:#e6ebe0; border-radius:12px; overflow:hidden; box-shadow:0 20px 60px rgba(26,28,30,.14); display:flex; flex-direction:column;">
+          <div style="height:56px; flex:none; background:#fff; display:flex; align-items:center; gap:12px; padding:0 14px; border-bottom:1px solid #e6e4de;">
+            <i data-lucide="chevron-left" style="width:20px; height:20px;"></i>
+            <span style="width:36px; height:36px; border-radius:50%; background:#1a1c1e; display:grid; place-items:center;"><span style="width:18px; height:18px; border-radius:50%; border:2.5px solid #f4f3ef; display:grid; place-items:center;"><span style="width:5px; height:5px; border-radius:50%; background:#93b48b;"></span></span></span>
+            <span style="display:flex; flex-direction:column;"><span style="font-weight:600; font-size:15px;">Kitchen OS</span><span style="font-size:12px; color:#6b6f74;">бот</span></span>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; justify-content:flex-end; padding:12px 12px 16px; gap:4px;">
+            <div style="max-width:88%; background:#fff; border-radius:14px 14px 14px 4px; padding:10px 12px 8px; font-size:14.5px; line-height:1.45; display:flex; flex-direction:column; gap:4px;">
+              <span>Я зберіг те, що в нас уже є. Зараз я не розбираю нові повідомлення, чеки, фото й голос і не веду комору далі. Поки зупинимось тут — не найгірше місце для паузи.</span>
+              <span style="align-self:flex-end; font-size:11px; color:#9a9ea3;">21:14</span>
+            </div>
+            <div style="max-width:88%; height:40px; border-radius:10px; background:rgba(26,28,30,.28); color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600;">Продовжити</div>
+          </div>
+          <div style="height:52px; flex:none; background:#fff; display:flex; align-items:center; gap:10px; padding:0 14px; color:#9a9ea3; font-size:15px;"><i data-lucide="paperclip" style="width:19px; height:19px;"></i><span style="flex:1;">Повідомлення</span><i data-lucide="mic" style="width:19px; height:19px;"></i></div>
+        </div>
+        <span style="font-size:12px; color:#6b6f74; max-width:360px; line-height:1.5;">Той самий текст + inline-кнопка «Продовжити» → посилання на /profile/subscription.</span>
+      </div>
+
+    </div>
+  </div>
+
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showVars&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;label&quot;:&quot;Змінні як {дата}&quot;}}">
+class Component extends DCLogic {
+  icons() { const run = () => { if (window.lucide) window.lucide.createIcons({ attrs: { 'stroke-width': 1.75 } }); else setTimeout(run, 200); }; run(); }
+  componentDidMount() { this.icons(); }
+  componentDidUpdate() { this.icons(); }
+  renderVals() {
+    const raw = !!this.props.showVars;
+    const v = (real, name) => raw ? '{' + name + '}' : real;
+    const ok = '#5b7a4f', bad = '#a67c2e';
+    const B = (t, k) => ({ t, ink: k === 'ink', out: k === 'out', ghost: k === 'ghost' });
+    const row = (d, sum, st, who) => ({ d, sum, st: st ? 'сплачено' : 'не пройшло', stC: st ? ok : bad, who, rcpt: st, noRcpt: !st });
+    const hist = [row('12.09', '290 ₴', true, 'Яна'), row('12.08', '290 ₴', true, 'Яна'), row('12.07', '210 ₴', true, 'Андрій')];
+    const histFail = [row('12.09', '290 ₴', false, 'Яна'), row('12.08', '290 ₴', true, 'Яна'), row('12.07', '210 ₴', true, 'Андрій')];
+    const card = '•• ' + v('4417', 'mask');
+    const S = (key, top, o) => ({ key, top, dot: '#9a9ea3', card, hasCard: false, btns: [], hasBtns: false, hasHist: true, hist, lapsed: false, ...o, get _() { return 0; } });
+    const states = [
+      S('beta', 'Бета-тест · усе безкоштовно', { dot: ok, hasHist: false }),
+      S('trial', `Пробний до ${v('09.10', 'дата')} · далі ${v('290', 'сума')} ₴/міс`, { dot: ok, hasCard: true, btns: [B('Скасувати', 'ghost')], hasBtns: true, hasHist: false }),
+      S('active', `${v('Для дому', 'Для себе / Для дому')} · наступне списання ${v('12.10', 'дата')}, ${v('290', 'сума')} ₴`, { dot: ok, hasCard: true, btns: [B('Змінити тариф', 'out'), B('Скасувати', 'ghost')], hasBtns: true }),
+      S('cancelled', `Скасовано · доступ до ${v('12.10', 'дата')}`, { btns: [B('Продовжити', 'ink')], hasBtns: true }),
+      S('past_due', `Списання ${v('12.09', 'дата')} не пройшло`, { dot: bad, hasCard: true, btns: [B('Оновити картку', 'ink')], hasBtns: true, hist: histFail }),
+      S('lapsed', `Підписка закінчилась ${v('12.09', 'дата')} · дані на місці`, { lapsed: true }),
+    ];
+    const plan = (name, uah, who, cur, sel, home) => ({ name, uah, who, sel, unsel: !sel,
+      bg: cur ? (home ? '#e8efe3' : '#f6ecd6') : '#fff',
+      ring: sel ? 'inset 0 0 0 2px #1a1c1e' : 'inset 0 0 0 1px #e6e4de',
+      pillBg: home ? '#5b7a4f' : '#1a1c1e', pillC: '#f4f3ef' });
+    const self = (cur, sel) => plan('Для себе', '210 ₴', 'Для тих, хто вирішує свою вечерю сам.', cur, sel, false);
+    const home = (cur, sel) => plan('Для дому', '290 ₴', 'Для кількох людей, які живуть з однією коморою.', cur, sel, true);
+    const sheets = [
+      { cap: 'Змінити тариф · підвищення', title: 'Змінити тариф', isChange: true, isCancel: false, plans: [self(true, false), home(false, true)], note: `Наступне списання ${v('290', 'нова сума')} — ${v('12.10', 'дата')}` },
+      { cap: 'Змінити тариф · пониження', title: 'Змінити тариф', isChange: true, isCancel: false, plans: [self(false, true), home(true, false)], note: `З ${v('12.10', 'дата')}. До того — як зараз.` },
+      { cap: 'Скасувати', title: 'Скасувати', isChange: false, isCancel: true, plans: [], body: `Доступ лишиться до ${v('12.10', 'дата')}, далі — тільки читати. Дані не видаляємо.` },
+    ];
+    const N = { bg: '#ecebe6', line: '#e1dfd8', c: '#1a1c1e', icC: '#6b6f74' };
+    const banners = [
+      { key: 'trial · ≤3 дні', ...N, ic: 'calendar', t: `Пробний до ${v('27.09', 'дата')}, далі ${v('290', 'сума')} ₴/міс.`, hasBtn: false },
+      { key: 'cancelled', ...N, ic: 'calendar', t: `До ${v('12.10', 'дата')} все працює як завжди. Потім просто зробимо паузу.`, hasBtn: false },
+      { key: 'past_due', bg: '#f6ecd6', line: '#ecdcb8', c: '#5e4413', icC: '#a67c2e', ic: 'credit-card', t: 'Цього разу оплата не пройшла. Оновимо картку й продовжимо звідси.', hasBtn: true, btn: 'Оновити картку' },
+      { key: 'lapsed', ...N, ic: 'pause', t: 'Підписка закінчилась — усе лишив як було.', hasBtn: true, btn: 'Продовжити' },
+    ];
+    const nav = [['Стрічка','message-square'],['Комора','archive'],['Рецепти','book-open'],['Список','list-checks'],['Календар','calendar-days']];
+    return {
+      states, sheets, banners,
+      nav: nav.map(([t, ic]) => ({ t, ic })),
+      navActive: nav.map(([t, ic], i) => ({ t, ic, bg: i === 0 ? '#fff' : 'transparent', w: i === 0 ? 600 : 400, c: i === 0 ? '#1a1c1e' : '#9a9ea3' })),
+    };
+  }
+}
+</script>
+</body>
+</html>
