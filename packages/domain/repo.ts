@@ -15,6 +15,7 @@ import type {
 } from './profile-text.js';
 import type { OccasionRow } from './occasion-data.js';
 import type { OccasionSubscriptionRow } from './periods.js';
+import type { HouseholdSubscription, PaymentRow, SubscriptionState } from './subscription.js';
 
 export interface UserRow {
   id: string;
@@ -298,6 +299,27 @@ export interface Repo {
   // Крок 7: разові позначки на користувачі (Семен, картка «Про тебе»).
   touchUser(user_id: string, field: UserStampField, at: string): Promise<void>;
   createUserWithHousehold(email: string, name: string): Promise<{ user_id: string; household_id: string }>;
+
+  // ── Підписка дому (спек 2026-09-25 §6, міграція 0046) ──
+  // Стан належить ДОМУ: один рядок на household_id, усі члени бачать те саме.
+  getSubscription(household_id: string): Promise<HouseholdSubscription | null>;
+  /** Upsert по household_id: рядок на дім рівно один. */
+  saveSubscription(sub: HouseholdSubscription): Promise<void>;
+  /** Вебхук провайдера знає лише order_id — звідси зворотний шлях до дому. */
+  findSubscriptionByOrder(order_id: string): Promise<HouseholdSubscription | null>;
+  listSubscriptionsByState(states: SubscriptionState[]): Promise<HouseholdSubscription[]>;
+  /** `false`, якщо `provider_payment_id` уже записаний: вебхук приходить двічі (спек §7). */
+  insertPayment(p: Omit<PaymentRow, 'id'>): Promise<boolean>;
+  listPayments(household_id: string): Promise<PaymentRow[]>;
+  /**
+   * Коли в домі востаннє хтось був — максимум по СЕСІЯХ членів.
+   * `last_seen_at` у цьому коді не колонка "user", а похідне від
+   * `auth_session.last_seen_at` (див. UserRow тут же і підзапит у
+   * postgres-repo). Відлік тиші пів року рахується від цього числа.
+   */
+  householdLastSeenAt(household_id: string): Promise<string | null>;
+  /** Дім цілком (спек §5). Акаунти членів лишаються — видаляються окремим правилом. */
+  deleteHousehold(household_id: string): Promise<void>;
   createUserOnly(email: string, name: string): Promise<string>;
   firstHouseholdOf(user_id: string): Promise<string | null>;
   getHousehold(id: string): Promise<HouseholdRow | null>;

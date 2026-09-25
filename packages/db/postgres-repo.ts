@@ -23,6 +23,7 @@ import type {
 } from '@kitchen/domain';
 import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
+import type { HouseholdSubscription, PaymentRow, SubscriptionState } from '@kitchen/domain/subscription';
 
 type Row = Record<string, unknown>;
 
@@ -101,6 +102,42 @@ function profileNoteRow(r: Row): ProfileNote {
     created_at: new Date(r.created_at as string).toISOString(),
     deleted_at: r.deleted_at ? new Date(r.deleted_at as string).toISOString() : null,
     norm_hash: r.norm_hash as string,
+  };
+}
+
+const iso = (v: unknown): string | null => (v ? new Date(v as string).toISOString() : null);
+
+// Підписка дому (міграція 0046). Дати з timestamptz → ISO, як інші мапери тут.
+function subRow(r: Row): HouseholdSubscription {
+  return {
+    household_id: r.household_id as string,
+    state: r.state as HouseholdSubscription['state'],
+    plan: (r.plan as HouseholdSubscription['plan'] | null) ?? null,
+    trial_used_at: iso(r.trial_used_at),
+    trial_ends_at: iso(r.trial_ends_at),
+    next_charge_at: iso(r.next_charge_at),
+    access_until: iso(r.access_until),
+    provider_order_id: (r.provider_order_id as string | null) ?? null,
+    card_mask: (r.card_mask as string | null) ?? null,
+    paid_by_user_id: (r.paid_by_user_id as string | null) ?? null,
+    deletion_warned_at: iso(r.deletion_warned_at),
+    trial_mail_sent_at: iso(r.trial_mail_sent_at),
+    updated_at: new Date(r.updated_at as string).toISOString(),
+  };
+}
+
+function payRow(r: Row): PaymentRow {
+  return {
+    id: r.id as string,
+    household_id: r.household_id as string,
+    // numeric(10,2) приїжджає рядком — у домені це число.
+    amount: Number(r.amount),
+    currency: r.currency as PaymentRow['currency'],
+    status: r.status as PaymentRow['status'],
+    provider_payment_id: (r.provider_payment_id as string | null) ?? null,
+    paid_by_user_id: (r.paid_by_user_id as string | null) ?? null,
+    receipt_url: (r.receipt_url as string | null) ?? null,
+    created_at: new Date(r.created_at as string).toISOString(),
   };
 }
 
@@ -1701,6 +1738,74 @@ export class PostgresRepo implements Repo {
       'SELECT email, reason, comment, created_at FROM account_exit_survey ORDER BY created_at',
     );
     return rows;
+  }
+
+  // ── Підписка дому (спек 2026-09-25 §6, міграція 0046) ──
+  async getSubscription(household_id: string): Promise<HouseholdSubscription | null> {
+    const { rows } = await this.pool.query('SELECT * FROM household_subscription WHERE household_id = $1', [household_id]);
+    return rows[0] ? subRow(rows[0]) : null;
+  }
+
+  async saveSubscription(s: HouseholdSubscription): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO household_subscription (household_id, state, plan, trial_used_at, trial_ends_at, next_charge_at, access_until, provider_order_id, card_mask, paid_by_user_id, deletion_warned_at, trial_mail_sent_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       ON CONFLICT (household_id) DO UPDATE SET state=EXCLUDED.state, plan=EXCLUDED.plan,
+         trial_used_at=EXCLUDED.trial_used_at, trial_ends_at=EXCLUDED.trial_ends_at,
+         next_charge_at=EXCLUDED.next_charge_at, access_until=EXCLUDED.access_until,
+         provider_order_id=EXCLUDED.provider_order_id, card_mask=EXCLUDED.card_mask,
+         paid_by_user_id=EXCLUDED.paid_by_user_id, deletion_warned_at=EXCLUDED.deletion_warned_at,
+         trial_mail_sent_at=EXCLUDED.trial_mail_sent_at, updated_at=EXCLUDED.updated_at`,
+      [s.household_id, s.state, s.plan, s.trial_used_at, s.trial_ends_at, s.next_charge_at, s.access_until,
+        s.provider_order_id, s.card_mask, s.paid_by_user_id, s.deletion_warned_at, s.trial_mail_sent_at, s.updated_at],
+    );
+  }
+
+  async findSubscriptionByOrder(order_id: string): Promise<HouseholdSubscription | null> {
+    const { rows } = await this.pool.query('SELECT * FROM household_subscription WHERE provider_order_id = $1', [order_id]);
+    return rows[0] ? subRow(rows[0]) : null;
+  }
+
+  async listSubscriptionsByState(states: SubscriptionState[]): Promise<HouseholdSubscription[]> {
+    const { rows } = await this.pool.query('SELECT * FROM household_subscription WHERE state = ANY($1)', [states]);
+    return rows.map(subRow);
+  }
+
+  async insertPayment(p: Omit<PaymentRow, 'id'>): Promise<boolean> {
+    // Ідемпотентність тримає UNIQUE(provider_payment_id): вебхук приходить
+    // двічі, другий раз DO NOTHING і rowCount 0 (спек §7).
+    const { rowCount } = await this.pool.query(
+      `INSERT INTO payment (household_id, amount, currency, status, provider_payment_id, paid_by_user_id, receipt_url, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (provider_payment_id) DO NOTHING`,
+      [p.household_id, p.amount, p.currency, p.status, p.provider_payment_id, p.paid_by_user_id, p.receipt_url, p.created_at],
+    );
+    return (rowCount ?? 0) > 0;
+  }
+
+  async listPayments(household_id: string): Promise<PaymentRow[]> {
+    const { rows } = await this.pool.query('SELECT * FROM payment WHERE household_id = $1 ORDER BY created_at DESC', [household_id]);
+    return rows.map(payRow);
+  }
+
+  async householdLastSeenAt(household_id: string): Promise<string | null> {
+    // Той самий підзапит, що рахує UserRow.last_seen_at: своєї колонки в
+    // "user" немає, правда живе в auth_session.
+    const { rows } = await this.pool.query(
+      `SELECT max(a.last_seen_at) AS m
+         FROM household_member hm
+         JOIN auth_session a ON a.user_id = hm.user_id
+        WHERE hm.household_id = $1`,
+      [household_id],
+    );
+    return rows[0]?.m ? new Date(rows[0].m as string).toISOString() : null;
+  }
+
+  async deleteHousehold(household_id: string): Promise<void> {
+    // Один DELETE: усе, що висить на домі, має ON DELETE CASCADE (перевірено
+    // по міграціях — 14 таблиць із 15). Виняток один і навмисний:
+    // token_usage.household_id — ON DELETE SET NULL, бо це бухгалтерський слід
+    // витрат, який переживає дім.
+    await this.pool.query('DELETE FROM household WHERE id = $1', [household_id]);
   }
 
   async deleteUserAccount(user_id: string): Promise<void> {

@@ -16,6 +16,7 @@ import {
 } from './profile-text.js';
 import { BUILTIN_OCCASIONS, adminRowToOccasion, type OccasionRow } from './occasion-data.js';
 import type { OccasionSubscriptionRow } from './periods.js';
+import type { HouseholdSubscription, PaymentRow, SubscriptionState } from './subscription.js';
 
 export class InMemoryRepo implements Repo {
   private batches = new Map<string, PantryBatch>();
@@ -99,6 +100,10 @@ export class InMemoryRepo implements Repo {
   // ----- Продукти дому (черга Д, №2) -------------------------------------
 
   private products = new Map<string, HouseholdProduct>();
+  // Ім'я НЕ `subscriptions`: воно вже зайняте підписками на приводи
+  // (OccasionSubscriptionRow, міграція 0027). Це підписка дому на продукт.
+  private householdSubs = new Map<string, HouseholdSubscription>();
+  private payments: PaymentRow[] = [];
 
   async insertProduct(p: HouseholdProduct): Promise<void> {
     this.products.set(p.id, { ...p, tags: { ...p.tags } });
@@ -784,6 +789,57 @@ export class InMemoryRepo implements Repo {
 
   async listExitSurveys() {
     return [...this.exitSurveys];
+  }
+
+  // ── Підписка дому (спек 2026-09-25 §6) ──
+  async getSubscription(household_id: string): Promise<HouseholdSubscription | null> {
+    return this.householdSubs.get(household_id) ?? null;
+  }
+  async saveSubscription(sub: HouseholdSubscription): Promise<void> {
+    this.householdSubs.set(sub.household_id, { ...sub });
+  }
+  async findSubscriptionByOrder(order_id: string): Promise<HouseholdSubscription | null> {
+    return [...this.householdSubs.values()].find((s) => s.provider_order_id === order_id) ?? null;
+  }
+  async listSubscriptionsByState(states: SubscriptionState[]): Promise<HouseholdSubscription[]> {
+    return [...this.householdSubs.values()].filter((s) => states.includes(s.state));
+  }
+  async insertPayment(p: Omit<PaymentRow, 'id'>): Promise<boolean> {
+    if (p.provider_payment_id && this.payments.some((x) => x.provider_payment_id === p.provider_payment_id)) return false;
+    this.payments.push({ id: randomUUID(), ...p });
+    return true;
+  }
+  async listPayments(household_id: string): Promise<PaymentRow[]> {
+    return this.payments.filter((p) => p.household_id === household_id).sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+  async householdLastSeenAt(household_id: string): Promise<string | null> {
+    const users = new Set(this.members.filter((m) => m.household_id === household_id).map((m) => m.user_id));
+    const seen = [...this.sessions.values()].filter((a) => users.has(a.user_id)).map((a) => a.last_seen_at);
+    return seen.length ? seen.slice().sort().at(-1)! : null;
+  }
+  /**
+   * Дім цілком. Акаунти членів лишаються — їх прибирає окреме правило
+   * (`deleteUserAccount`). Порядок тут не важить: усе в памʼяті процесу.
+   */
+  async deleteHousehold(household_id: string): Promise<void> {
+    this.households.delete(household_id);
+    this.householdSubs.delete(household_id);
+    this.payments = this.payments.filter((p) => p.household_id !== household_id);
+    this.members = this.members.filter((m) => m.household_id !== household_id);
+    for (const [id, b] of this.batches) if (b.household_id === household_id) this.batches.delete(id);
+    for (const [id, p] of this.products) if (p.household_id === household_id) this.products.delete(id);
+    // Рецепти НЕ належать дому: у схемі (recipe.owner_id) вони висять на
+    // людині, і видалення дому їх не чіпає — акаунт лишається, рецепти з ним.
+    for (const [id, c] of this.cookRuns) if (c.household_id === household_id) this.cookRuns.delete(id);
+    for (const [id, e] of this.events) if (e.household_id === household_id) this.events.delete(id);
+    for (const [id, i] of this.shopping) if (i.household_id === household_id) this.shopping.delete(id);
+    for (const [id, i] of this.invites) if (i.household_id === household_id) this.invites.delete(id);
+    for (const [id, c] of this.pending) if (c.household_id === household_id) this.pending.delete(id);
+    for (const [id, a] of this.attachments) if (a.household_id === household_id) this.attachments.delete(id);
+    this.subscriptions.delete(household_id);
+    for (const [id, c] of this.catches) if (c.household_id === household_id) this.catches.delete(id);
+    this.appEvents = this.appEvents.filter((e) => e.household_id !== household_id);
+    this.tokenUsage = this.tokenUsage.map((t) => (t.household_id === household_id ? { ...t, household_id: null } : t));
   }
 
   async deleteUserAccount(user_id: string): Promise<void> {
