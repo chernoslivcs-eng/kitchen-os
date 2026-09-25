@@ -11,6 +11,7 @@ import { tick } from '@kitchen/domain/subscription';
 import { PLAN_PRICE_UAH } from '@kitchen/domain/plans';
 import { MAIL, SUBSCRIPTION_PATH } from '@kitchen/domain/paywall';
 import type { Mailer } from './mailer.js';
+import type { BillingProvider } from './billing/provider.js';
 
 const DAY = 86_400_000;
 /** Пів року тиші — і дім отримує попередження (спек §5). */
@@ -23,6 +24,11 @@ export interface BillingCronDeps {
   repo: Repo;
   mailer: Mailer;
   appUrl: string;
+  /**
+   * Потрібен лише для прострочених намірів. Той самий, що в сервера —
+   * інакше крон відписуватиме в фейку те, що створив LiqPay.
+   */
+  billing?: BillingProvider;
   /** Акаунт без пошти (з Telegram) — той самий текст іде в бот (спек §7). */
   telegramNotify?: (user_id: string, text: string) => Promise<void>;
   now?: () => Date;
@@ -34,6 +40,7 @@ export interface BillingCronSummary {
   lapsedMails: number;
   warnings: number;
   deleted: number;
+  intentsExpired: number;
 }
 
 async function notifyHousehold(deps: BillingCronDeps, household_id: string, subject: string, text: string): Promise<void> {
@@ -47,7 +54,7 @@ async function notifyHousehold(deps: BillingCronDeps, household_id: string, subj
 
 export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCronSummary> {
   const now = deps.now?.() ?? new Date();
-  const out: BillingCronSummary = { transitions: 0, trialMails: 0, lapsedMails: 0, warnings: 0, deleted: 0 };
+  const out: BillingCronSummary = { transitions: 0, trialMails: 0, lapsedMails: 0, warnings: 0, deleted: 0, intentsExpired: 0 };
 
   // 1. Переходи станів.
   for (const sub of await deps.repo.listSubscriptionsByState(['trial', 'cancelled', 'past_due'])) {
@@ -106,6 +113,25 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     await notifyHousehold(deps, sub.household_id, m.subject, m.text);
     await deps.repo.saveSubscription({ ...sub, deletion_warned_at: now.toISOString() });
     out.warnings++;
+  }
+
+  // 4. Прострочені наміри (спек §2). Намір живе 7 днів: якщо за цей час людина
+  // не увійшла, прибираємо його. Картка вже могла бути дана провайдеру — тоді
+  // спершу відписка, інакше з неї списуватимуть за акаунт, якого немає.
+  for (const intent of await deps.repo.listIntentsExpiring(now)) {
+    if (intent.state === 'subscribed') {
+      if (!deps.billing) continue; // Без провайдера відписати нічим — лишаємо на наступний раз.
+      try {
+        await deps.billing.unsubscribe(intent.order_id);
+      } catch (err) {
+        // Провайдер лежить — намір лишається subscribed і повернеться завтра.
+        // Позначити expired зараз означало б забути про живу підписку назавжди.
+        console.error('intent unsubscribe failed', intent.order_id, String(err));
+        continue;
+      }
+    }
+    await deps.repo.updateIntent(intent.order_id, { state: 'expired' });
+    out.intentsExpired++;
   }
 
   return out;
