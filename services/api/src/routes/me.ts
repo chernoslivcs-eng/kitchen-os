@@ -7,18 +7,22 @@ import type { FastifyInstance } from 'fastify';
 import type { Repo } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { COOKIE_NAME } from './auth.js';
+import { betaFlag, entitlementOf } from '@kitchen/domain/subscription';
+import { bannerFor } from '@kitchen/domain/paywall';
 
 export function meRoute(app: FastifyInstance, repo: Repo) {
   app.get('/v1/me', { preHandler: authenticated(repo) }, async (req, reply) => {
     const { user_id, household_id, session_id } = requireUser(req);
-    const [user, household, members, role, telegram] = await Promise.all([
+    const [user, household, members, role, telegram, sub] = await Promise.all([
       repo.getUser(user_id),
       repo.getHousehold(household_id),
       repo.listMembersOfHousehold(household_id),
       repo.roleOf(household_id, user_id),
       repo.getTelegramByUser(user_id),
+      repo.getSubscription(household_id),
     ]);
     if (!user || !household) return reply.code(404).send({ error: 'user or household missing' });
+    const now = new Date();
     return {
       user: { id: user.id, name: user.name, email: user.email, plan: user.plan, welcome_seen_at: user.welcome_seen_at },
       household: {
@@ -35,6 +39,19 @@ export function meRoute(app: FastifyInstance, repo: Repo) {
       session_id,
       // Шерінг v3: «Надіслати в Telegram» на /share — лише коли є жива привʼязка (для всіх, не лише без пошти).
       telegram_linked: !!telegram && !telegram.revoked_at,
+      // Режим без підписки (спек 2026-09-25 §1, §3). Рахує сервер: і право
+      // (`entitlement`), і готовий текст банера. Клієнт лише малює — інакше
+      // дві половини розійдуться в тому, що людина зараз може.
+      subscription: {
+        state: sub?.state ?? (betaFlag() ? 'beta' : 'lapsed'),
+        plan: sub?.plan ?? null,
+        entitlement: entitlementOf(sub, now, { beta: betaFlag() }),
+        trial_ends_at: sub?.trial_ends_at ?? null,
+        next_charge_at: sub?.next_charge_at ?? null,
+        access_until: sub?.access_until ?? null,
+        card_mask: sub?.card_mask ?? null,
+        banner: bannerFor(sub, now),
+      },
     };
   });
 

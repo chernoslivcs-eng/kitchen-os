@@ -20,6 +20,7 @@ import { runChatTurn, type ChatTurnInput, type ChatTurnOutput, type ChatRouteOpt
 import type { AttachmentStore } from './attachment-store.js';
 import type { QuickKeyboardBtn } from './telegram-nomodel.js';
 import { webTokenSecret } from './telegram.js';
+import { betaFlag, entitlementOf } from '@kitchen/domain/subscription';
 
 export interface DigestDeps {
   repo: Repo;
@@ -57,6 +58,12 @@ async function dishForm(deps: DigestDeps, c: DigestCandidateRow, pick: DigestPic
 export async function runDigestFor(deps: DigestDeps, c: DigestCandidateRow): Promise<DigestOutcome> {
   const now = deps.now?.() ?? new Date();
   try {
+    // Спек 2026-09-25 §2: дайджест — теж хід моделі, тож дім без підписки його
+    // не отримує. Перевірка перша: далі йде читання комори й списку, яке тут
+    // уже ні до чого.
+    if (entitlementOf(await deps.repo.getSubscription(c.household_id), now, { beta: betaFlag() }) === 'read_only') {
+      return { user_id: c.user_id, status: 'skipped', reason: 'read_only' };
+    }
     const wrote_recently = await deps.repo.hasUserMessageSince(c.user_id, new Date(now.getTime() - DIGEST_ACTIVE_WINDOW_MS).toISOString());
     const gate = shouldSendDigest({ digest_enabled: c.digest_enabled, digest_sent_on: c.digest_sent_on, tz: c.tz, wrote_recently }, now);
     if (!gate.send) return { user_id: c.user_id, status: 'skipped', reason: gate.reason ?? 'gate' };
