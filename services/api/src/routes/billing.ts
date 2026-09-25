@@ -64,7 +64,7 @@ export function billingRoutes(app: FastifyInstance, repo: Repo, billing: Billing
     // Намір пишеться ДО походу в провайдера з тієї ж причини, що й order_id у
     // checkout: вебхук повертається раніше, ніж людина бачить сторінку.
     await repo.insertIntent({
-      order_id, plan, state: 'pending', trial_ends_at, card_mask: null, household_id: null,
+      order_id, plan, state: 'pending', trial_ends_at, card_mask: null, card_token: null, household_id: null,
       ip: req.ip ?? null, created_at: now.toISOString(),
       expires_at: new Date(now.getTime() + INTENT_TTL_DAYS * DAY).toISOString(), bound_at: null,
     });
@@ -101,11 +101,15 @@ export function billingRoutes(app: FastifyInstance, repo: Repo, billing: Billing
     }
 
     const now = new Date();
-    // Дата — з наміру як є: саме вона стоїть у LiqPay як subscribe_date_start,
-    // і списання буде в неї, навіть якщо дім свій пробний уже витратив.
+    // Дата — з наміру як є: саме в неї крон зробить перше списання, навіть
+    // якщо дім свій пробний уже витратив.
+    //
+    // Токен переїжджає сюди ж: картку токенізували до того, як зʼявився дім,
+    // і тепер це єдине, чим крон зможе з неї списати.
     const r = applyProviderEvent(sub, {
       kind: 'subscribed', household_id, order_id, plan: intent.plan,
-      card_mask: intent.card_mask, trial_ends_at: intent.trial_ends_at, paid_by_user_id: user_id,
+      card_mask: intent.card_mask, card_token: intent.card_token,
+      trial_ends_at: intent.trial_ends_at, paid_by_user_id: user_id,
     }, now);
     await repo.saveSubscription(r.sub);
     await repo.updateIntent(order_id, { state: 'bound', household_id, bound_at: now.toISOString() });

@@ -25,7 +25,7 @@ describe('підпис', () => {
 describe('liqpayToEvent — мапінг статусів', () => {
   it('subscribed → подія з маскою картки', () => {
     expect(liqpayToEvent({ status: 'subscribed', order_id: 'o1', sender_card_mask2: '424242****4242' }))
-      .toEqual({ kind: 'subscribed', order_id: 'o1', card_mask: '424242****4242' });
+      .toEqual({ kind: 'subscribed', order_id: 'o1', card_mask: '424242****4242' , card_token: null});
   });
   it('success → сума й id платежу рядком/числом', () => {
     expect(liqpayToEvent({ status: 'success', order_id: 'o2', amount: '210.00', payment_id: 98765 }))

@@ -57,7 +57,7 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
       household_id, state: sub?.state ?? 'lapsed', plan,
       trial_used_at: sub?.trial_used_at ?? null, trial_ends_at,
       next_charge_at: sub?.next_charge_at ?? null, access_until: sub?.access_until ?? null,
-      provider_order_id: order_id, card_mask: sub?.card_mask ?? null, paid_by_user_id: user_id,
+      provider_order_id: order_id, card_mask: sub?.card_mask ?? null, card_token: sub?.card_token ?? null, paid_by_user_id: user_id,
       deletion_warned_at: null, trial_mail_sent_at: sub?.trial_mail_sent_at ?? null,
       updated_at: now.toISOString(),
     });

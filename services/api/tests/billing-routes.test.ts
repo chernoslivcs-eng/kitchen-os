@@ -149,7 +149,7 @@ describe('/v1/billing', () => {
       await repo.saveSubscription({
         household_id, state: 'active', plan: 'self', trial_used_at: null, trial_ends_at: null,
         next_charge_at: '2026-12-01T00:00:00.000Z', access_until: null, provider_order_id: 'старий',
-        card_mask: null, paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null,
+        card_mask: null, card_token: null, paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null,
         updated_at: new Date().toISOString(),
       });
       const { order_id } = await makeIntent();

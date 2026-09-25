@@ -45,7 +45,9 @@ export function liqpayToEvent(payload: Record<string, unknown>): InboundProvider
   if (!order_id) return null;
   switch (payload.status) {
     case 'subscribed':
-      return { kind: 'subscribed', order_id, card_mask: typeof payload.sender_card_mask2 === 'string' ? payload.sender_card_mask2 : null };
+      // LiqPay токена картки не давав — підпискою керував він сам. Поле є в
+      // події заради mono; тут воно завжди null. (Адаптер іде геть у задачі 3.)
+      return { kind: 'subscribed', order_id, card_mask: typeof payload.sender_card_mask2 === 'string' ? payload.sender_card_mask2 : null, card_token: null };
     case 'success':
       return { kind: 'success', order_id, amount: Number(payload.amount), provider_payment_id: String(payload.payment_id) };
     case 'failure':

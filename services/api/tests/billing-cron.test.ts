@@ -9,7 +9,7 @@ import { FakeBillingProvider } from '../src/billing/fake-provider.js';
 
 const sub = (household_id: string, p: Record<string, unknown>) => ({
   household_id, state: 'active', plan: 'self', trial_used_at: null, trial_ends_at: null,
-  next_charge_at: null, access_until: null, provider_order_id: 'o', card_mask: '4242',
+  next_charge_at: null, access_until: null, provider_order_id: 'o', card_mask: '4242', card_token: null,
   paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null,
   updated_at: '2026-09-01T00:00:00.000Z', ...p,
 }) as never;
@@ -81,7 +81,7 @@ describe('runBillingCron', () => {
 describe('runBillingCron · прострочені наміри', () => {
   const intent = (order_id: string, over: Record<string, unknown> = {}) => ({
     order_id, plan: 'home' as const, state: 'pending' as const, trial_ends_at: '2026-10-19T00:00:00.000Z',
-    card_mask: null, household_id: null, ip: null, created_at: '2026-10-01T00:00:00.000Z',
+    card_mask: null, card_token: null, household_id: null, ip: null, created_at: '2026-10-01T00:00:00.000Z',
     expires_at: '2026-10-08T00:00:00.000Z', bound_at: null, ...over,
   });
   const deps = (repo: InMemoryRepo, mailer: ConsoleMailer, billing: FakeBillingProvider) =>

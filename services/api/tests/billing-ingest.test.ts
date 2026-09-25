@@ -11,13 +11,13 @@ const log = { warn: vi.fn() };
 const sub = (household_id: string, order_id: string, over: Record<string, unknown> = {}) => ({
   household_id, state: 'trial', plan: 'self', trial_used_at: '2026-10-01T00:00:00.000Z',
   trial_ends_at: '2026-10-15T00:00:00.000Z', next_charge_at: '2026-10-15T00:00:00.000Z',
-  access_until: null, provider_order_id: order_id, card_mask: '4242', paid_by_user_id: null,
+  access_until: null, provider_order_id: order_id, card_mask: '4242', card_token: null, paid_by_user_id: null,
   deletion_warned_at: null, trial_mail_sent_at: null, updated_at: NOW.toISOString(), ...over,
 }) as never;
 
 const intent = (order_id: string, over: Record<string, unknown> = {}) => ({
   order_id, plan: 'home' as const, state: 'pending' as const, trial_ends_at: '2026-10-19T00:00:00.000Z',
-  card_mask: null, household_id: null, ip: null, created_at: '2026-10-05T00:00:00.000Z',
+  card_mask: null, card_token: null, household_id: null, ip: null, created_at: '2026-10-05T00:00:00.000Z',
   expires_at: '2026-10-12T00:00:00.000Z', bound_at: null, ...over,
 });
 
@@ -36,7 +36,7 @@ describe('ingestProviderEvent', () => {
     const repo = new InMemoryRepo();
     const { household_id } = await repo.createUserWithHousehold('h2@x.test', 'H');
     await repo.saveSubscription(sub(household_id, 'ord-2', { state: 'lapsed' }));
-    const r = await ingestProviderEvent(repo, { kind: 'subscribed', order_id: 'ord-2', card_mask: '1111' }, NOW, log);
+    const r = await ingestProviderEvent(repo, { kind: 'subscribed', order_id: 'ord-2', card_mask: '1111' , card_token: null}, NOW, log);
     expect(r).toEqual({ target: 'household', state: 'trial' });
     const after = await repo.getSubscription(household_id);
     expect(after?.trial_ends_at).toBe('2026-10-15T00:00:00.000Z');
@@ -47,7 +47,7 @@ describe('ingestProviderEvent', () => {
     const repo = new InMemoryRepo();
     const order_id = randomUUID();
     await repo.insertIntent(intent(order_id));
-    const r = await ingestProviderEvent(repo, { kind: 'subscribed', order_id, card_mask: '9999' }, NOW, log);
+    const r = await ingestProviderEvent(repo, { kind: 'subscribed', order_id, card_mask: '9999', card_token: null }, NOW, log);
     expect(r).toEqual({ target: 'intent', state: 'subscribed' });
     expect(await repo.getIntent(order_id)).toMatchObject({ state: 'subscribed', card_mask: '9999' });
   });
@@ -75,3 +75,36 @@ describe('ingestProviderEvent', () => {
     expect(await ingestProviderEvent(repo, { kind: 'failure', order_id: 'нема' }, NOW, log)).toEqual({ target: 'none', reason: 'unknown_order' });
   });
 });
+
+// mono: токен приходить тією самою подією, що й маска. Для наміру він мусить
+// лягти в намір (звідти його візьме bind), для дому — в підписку.
+describe('ingestProviderEvent · card_token', () => {
+  it('намір отримує токен разом із маскою', async () => {
+    const repo = new InMemoryRepo();
+    const order_id = randomUUID();
+    await repo.insertIntent({
+      order_id, plan: 'home', state: 'pending', trial_ends_at: '2026-10-19T00:00:00.000Z',
+      card_mask: null, card_token: null, household_id: null, ip: null,
+      created_at: '2026-10-01T00:00:00.000Z', expires_at: '2026-10-08T00:00:00.000Z', bound_at: null,
+    });
+    await ingestProviderEvent(repo, { kind: 'subscribed', order_id, card_mask: '4242', card_token: 'tok-7' }, NOW, log);
+    expect(await repo.getIntent(order_id)).toMatchObject({ state: 'subscribed', card_token: 'tok-7' });
+  });
+
+  it('дім отримує токен; подія без токена старий не затирає', async () => {
+    const repo = new InMemoryRepo();
+    const { user_id, household_id } = await repo.createUserWithHousehold('tok@x.test', 'T');
+    await repo.saveSubscription({
+      household_id, state: 'lapsed', plan: 'home', trial_used_at: null, trial_ends_at: null,
+      next_charge_at: null, access_until: null, provider_order_id: 'ord-tok', card_mask: null,
+      card_token: null, paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null,
+      updated_at: NOW.toISOString(),
+    });
+    await ingestProviderEvent(repo, { kind: 'subscribed', order_id: 'ord-tok', card_mask: '4242', card_token: 'tok-8' }, NOW, log);
+    expect((await repo.getSubscription(household_id))?.card_token).toBe('tok-8');
+
+    await ingestProviderEvent(repo, { kind: 'subscribed', order_id: 'ord-tok', card_mask: null, card_token: null }, NOW, log);
+    expect((await repo.getSubscription(household_id))?.card_token).toBe('tok-8');
+  });
+});
+

@@ -19,6 +19,12 @@ export interface HouseholdSubscription {
   access_until: string | null;
   provider_order_id: string | null;
   card_mask: string | null;
+  /**
+   * Токен картки в mono. У LiqPay підписка жила в провайдера; у mono картку
+   * тримаємо ми, і списання ініціює наш крон саме цим токеном. Немає токена —
+   * немає з чого списувати, і крон такий дім не бере.
+   */
+  card_token: string | null;
   paid_by_user_id: string | null;
   deletion_warned_at: string | null;
   /** Лист «за 3 дні до кінця пробного» надіслано — щоб крон не слав двічі. */
@@ -65,7 +71,7 @@ const addMonth = (iso: string | Date) => { const x = new Date(iso); x.setUTCMont
 export type ProviderEvent =
   // `trial_ends_at` — не «чи є пробний», а САМЕ ЧИСЛО, яке вже стоїть у
   // провайдера. null — без пробного, списання одразу.
-  | { kind: 'subscribed'; household_id: string; order_id: string; plan: Plan; card_mask: string | null; trial_ends_at: string | null; paid_by_user_id: string }
+  | { kind: 'subscribed'; household_id: string; order_id: string; plan: Plan; card_mask: string | null; card_token: string | null; trial_ends_at: string | null; paid_by_user_id: string }
   | { kind: 'success'; order_id: string; amount: number; provider_payment_id: string }
   | { kind: 'failure'; order_id: string }
   | { kind: 'unsubscribed'; order_id: string };
@@ -89,7 +95,7 @@ export function applyProviderEvent(sub: HouseholdSubscription | null, ev: Provid
       // другим пробним це не стає.
       trial_used_at: sub?.trial_used_at ?? (trial ? at : null), trial_ends_at: trialEnds,
       next_charge_at: trial ? trialEnds : addMonth(now), access_until: null,
-      provider_order_id: ev.order_id, card_mask: ev.card_mask, paid_by_user_id: ev.paid_by_user_id,
+      provider_order_id: ev.order_id, card_mask: ev.card_mask, card_token: ev.card_token, paid_by_user_id: ev.paid_by_user_id,
       // Нове оформлення — новий цикл: попередження про кінець пробного
       // рахується від цього trial_ends_at, старий слід тут тільки заважав би.
       deletion_warned_at: null, trial_mail_sent_at: null, updated_at: at,
@@ -103,7 +109,9 @@ export function applyProviderEvent(sub: HouseholdSubscription | null, ev: Provid
     };
   }
   if (ev.kind === 'failure') return { sub: { ...sub, state: 'past_due', updated_at: at } };
-  return { sub: { ...sub, state: 'cancelled', access_until: sub.next_charge_at, card_mask: null, updated_at: at } };
+  // Токен стираємо разом із маскою: сам токен у mono видаляє маршрут
+  // скасування через deleteToken, а тут ми прибираємо привід ним скористатись.
+  return { sub: { ...sub, state: 'cancelled', access_until: sub.next_charge_at, card_mask: null, card_token: null, updated_at: at } };
 }
 
 /** Що крон робить із рядком сьогодні; null — нічого. */
@@ -124,9 +132,11 @@ export interface PaymentIntent {
   order_id: string;
   plan: Plan;
   state: 'pending' | 'subscribed' | 'bound' | 'expired';
-  /** Те саме число, що пішло в LiqPay як subscribe_date_start. */
+  /** Те саме число, що стоїть у нас як перше списання; провайдер його не знає. */
   trial_ends_at: string | null;
   card_mask: string | null;
+  /** Токен із verification-інвойсу: переїде в підписку при `bind`. */
+  card_token: string | null;
   household_id: string | null;
   ip: string | null;
   created_at: string;

@@ -795,7 +795,7 @@ export class InMemoryRepo implements Repo {
   // ── Намір оплати (спек біллінгу §4) ──
   async insertIntent(i: PaymentIntent): Promise<void> { this.intents.set(i.order_id, { ...i }); }
   async getIntent(order_id: string): Promise<PaymentIntent | null> { return this.intents.get(order_id) ?? null; }
-  async updateIntent(order_id: string, patch: Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'household_id' | 'bound_at'>>): Promise<void> {
+  async updateIntent(order_id: string, patch: Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'card_token' | 'household_id' | 'bound_at'>>): Promise<void> {
     const cur = this.intents.get(order_id);
     if (cur) this.intents.set(order_id, { ...cur, ...patch });
   }

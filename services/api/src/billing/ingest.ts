@@ -14,7 +14,7 @@ import { applyProviderEvent, type PaymentIntent, type ProviderEvent, type Subscr
  * пробного — усе це вже лежить у нас, у підписці або в намірі.
  */
 export type InboundProviderEvent =
-  | { kind: 'subscribed'; order_id: string; card_mask: string | null }
+  | { kind: 'subscribed'; order_id: string; card_mask: string | null; card_token: string | null }
   | Extract<ProviderEvent, { kind: 'success' | 'failure' | 'unsubscribed' }>;
 
 export type IngestResult =
@@ -33,7 +33,7 @@ export async function ingestProviderEvent(
     const full: ProviderEvent = ev.kind === 'subscribed'
       // Дім уже відомий, і дата пробного вже порахована checkout-ом — беремо
       // її звідти, а не рахуємо заново.
-      ? { kind: 'subscribed', order_id: ev.order_id, household_id: sub.household_id, plan: sub.plan ?? 'self', card_mask: ev.card_mask ?? sub.card_mask, trial_ends_at: sub.trial_ends_at, paid_by_user_id: sub.paid_by_user_id ?? '' }
+      ? { kind: 'subscribed', order_id: ev.order_id, household_id: sub.household_id, plan: sub.plan ?? 'self', card_mask: ev.card_mask ?? sub.card_mask, card_token: ev.card_token ?? sub.card_token, trial_ends_at: sub.trial_ends_at, paid_by_user_id: sub.paid_by_user_id ?? '' }
       : ev;
     const r = applyProviderEvent(sub, full, now);
     await repo.saveSubscription(r.sub);
@@ -45,7 +45,7 @@ export async function ingestProviderEvent(
   if (!intent) return { target: 'none', reason: 'unknown_order' };
 
   if (ev.kind === 'subscribed') {
-    await repo.updateIntent(ev.order_id, { state: 'subscribed', card_mask: ev.card_mask });
+    await repo.updateIntent(ev.order_id, { state: 'subscribed', card_mask: ev.card_mask, card_token: ev.card_token });
     return { target: 'intent', state: 'subscribed' };
   }
   if (ev.kind === 'unsubscribed') {

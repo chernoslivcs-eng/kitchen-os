@@ -3,7 +3,7 @@ import { INTENT_TTL_DAYS, TRIAL_DAYS, applyProviderEvent, entitlementOf, tick, t
 
 const base = (p: Partial<HouseholdSubscription>): HouseholdSubscription => ({
   household_id: 'h1', state: 'active', plan: 'self', trial_used_at: null, trial_ends_at: null,
-  next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null,
+  next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null, card_token: null,
   paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null, updated_at: '2026-09-25T00:00:00Z', ...p,
 });
 const now = new Date('2026-10-01T12:00:00Z');
@@ -32,7 +32,7 @@ describe('applyProviderEvent', () => {
   // оформленням і привʼязкою може минути до 7 днів, і `now + 14` розійшлося б
   // із тим, що вже стоїть у LiqPay як subscribe_date_start.
   it('subscribed з датою пробного → trial із ТІЄЮ САМОЮ датою', () => {
-    const r = applyProviderEvent(null, { kind: 'subscribed', household_id: 'h1', order_id: 'o1', plan: 'home', card_mask: '4242', trial_ends_at: '2026-10-20T00:00:00.000Z', paid_by_user_id: 'u1' }, now);
+    const r = applyProviderEvent(null, { kind: 'subscribed', household_id: 'h1', order_id: 'o1', plan: 'home', card_mask: '4242', card_token: null, trial_ends_at: '2026-10-20T00:00:00.000Z', paid_by_user_id: 'u1' }, now);
     expect(r.sub.state).toBe('trial');
     expect(r.sub.trial_ends_at).toBe('2026-10-20T00:00:00.000Z');
     expect(r.sub.next_charge_at).toBe('2026-10-20T00:00:00.000Z');
@@ -40,7 +40,7 @@ describe('applyProviderEvent', () => {
   });
   it('subscribed без пробного (повернення) → active, наступне списання через місяць', () => {
     const prev = base({ state: 'lapsed', trial_used_at: '2026-01-01T00:00:00Z' });
-    const r = applyProviderEvent(prev, { kind: 'subscribed', household_id: 'h1', order_id: 'o2', plan: 'self', card_mask: '1111', trial_ends_at: null, paid_by_user_id: 'u2' }, now);
+    const r = applyProviderEvent(prev, { kind: 'subscribed', household_id: 'h1', order_id: 'o2', plan: 'self', card_mask: '1111', card_token: null, trial_ends_at: null, paid_by_user_id: 'u2' }, now);
     expect(r.sub.state).toBe('active');
     expect(r.sub.next_charge_at).toBe('2026-11-01T12:00:00.000Z');
   });
@@ -49,7 +49,7 @@ describe('applyProviderEvent', () => {
   // ДРУГИМ пробним це не стає — `trial_used_at` лишається першим.
   it('дата пробного на домі, що вже мав пробний → trial_used_at не переписується', () => {
     const prev = base({ state: 'lapsed', trial_used_at: '2026-01-01T00:00:00.000Z' });
-    const r = applyProviderEvent(prev, { kind: 'subscribed', household_id: 'h1', order_id: 'o3', plan: 'self', card_mask: '1', trial_ends_at: '2026-10-20T00:00:00.000Z', paid_by_user_id: 'u3' }, now);
+    const r = applyProviderEvent(prev, { kind: 'subscribed', household_id: 'h1', order_id: 'o3', plan: 'self', card_mask: '1', card_token: null, trial_ends_at: '2026-10-20T00:00:00.000Z', paid_by_user_id: 'u3' }, now);
     expect(r.sub.trial_ends_at).toBe('2026-10-20T00:00:00.000Z');
     expect(r.sub.trial_used_at).toBe('2026-01-01T00:00:00.000Z');
   });
@@ -77,7 +77,7 @@ describe('applyProviderEvent', () => {
   // має тягти за собою старий слід «лист про кінець пробного надіслано».
   it('нове оформлення скидає trial_mail_sent_at', () => {
     const prev = base({ state: 'lapsed', trial_used_at: '2026-01-01T00:00:00Z', trial_mail_sent_at: '2026-01-10T00:00:00Z' });
-    expect(applyProviderEvent(prev, { kind: 'subscribed', household_id: 'h1', order_id: 'o4', plan: 'self', card_mask: '1111', trial_ends_at: null, paid_by_user_id: 'u2' }, now).sub.trial_mail_sent_at).toBeNull();
+    expect(applyProviderEvent(prev, { kind: 'subscribed', household_id: 'h1', order_id: 'o4', plan: 'self', card_mask: '1111', card_token: null, trial_ends_at: null, paid_by_user_id: 'u2' }, now).sub.trial_mail_sent_at).toBeNull();
   });
 });
 
@@ -101,3 +101,39 @@ describe('tick (щоденний крон)', () => {
     expect(tick(base({ state: 'past_due', next_charge_at: '2026-11-01T00:00:00Z' }), now)).toBeNull();
   });
 });
+
+// mono (план 25.09, задача 1): картку тримає не провайдер, а ми — списання
+// ініціює наш крон за токеном. Токен приходить у події й мусить пережити її.
+describe('card_token', () => {
+  const now = new Date('2026-10-05T10:00:00.000Z');
+  const subscribed = (over: Record<string, unknown> = {}) => applyProviderEvent(null, {
+    kind: 'subscribed', household_id: 'h1', order_id: 'o1', plan: 'home', card_mask: '4242',
+    card_token: 'tok-1', trial_ends_at: '2026-10-19T00:00:00.000Z', paid_by_user_id: 'u1', ...over,
+  }, now).sub;
+
+  it('subscribed кладе токен у підписку', () => {
+    expect(subscribed().card_token).toBe('tok-1');
+  });
+
+  it('токена в події немає — у підписці null, а не undefined', () => {
+    expect(subscribed({ card_token: null }).card_token).toBeNull();
+  });
+
+  it('скасування стирає токен разом із маскою: списувати більше нічим', () => {
+    const r = applyProviderEvent(subscribed(), { kind: 'unsubscribed', order_id: 'o1' }, now);
+    expect(r.sub.card_token).toBeNull();
+    expect(r.sub.card_mask).toBeNull();
+  });
+
+  it('успішне списання токен НЕ чіпає — ним списуватимемо й наступного місяця', () => {
+    const r = applyProviderEvent(subscribed(), { kind: 'success', order_id: 'o1', amount: 210, provider_payment_id: 'p1' }, now);
+    expect(r.sub.card_token).toBe('tok-1');
+  });
+
+  it('невдале списання токен теж не чіпає — повторюємо тим самим', () => {
+    const r = applyProviderEvent(subscribed(), { kind: 'failure', order_id: 'o1' }, now);
+    expect(r.sub.state).toBe('past_due');
+    expect(r.sub.card_token).toBe('tok-1');
+  });
+});
+

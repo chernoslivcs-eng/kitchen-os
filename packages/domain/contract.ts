@@ -1554,7 +1554,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
     describe('payment_intent', () => {
       const intentOf = (order_id: string, over: Partial<PaymentIntent> = {}): PaymentIntent => ({
         order_id, plan: 'home', state: 'pending', trial_ends_at: '2026-10-15T00:00:00.000Z',
-        card_mask: null, household_id: null, ip: '1.2.3.4',
+        card_mask: null, card_token: null, household_id: null, ip: '1.2.3.4',
         created_at: '2026-10-01T00:00:00.000Z', expires_at: '2026-10-08T00:00:00.000Z', bound_at: null, ...over,
       });
 
@@ -1569,6 +1569,14 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
 
       it('getIntent невідомого order — null', async () => {
         expect(await ctx.repo.getIntent(randomUUID())).toBeNull();
+      });
+
+      it('card_token наміру зберігається і оновлюється через updateIntent', async () => {
+        const id = randomUUID();
+        await ctx.repo.insertIntent(intentOf(id));
+        expect((await ctx.repo.getIntent(id))?.card_token).toBeNull();
+        await ctx.repo.updateIntent(id, { state: 'subscribed', card_mask: '4242', card_token: 'tok-9' });
+        expect(await ctx.repo.getIntent(id)).toMatchObject({ state: 'subscribed', card_mask: '4242', card_token: 'tok-9' });
       });
 
       it('listIntentsExpiring бере лише прострочені pending і subscribed', async () => {
@@ -1591,7 +1599,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         household_id, state: 'trial', plan: 'self',
         trial_used_at: '2026-10-01T00:00:00.000Z', trial_ends_at: '2026-10-15T00:00:00.000Z',
         next_charge_at: '2026-10-15T00:00:00.000Z', access_until: null,
-        provider_order_id: 'ord-1', card_mask: '4242', paid_by_user_id: null,
+        provider_order_id: 'ord-1', card_mask: '4242', card_token: 'tok-1', paid_by_user_id: null,
         deletion_warned_at: null, trial_mail_sent_at: null, updated_at: '2026-10-01T00:00:00.000Z',
       });
 
@@ -1603,6 +1611,17 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         expect((await ctx.repo.findSubscriptionByOrder('ord-1'))?.household_id).toBe(household_id);
         await ctx.repo.saveSubscription({ ...sub, state: 'lapsed' });
         expect((await ctx.repo.listSubscriptionsByState(['lapsed'])).map((x) => x.household_id)).toContain(household_id);
+      });
+
+      // mono: токен — єдине, чим крон може списати. Якщо мапер Postgres його
+      // загубить (а колонки додаються саме там, де легко забути), дім тихо
+      // перестане платити й через тиждень піде в lapsed. Тому окремо.
+      it('card_token переживає save/get і стирається в null', async () => {
+        const { household_id } = await ctx.repo.createUserWithHousehold('s1t@x.test', 'S');
+        await ctx.repo.saveSubscription(subOf(household_id));
+        expect((await ctx.repo.getSubscription(household_id))?.card_token).toBe('tok-1');
+        await ctx.repo.saveSubscription({ ...subOf(household_id), card_token: null });
+        expect((await ctx.repo.getSubscription(household_id))?.card_token).toBeNull();
       });
 
       it('saveSubscription — upsert, а не другий рядок', async () => {

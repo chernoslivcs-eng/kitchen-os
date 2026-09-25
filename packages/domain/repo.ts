@@ -324,7 +324,7 @@ export interface Repo {
   // ── Намір оплати (спек біллінгу §4, міграція 0047) ──
   insertIntent(i: PaymentIntent): Promise<void>;
   getIntent(order_id: string): Promise<PaymentIntent | null>;
-  updateIntent(order_id: string, patch: Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'household_id' | 'bound_at'>>): Promise<void>;
+  updateIntent(order_id: string, patch: Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'card_token' | 'household_id' | 'bound_at'>>): Promise<void>;
   /** Наміри, яким час вийшов і які ще можуть щось означати: `pending` і `subscribed`. */
   listIntentsExpiring(before: Date): Promise<PaymentIntent[]>;
   createUserOnly(email: string, name: string): Promise<string>;
