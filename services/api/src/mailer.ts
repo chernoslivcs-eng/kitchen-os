@@ -16,12 +16,26 @@ export interface MagicLinkMail {
   expires_in_min: number;
 }
 
+/** Простий лист без розмітки: крон біллінгу, попередження про видалення. */
+export interface PlainMail {
+  to: string;
+  subject: string;
+  text: string;
+}
+
 export interface Mailer {
   sendMagicLink(mail: MagicLinkMail): Promise<void>;
+  sendPlain(mail: PlainMail): Promise<void>;
 }
 
 export class ConsoleMailer implements Mailer {
   public sent: MagicLinkMail[] = [];
+  public plain: PlainMail[] = [];
+
+  async sendPlain(mail: PlainMail): Promise<void> {
+    this.plain.push(mail);
+    console.log(`[mail] ${mail.subject} → ${mail.to}\n  ${mail.text}`);
+  }
 
   async sendMagicLink(mail: MagicLinkMail): Promise<void> {
     this.sent.push(mail);
@@ -74,6 +88,12 @@ export class SmtpMailer implements Mailer {
       auth: { user: cfg.user, pass: cfg.pass },
     });
     this.from = cfg.from;
+  }
+
+  async sendPlain(mail: PlainMail): Promise<void> {
+    // Той самий `from`, що в магік-лінку: інакше листи від продукту приходять
+    // з двох різних адрес і половина осідає в спамі.
+    await this.transporter.sendMail({ from: this.from, to: mail.to, subject: mail.subject, text: mail.text });
   }
 
   async sendMagicLink(mail: MagicLinkMail): Promise<void> {

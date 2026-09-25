@@ -109,6 +109,22 @@ export interface Me {
   session_id: string;
   /** Шерінг v3: Telegram живо привʼязаний (не /stop) — «Надіслати в Telegram» на /share. */
   telegram_linked?: boolean;
+  /**
+   * Режим без підписки (спек 2026-09-25 §3). Сервер віддає це завжди; поле
+   * необовʼязкове лише тут, щоб наявні фікстури `Me` в тестах не переписувати
+   * скопом — читати його треба захищено (`me?.subscription?.banner`).
+   * Клієнт нічого не рахує сам: і право, і текст банера приходять готовими.
+   */
+  subscription?: {
+    state: 'beta' | 'trial' | 'active' | 'cancelled' | 'past_due' | 'lapsed';
+    plan: 'self' | 'home' | null;
+    entitlement: 'full' | 'read_only';
+    trial_ends_at: string | null;
+    next_charge_at: string | null;
+    access_until: string | null;
+    card_mask: string | null;
+    banner: { text: string; cta?: string; to?: string } | null;
+  };
 }
 
 // --- Крок О1: /admin/pulse -------------------------------------------------

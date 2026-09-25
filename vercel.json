@@ -18,10 +18,22 @@
       "maxDuration": 300,
       "memory": 1024,
       "includeFiles": "api-dist/**"
+    },
+    "api/cron-billing.ts": {
+      "maxDuration": 300,
+      "memory": 1024,
+      "includeFiles": "api-dist/**"
     }
   },
   "crons": [
-    { "path": "/api/cron-digest", "schedule": "0 15 * * *" }
+    {
+      "path": "/api/cron-digest",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron-billing",
+      "schedule": "30 3 * * *"
+    }
   ],
   "rewrites": [
     {

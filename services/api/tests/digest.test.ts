@@ -169,3 +169,22 @@ describe('/digest on|off у боті', () => {
     expect(await repo.getDigestEnabled(tg.user_id)).toBe(true);
   });
 });
+
+// Спек 2026-09-25 §2: дайджест — теж виклик моделі, тож домам read_only він
+// не шлеться. Перевірка стоїть на початку ходу, до будь-якої роботи.
+describe('дайджест без підписки', () => {
+  it('дім read_only пропускається з причиною read_only, модель не кликана', async () => {
+    const { repo, tg } = await seed();
+    await repo.saveSubscription({
+      household_id: tg.household_id, state: 'lapsed', plan: null, trial_used_at: null, trial_ends_at: null,
+      next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null, paid_by_user_id: null,
+      deletion_warned_at: null, trial_mail_sent_at: null, updated_at: NOW.toISOString(),
+    });
+    const d = deps(repo);
+    const cand = (await repo.listDigestCandidates()).find((c) => c.user_id === tg.user_id)!;
+    const r = await runDigestFor(d, cand);
+    expect(r).toMatchObject({ status: 'skipped', reason: 'read_only' });
+    expect(d.turns).toHaveLength(0);
+    expect(d.sent).toHaveLength(0);
+  });
+});

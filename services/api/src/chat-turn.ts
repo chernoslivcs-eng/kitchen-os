@@ -15,6 +15,8 @@ import { mergeAttachmentCalls } from './attachment-merge.js';
 import { detectRepeat, repeatReply } from './repeat-guard.js';
 import { recipeStaleByNotes } from './recipe-dedup.js';
 import { subscribedRows, periodVetoRows } from '@kitchen/domain';
+import { betaFlag, entitlementOf } from '@kitchen/domain/subscription';
+import { paywallBody } from '@kitchen/domain/paywall';
 import { PROFILE_SUMMARY_REQUEST, acceptAssistantNote, helpTopicFor, helpTopicById, type HelpTopic } from '@kitchen/domain';
 import { createPending, applyCard, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow, type CookRunWithRecipe } from '@kitchen/domain';
 import { buildChatHistory } from './chat-history.js';
@@ -104,7 +106,11 @@ export interface ChatTurnOutput {
 
 /** HTTP-відповідь із помилкою (400/403/404/502) — те, що раніше було reply.code(n).send(body). */
 export class ChatTurnHttpError extends Error {
-  constructor(public status: number, public body: { error: string }) { super(body.error); }
+  // Тіло не завжди `{error}`: 402 віддає паювел (kind/state/text/cta), і
+  // маршрут шле його як є — клієнт малює це як відповідь асистента.
+  constructor(public status: number, public body: { error: string } | Record<string, unknown>) {
+    super(typeof (body as { error?: string }).error === 'string' ? (body as { error: string }).error : 'http_error');
+  }
 }
 
 export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: ChatRouteOpts, input: ChatTurnInput): Promise<ChatTurnOutput> {
@@ -112,6 +118,14 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
   const saveMsg = (m: MessageRow) => repo.saveMessage(input.channel && input.channel !== 'web' ? { ...m, channel: input.channel } : m);
     const ctx = input.user;
     const { user_id, household_id } = ctx;
+    // Ворота режиму без підписки (спек 2026-09-25 §2). Стоять тут, а не біля
+    // виклику моделі: до цього рядка ще нічого не збережено, і репліка людини
+    // не осяде в історії стіною без відповідей. Рахуємо на кожен хід, без
+    // кешу — оплата з іншого пристрою вмикає все негайно.
+    const subNow = await repo.getSubscription(household_id);
+    if (entitlementOf(subNow, new Date(), { beta: betaFlag() }) === 'read_only') {
+      throw new ChatTurnHttpError(402, paywallBody(subNow?.state ?? 'lapsed'));
+    }
     const { attachments, session_id: clientSessionId, action } = input;
     // Резюме «Про тебе»: у user-turn іде серверний рядок, в історію він не
     // пишеться, картки не буває — модель лише переказує [ПРО ЛЮДИНУ] у голосі.
