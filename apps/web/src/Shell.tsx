@@ -9,6 +9,7 @@ import { shouldShowOnboarding, markSeenLocally } from './pages/Onboarding/seen';
 import { useAuth } from './store/auth';
 import { TabBar } from './components/TabBar/TabBar';
 import { ArtifactPanel } from './components/ArtifactPanel/ArtifactPanel';
+import { SubscriptionBanner } from './components/SubscriptionBanner/SubscriptionBanner';
 
 // Пул-7 №6: навігація — спільний каркас, не елемент сторінки. TabBar живе тут
 // ОДИН раз (кінець блиманню і повторним фетчам на кожній навігації), сторінки
@@ -56,6 +57,10 @@ export function Shell() {
   }, [pathname, navigate]);
   return (
     <>
+      {/* Постановка 2026-09-25: рядок стану підписки — над табами, поза
+          key={pathname}, щоб не блимав/не перемонтовувався на кожній
+          навігації (той самий принцип, що IncidentStrips). */}
+      <SubscriptionBanner />
       <IncidentStrips />
       <div key={pathname} className="screen-view">
         <Outlet />

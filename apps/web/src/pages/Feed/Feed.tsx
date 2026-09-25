@@ -11,7 +11,7 @@ import { ActionState } from '../../components/ActionState/ActionState';
 import { useIncidentStore } from '../../store/incident';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, useCallback } from 'react';
 import { track } from '../../lib/track';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { plural } from '../../lib/plural';
 import { TELEGRAM } from '../../lib/profile-copy';
@@ -917,6 +917,15 @@ export function Feed() {
       // Пул-9 №4: обрив — не помилка. Хід уже позначений «зупинив» у
       // stopSending, картку не додаємо, тост не показуємо.
       if ((err as Error).name === 'AbortError') return;
+      // Постановка 2026-09-25 (режим без підписки): 402 — модель не
+      // викликалась, повідомлення людини на сервері не збережене. Репліка
+      // людини зникає зі стрічки (спек §3), відповідь асистента — сервером
+      // готовий текст + кнопка на екран «Підписка».
+      if (err instanceof ApiError && err.status === 402 && (err.payload as { kind?: string } | null)?.kind === 'paywall') {
+        const p = err.payload as { text: string; cta: { label: string; to: string } };
+        setTurns((prev) => [...prev.filter((t) => t.id !== turnId), { id: newId(), role: 'assistant', time: hhmm(), fresh: true, text: p.text, card: null, paywall: p.cta }]);
+        return;
+      }
       setTurns((prev) => prev.map((t) => (t.id === turnId ? { ...t, failed: true } : t)));
       // Крок Е1: «відповідь не прийшла» говорить голосом продукту, а не кодом
       // помилки. Повтор — дією в тому самому тості, а не тільки кнопкою під
@@ -1468,6 +1477,15 @@ export function Feed() {
               ) : (
                 <div className={styles['turn-text']}>{t.scripted ? renderBold(t.text) : t.text}</div>
               )
+            )}
+            {t.paywall && (
+              /* Постановка 2026-09-25: під бульбашкою паювела — чорна пігулка
+                 на екран «Підписка» (бандл Kitchen OS - Subscription.dc.html,
+                 кадр «Паювел · 1440»). */
+              <Link to={t.paywall.to} className={styles.paywallCta}>
+                {t.paywall.label}
+                <Icon name="sys.go" size={16} inherit decorative />
+              </Link>
             )}
             {t.attachments && t.attachments.length > 0 && (
               /* Пул-9 №2: те, що людина закинула, лишається видимим у стрічці —

@@ -1,0 +1,40 @@
+/* Бандл Kitchen OS - Subscription.dc.html, кадри «Банер · 1440/390 · <стан>».
+ * Фон/бордер — не глобальні токени (жоден не збігається точно): нейтральний
+ * рядок над табами, окремий від card/line2. */
+.bar {
+  min-height: 52px;
+  padding: 8px 12px 8px 24px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #ecebe6;
+  border-bottom: 1px solid #e1dfd8;
+}
+.amber {
+  /* past_due — єдиний тривожний стан; ті самі токени, що tintAmber на лендінгу. */
+  background: var(--amber-bg);
+  border-bottom: 1px solid var(--amber-line);
+}
+.text {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+.cta {
+  flex: none;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 18px;
+  background: var(--ink);
+  color: var(--bg);
+  display: inline-flex;
+  align-items: center;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.cta:hover { color: var(--bg); background: var(--muted); }
+
+@media (max-width: 767px) {
+  .bar { padding: 10px 12px 10px 16px; gap: 12px; }
+}
