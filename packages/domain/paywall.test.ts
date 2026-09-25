@@ -6,6 +6,12 @@ const all = JSON.stringify({ PAYWALL, MAIL });
 
 describe('paywall copy', () => {
   it('без заборонених слів', () => { expect(all).not.toMatch(BANNED); });
+  // Рішення власника «A» (LiqPay-підписка): при оформленні не списується
+  // нічого, картка лише перевіряється. Обіцянка «за 1 ₴» жила в плані до
+  // цього рішення й одного разу вже протекла в лист — хай тепер падає тест.
+  it('жоден текст не обіцяє списання 1 ₴', () => {
+    expect(JSON.stringify({ PAYWALL, MAIL: { ...MAIL, endBeta: MAIL.endBeta('1 січня'), trialEnds: MAIL.trialEnds('1 січня', '4242', 210, 'l'), deletionWarning: MAIL.deletionWarning('l') } })).not.toMatch(/1\s*₴/);
+  });
   it('тіло 402 має kind, текст і двері', () => {
     expect(paywallBody('lapsed')).toEqual({ kind: 'paywall', state: 'lapsed', text: PAYWALL.chat.text, cta: { label: 'Продовжити', to: '/profile/subscription' } });
   });
