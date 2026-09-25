@@ -15,7 +15,7 @@ import type {
 } from './profile-text.js';
 import type { OccasionRow } from './occasion-data.js';
 import type { OccasionSubscriptionRow } from './periods.js';
-import type { HouseholdSubscription, PaymentRow, SubscriptionState } from './subscription.js';
+import type { HouseholdSubscription, PaymentIntent, PaymentRow, SubscriptionState } from './subscription.js';
 
 export interface UserRow {
   id: string;
@@ -320,6 +320,13 @@ export interface Repo {
   householdLastSeenAt(household_id: string): Promise<string | null>;
   /** Дім цілком (спек §5). Акаунти членів лишаються — видаляються окремим правилом. */
   deleteHousehold(household_id: string): Promise<void>;
+
+  // ── Намір оплати (спек біллінгу §4, міграція 0047) ──
+  insertIntent(i: PaymentIntent): Promise<void>;
+  getIntent(order_id: string): Promise<PaymentIntent | null>;
+  updateIntent(order_id: string, patch: Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'household_id' | 'bound_at'>>): Promise<void>;
+  /** Наміри, яким час вийшов і які ще можуть щось означати: `pending` і `subscribed`. */
+  listIntentsExpiring(before: Date): Promise<PaymentIntent[]>;
   createUserOnly(email: string, name: string): Promise<string>;
   firstHouseholdOf(user_id: string): Promise<string | null>;
   getHousehold(id: string): Promise<HouseholdRow | null>;

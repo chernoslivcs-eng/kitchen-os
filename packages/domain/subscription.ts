@@ -114,3 +114,22 @@ export function tick(sub: HouseholdSubscription, now: Date): HouseholdSubscripti
   if (sub.state === 'trial' && sub.trial_ends_at && now >= new Date(addDays(sub.trial_ends_at, 1))) return { ...sub, state: 'past_due', updated_at: at };
   return null;
 }
+
+/**
+ * Намір оплати (спек біллінгу §4): людина дала картку на лендінгу, акаунта ще
+ * немає. Живе INTENT_TTL_DAYS і закінчується або привʼязкою до дому (`bound`),
+ * або `expired` — тоді крон відписує його в провайдера.
+ */
+export interface PaymentIntent {
+  order_id: string;
+  plan: Plan;
+  state: 'pending' | 'subscribed' | 'bound' | 'expired';
+  /** Те саме число, що пішло в LiqPay як subscribe_date_start. */
+  trial_ends_at: string | null;
+  card_mask: string | null;
+  household_id: string | null;
+  ip: string | null;
+  created_at: string;
+  expires_at: string;
+  bound_at: string | null;
+}
