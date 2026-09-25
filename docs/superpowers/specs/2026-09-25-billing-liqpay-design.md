@@ -115,3 +115,28 @@
 ## Поза межами
 Apple/Google Pay окремо не вмикаємо — вони йдуть із hosted checkout; квитанції в
 Telegram; знижки/промокоди; річний тариф.
+
+## 9. Уточнення до плану (25.09, після розбору з виконавцем)
+
+1. **Дата кінця пробного — одне джерело.** `ProviderEvent.subscribed` отримує явне
+   `trial_ends_at: string | null` (null — без пробного). Значення рахується **один раз**,
+   у момент створення наміру або checkout з профілю, і це те саме число, що пішло в
+   LiqPay як `subscribe_date_start`. `applyProviderEvent` більше не рахує `now + 14`.
+   Причина: між оформленням і `bind` може минути до 7 днів, і лист «пробний до {дата}»
+   розʼїхався б із реальним списанням.
+2. **`ingestProviderEvent(repo, ev)` — подія → дім АБО намір.** Порядок: `findSubscriptionByOrder`
+   → якщо є дім — `applyProviderEvent` + запис; якщо нема — шукати `payment_intent` по
+   `order_id`: `subscribed` → `intent.state='subscribed'`, зберегти `card_mask` і
+   `trial_ends_at`; `unsubscribed` → `intent.state='expired'`; `success`/`failure` для
+   наміру без дому — стан «не може бути» (TTL наміру 7 днів < 14 днів до першого
+   списання): лог в `app_event`, відповідь 202, нічого не пишемо. Інваріант
+   `INTENT_TTL_DAYS < TRIAL_DAYS` — тестом.
+3. **`bind`** створює `household_subscription` через `applyProviderEvent(null,
+   {kind:'subscribed', household_id, paid_by_user_id: <хто увійшов>, plan, card_mask,
+   trial_ends_at: intent.trial_ends_at, trial: intent.trial_ends_at != null, order_id})`.
+   Тобто `household_id`/`paid_by_user_id` у події лишаються обовʼязковими — їх дає `bind`,
+   не вебхук.
+4. **Стендовий `/v1/subscription/provider-event` і бойовий `/v1/billing/liqpay`** — два
+   різні входи з різними моделями довіри (секрет проти підпису LiqPay), спільний лише
+   `ingestProviderEvent`. Стендовий приймає й `order_id` наміру — це навмисна асиметрія
+   для тесту сценарію лендінга, описати в плані явно.
