@@ -26,7 +26,7 @@
 | Стан | Зміст | `entitlement` |
 |---|---|---|
 | `beta` | поки прапорець `BETA_PLAN`; усе безкоштовно | `full` |
-| `trial` | сплачено 1 ₴, картка в LiqPay, доступ до `trial_ends_at` | `full` |
+| `trial` | підписку оформлено, картка в LiqPay без списання (рішення A, 25.09), доступ до `trial_ends_at` | `full` |
 | `active` | помісячні списання, відомо `next_charge_at` | `full` |
 | `cancelled` | скасовано, оплачений час триває до `access_until` | `full` |
 | `past_due` | списання не пройшло, LiqPay повторює | `full` + банер |
