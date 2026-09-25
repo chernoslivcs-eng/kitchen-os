@@ -648,6 +648,21 @@ export const api = {
 
   me: () => req<Me>('/v1/me'),
 
+  // Постановка 2026-09-25 (біллінг LiqPay), §2/§5: оформлення з лендінга —
+  // до реєстрації (order_id повертається окремо від url, бо результат ще
+  // невідомий, коли людина йде на checkout — кладемо його в localStorage ДО
+  // редиректу, інакше хто закрив вкладку замість повернення лишається без
+  // способу привʼязати сплачене). bind — 200 з підпискою, 202 поки вебхук не
+  // прийшов (не помилка, req() її не кидає), 404/409/410 — ApiError.
+  billing: {
+    intent: (plan: 'self' | 'home') =>
+      req<{ url: string; order_id: string }>('/v1/billing/intent', { method: 'POST', body: JSON.stringify({ plan }) }),
+    bind: (order_id: string) =>
+      req<{ subscription: { state: string; plan: string | null; trial_ends_at: string | null; next_charge_at: string | null; card_mask: string | null } } | { status: 'pending' }>(
+        '/v1/billing/bind', { method: 'POST', body: JSON.stringify({ order_id }) },
+      ),
+  },
+
   // M13 «Мережі»: стан підключення і синк чеків. connect — не fetch, а
   // навігація на /v1/retail/silpo/connect (OAuth-редирект наскрізь браузером).
   // Р148: Telegram-бот. Контракт зафіксований, сервер робить «ЛЕНДІНГ».

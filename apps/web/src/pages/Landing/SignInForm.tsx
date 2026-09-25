@@ -40,6 +40,7 @@ import { Icon } from '../../components/Icon/Icon';
 import { useMagicLink } from './useMagicLink';
 import { SIGNIN, AUTH_MODE } from './copy';
 import { hadSession } from '../../lib/session-flag';
+import { getIntent, setIntent } from '../../lib/billing-intent';
 import styles from './Landing.module.css';
 
 // Кольоровий «G» — офіційна чотириколірна марка Google (брендгайд).
@@ -116,6 +117,25 @@ function consumeGoogleNoAccountError(): boolean {
   return true;
 }
 
+// Постановка 2026-09-25 (біллінг LiqPay) §5: result_url після checkout —
+// /?intent=<order_id>#l3-signin. Читаємо раз за монтування конкретного
+// інстансу (SignInForm стоїть і в hero, і в фіналі — обидва мають показати
+// рядок; перший, хто прочитав URL, кладе order_id у localStorage і чистить
+// адресу, другий читає вже його звідти — самокоригується без спільного
+// прапорця, той самий порядок ефектів, що й consumeGoogleNoAccountError).
+function readIntent(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  const fromUrl = params.get('intent');
+  if (fromUrl) {
+    setIntent(fromUrl);
+    params.delete('intent');
+    const qs = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash);
+    return fromUrl;
+  }
+  return getIntent();
+}
+
 interface Props {
   id?: string;
   className?: string;
@@ -138,6 +158,7 @@ export function SignInForm({ id, className }: Props) {
   const pollTimer = useRef<number | null>(null);
   const location = useLocation();
   const compact = useCompact();
+  const [hasIntent] = useState(() => !!readIntent());
 
   useEffect(() => {
     api.auth.providers()
@@ -221,6 +242,8 @@ export function SignInForm({ id, className }: Props) {
           {AUTH_MODE.login}
         </button>
       </div>
+
+      {hasIntent && <span className={styles.note}>{SIGNIN.intentReady}</span>}
 
       {googleOn && (
         <button type="button" className={styles.google} onClick={() => { window.location.href = api.auth.googleUrl(mode); }}>

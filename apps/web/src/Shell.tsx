@@ -1,7 +1,7 @@
 // Каркас застосунку (Shell) — винесено з App.tsx (Мобільний аудит 0912 · A,
 // №46): TabBar, панель артефактів, смуги інцидентів і трекінг потрібні лише
 // тому, хто ввійшов; гість на лендінгу цей чанк не качає.
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { startTracking } from './lib/track';
 import { IncidentStrips, useIncidentSink } from './components/ErrorState/IncidentStrips';
@@ -10,6 +10,9 @@ import { useAuth } from './store/auth';
 import { TabBar } from './components/TabBar/TabBar';
 import { ArtifactPanel } from './components/ArtifactPanel/ArtifactPanel';
 import { SubscriptionBanner } from './components/SubscriptionBanner/SubscriptionBanner';
+import { Toast, type ToastTone } from './components/ErrorState/Toast';
+import { api, ApiError } from './api';
+import { getIntent, clearIntent } from './lib/billing-intent';
 
 // Пул-7 №6: навігація — спільний каркас, не елемент сторінки. TabBar живе тут
 // ОДИН раз (кінець блиманню і повторним фетчам на кожній навігації), сторінки
@@ -42,6 +45,56 @@ export function Shell() {
   // Крок Е1: 401/429/офлайн ловляться в api.req і показуються смугою тут —
   // одне місце на всі екрани.
   useIncidentSink();
+  // Постановка 2026-09-25 (біллінг LiqPay) §2, §5: людина оформила підписку
+  // з лендінга ДО реєстрації (checkout → LiqPay → назад із order_id у
+  // localStorage), увійшла — тепер привʼязуємо намір до її дому. Вебхук
+  // зазвичай доїжджає раніше за це (result_url), але не завжди — 202
+  // означає «ще не прийшов», не помилку: пробуємо ще раз кожні 3 с до 30 с,
+  // і якщо й тоді pending — лишаємо ключ (наступний вхід/перезавантаження
+  // спробує знову) і кажемо, що чекаємо банк, а не мовчимо.
+  const [billingToast, setBillingToast] = useState<{ text: string; tone: ToastTone } | null>(null);
+  useEffect(() => {
+    if (!me) return;
+    const orderId = getIntent();
+    if (!orderId) return;
+    let cancelled = false;
+    let elapsed = 0;
+    const tryBind = async () => {
+      try {
+        const r = await api.billing.bind(orderId);
+        if (cancelled) return;
+        if ('status' in r && r.status === 'pending') {
+          elapsed += 3000;
+          if (elapsed >= 30_000) {
+            setBillingToast({ text: 'Чекаємо підтвердження від банку — спробуємо ще раз пізніше.', tone: 'amber' });
+            return;
+          }
+          window.setTimeout(() => { if (!cancelled) void tryBind(); }, 3000);
+          return;
+        }
+        clearIntent();
+        setBillingToast({ text: 'Підписка привʼязана', tone: 'sage' });
+        void navigate('/profile');
+      } catch (err) {
+        if (cancelled) return;
+        if (!(err instanceof ApiError)) return; // мережа впала — ключ лишається, спробуємо на наступному завантаженні
+        if (err.status === 410) {
+          clearIntent();
+          setBillingToast({ text: 'Оформлення застаріло — можна оформити знову в профілі.', tone: 'amber' });
+        } else if (err.status === 409) {
+          clearIntent();
+          const reason = (err.payload as { error?: string } | null)?.error;
+          if (reason === 'already_subscribed') setBillingToast({ text: 'У дому вже є підписка.', tone: 'amber' });
+          // already_bound — той самий намір уже привʼязано (друга вкладка) — мовчки.
+        } else if (err.status === 404) {
+          clearIntent(); // застарілий/чужий ключ у localStorage — нема що показувати
+        }
+        // інші статуси — транзитний збій сервера, ключ лишається на повтор пізніше.
+      }
+    };
+    void tryBind();
+    return () => { cancelled = true; };
+  }, [me, navigate]);
   // Крок О1а: черга подій поведінки. Живе стільки, скільки відкритий застосунок.
   useEffect(() => startTracking(), []);
   // 6b-5: ⌘K з будь-де (Components «Композитор (⌘K з будь-де)») — з інших
@@ -72,6 +125,9 @@ export function Shell() {
           публікують у неї. Раніше жила всередині Стрічки, і на Календарі її
           не існувало — подія на ≥1200 відкривалась шторкою всупереч канвасу. */}
       <ArtifactPanel />
+      {billingToast && (
+        <Toast tone={billingToast.tone} text={billingToast.text} onDismiss={() => setBillingToast(null)} />
+      )}
     </>
   );
 }
