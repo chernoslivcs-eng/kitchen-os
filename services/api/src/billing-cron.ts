@@ -180,17 +180,18 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
   }
 
   // 5. Прострочені наміри (спек §2). Намір живе 7 днів: якщо за цей час людина
-  // не увійшла, прибираємо його. Картка вже могла бути дана провайдеру — тоді
-  // спершу відписка, інакше з неї списуватимуть за акаунт, якого немає.
+  // не увійшла, прибираємо його. Картку вже могли токенізувати — тоді спершу
+  // видаляємо токен, інакше вона лишиться збереженою в mono назавжди, за
+  // акаунтом, якого не існує.
   for (const intent of await deps.repo.listIntentsExpiring(now)) {
-    if (intent.state === 'subscribed') {
-      if (!deps.billing) continue; // Без провайдера відписати нічим — лишаємо на наступний раз.
+    if (intent.state === 'subscribed' && intent.card_token) {
+      if (!deps.billing) continue; // Без провайдера видалити нічим — лишаємо на наступний раз.
       try {
-        await deps.billing.unsubscribe(intent.order_id);
+        await deps.billing.deleteToken(intent.card_token);
       } catch (err) {
         // Провайдер лежить — намір лишається subscribed і повернеться завтра.
-        // Позначити expired зараз означало б забути про живу підписку назавжди.
-        console.error('intent unsubscribe failed', intent.order_id, String(err));
+        // Позначити expired зараз означало б забути про живу картку назавжди.
+        console.error('intent token delete failed', intent.order_id, String(err));
         continue;
       }
     }

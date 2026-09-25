@@ -3,7 +3,7 @@
 import type { BillingProvider, CheckoutInput, ChargeInput, ChargeResult } from './provider.js';
 
 export class FakeBillingProvider implements BillingProvider {
-  calls: Array<{ op: 'checkout' | 'charge' | 'delete-token' | 'unsubscribe' | 'update'; args: unknown }> = [];
+  calls: Array<{ op: 'checkout' | 'charge' | 'delete-token'; args: unknown }> = [];
   /** Тест може змусити фейкове списання «не пройти». */
   nextCharge: ChargeResult['status'] = 'success';
 
@@ -17,11 +17,5 @@ export class FakeBillingProvider implements BillingProvider {
   }
   async deleteToken(card_token: string): Promise<void> {
     this.calls.push({ op: 'delete-token', args: card_token });
-  }
-  async unsubscribe(order_id: string): Promise<void> {
-    this.calls.push({ op: 'unsubscribe', args: order_id });
-  }
-  async updateAmount(order_id: string, amount: number): Promise<void> {
-    this.calls.push({ op: 'update', args: { order_id, amount } });
   }
 }

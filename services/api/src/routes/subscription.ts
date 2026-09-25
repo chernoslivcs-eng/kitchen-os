@@ -76,7 +76,11 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
     if (!sub?.provider_order_id || !['trial', 'active', 'past_due'].includes(sub.state)) {
       return reply.code(409).send({ error: 'nothing_to_cancel' });
     }
-    await billing.unsubscribe(sub.provider_order_id);
+    // Картку прибираємо у провайдера, і лише потім у себе: якщо mono не
+    // відповів, краще лишити підписку живою (людина спробує ще раз), ніж
+    // забути токен у себе й лишити картку збереженою назавжди.
+    if (sub.card_token) await billing.deleteToken(sub.card_token);
+    // applyProviderEvent на unsubscribed сам ставить card_token у null.
     await repo.saveSubscription(applyProviderEvent(sub, { kind: 'unsubscribed', order_id: sub.provider_order_id }, new Date()).sub);
     return { subscription: await view(household_id) };
   });
@@ -89,7 +93,8 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
     if (!sub?.provider_order_id || !['trial', 'active'].includes(sub.state) || sub.plan === plan) {
       return reply.code(409).send({ error: 'cannot_change' });
     }
-    await billing.updateAmount(sub.provider_order_id, PLAN_PRICE_UAH[plan]);
+    // Провайдеру нову суму казати нікуди й не треба: списує крон, і суму він
+    // бере з тарифу в цей самий момент. Тариф у базі — і є вся зміна.
     await repo.saveSubscription({ ...sub, plan, updated_at: new Date().toISOString() });
     // Підвищення діє одразу; пониження — з наступного списання, і саме цю
     // дату екран показує людині.

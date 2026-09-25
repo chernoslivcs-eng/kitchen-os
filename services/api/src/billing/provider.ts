@@ -36,8 +36,12 @@ export interface BillingProvider {
   checkoutUrl(input: CheckoutInput): Promise<string>;
   /** Списання за збереженим токеном; ініціює лише крон. */
   chargeByToken(input: ChargeInput): Promise<ChargeResult>;
-  /** Прибрати картку у провайдера. Після цього списати нею не можна. */
+  /**
+   * Прибрати картку у провайдера. Після цього списати нею не можна.
+   *
+   * Саме токен, а не order_id: провайдер не знає, який токен якому замовленню
+   * належить — цей звʼязок є лише в нашій базі. Тому «скасувати підписку»
+   * одним викликом по order_id тут неможливе в принципі.
+   */
   deleteToken(card_token: string): Promise<void>;
-  unsubscribe(order_id: string): Promise<void>;
-  updateAmount(order_id: string, amount: number): Promise<void>;
 }

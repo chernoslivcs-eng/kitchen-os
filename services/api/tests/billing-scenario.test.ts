@@ -12,6 +12,7 @@ import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { FakeBillingProvider } from '../src/billing/fake-provider.js';
 import { runBillingCron } from '../src/billing-cron.js';
+import { PLAN_PRICE_UAH } from '@kitchen/domain/plans';
 import { signIn } from './helpers.js';
 
 const SECRET = 'stand-secret';
@@ -38,7 +39,7 @@ describe('намір → оплата → вхід → привʼязка', () =
     headers: { 'x-billing-secret': SECRET }, payload: body,
   });
 
-  it('дім отримує пробний з датою наміру, а через два тижні — active', async () => {
+  it('дім отримує пробний з датою наміру; далі списує крон, а не провайдер', async () => {
     // 1. Лендінг: наміру передують лише план і IP.
     const started = await app.inject({ method: 'POST', url: '/v1/billing/intent', payload: { plan: 'home' } });
     expect(started.statusCode).toBe(200);
@@ -52,10 +53,10 @@ describe('намір → оплата → вхід → привʼязка', () =
     expect(new Date(trialEnds).getTime() - Date.now()).toBeGreaterThan(13 * DAY);
 
     // 2. Провайдер підтвердив картку. Дому ще немає — подія лягає в намір.
-    const paid = await event({ kind: 'subscribed', order_id, card_mask: '4242' });
+    const paid = await event({ kind: 'subscribed', order_id, card_mask: '4242', card_token: 'tok-1' });
     expect(paid.statusCode).toBe(200);
     expect(paid.json()).toMatchObject({ result: { target: 'intent' } });
-    expect(await repo.getIntent(order_id)).toMatchObject({ state: 'subscribed', card_mask: '4242' });
+    expect(await repo.getIntent(order_id)).toMatchObject({ state: 'subscribed', card_mask: '4242', card_token: 'tok-1' });
 
     // 3. Людина заходить уперше — дім народжується зараз.
     const me = await signIn(app, mailer, 'newcomer@local.test');
@@ -70,32 +71,50 @@ describe('намір → оплата → вхід → привʼязка', () =
     const sub = await repo.getSubscription(me.household_id);
     expect(sub).toMatchObject({
       state: 'trial', plan: 'home', card_mask: '4242',
+      // Токен переїхав із наміру: саме ним крон спише через два тижні.
+      card_token: 'tok-1',
       provider_order_id: order_id, paid_by_user_id: me.user_id,
-      // Дата з наміру, не перерахована наново: саме вона стоїть у LiqPay
-      // як subscribe_date_start. Розбіжність тут = лист бреше про списання.
+      // Дата з наміру, не перерахована наново: саме в неї крон спише.
+      // Розбіжність тут = лист бреше про списання.
       trial_ends_at: trialEnds, next_charge_at: trialEnds,
     });
     expect(await repo.getIntent(order_id)).toMatchObject({ state: 'bound', household_id: me.household_id });
 
     // 5. Крон наміру більше не бачить: привʼязаний не прострочується.
-    const cron = await runBillingCron({ repo, mailer, billing, appUrl: 'http://app.test', now: () => new Date(Date.now() + 30 * DAY) });
-    expect(cron.intentsExpired).toBe(0);
-    expect(billing.calls.filter((c) => c.op === 'unsubscribe')).toHaveLength(0);
+    const quiet = await runBillingCron({ repo, mailer, billing, appUrl: 'http://app.test', now: () => new Date(Date.now() + DAY) });
+    expect(quiet.intentsExpired).toBe(0);
+    expect(billing.calls.filter((c) => c.op === 'delete-token')).toHaveLength(0);
+    // Пробний ще триває — грошей теж не чіпаємо.
+    expect(quiet.charged).toBe(0);
 
-    // 6. Через два тижні провайдер списав уперше.
-    const charged = await event({ kind: 'success', order_id, amount: 210, provider_payment_id: 'p-1' });
-    expect(charged.statusCode).toBe(200);
+    // 6. Настав кінець пробного: списує НАШ крон, не провайдер.
+    const cron = await runBillingCron({ repo, mailer, billing, appUrl: 'http://app.test', now: () => new Date(trialEnds) });
+    expect(cron.charged).toBe(1);
+    expect(billing.calls).toContainEqual({ op: 'charge', args: { card_token: 'tok-1', amount: PLAN_PRICE_UAH.home, reference: order_id } });
     expect(await repo.getSubscription(me.household_id)).toMatchObject({ state: 'active' });
+    expect(await repo.listPayments(me.household_id)).toMatchObject([{ status: 'success', amount: PLAN_PRICE_UAH.home }]);
+
+    // 7. Людина скасувала: картка прибрана у провайдера, токен стерто в нас.
+    const cancelled = await app.inject({ method: 'POST', url: '/v1/subscription/cancel', headers: { cookie: me.cookie } });
+    expect(cancelled.statusCode).toBe(200);
+    expect(billing.calls).toContainEqual({ op: 'delete-token', args: 'tok-1' });
+    expect(await repo.getSubscription(me.household_id)).toMatchObject({ state: 'cancelled', card_token: null });
+
+    // 8. І з цієї миті крон такий дім у чергу на списання не бере.
+    const after = await runBillingCron({ repo, mailer, billing, appUrl: 'http://app.test', now: () => new Date(Date.now() + 60 * DAY) });
+    expect(after.charged).toBe(0);
   });
 
   it('людина не дійшла до входу — крон відписує картку за неї', async () => {
     const started = await app.inject({ method: 'POST', url: '/v1/billing/intent', payload: { plan: 'self' } });
     const { order_id } = started.json() as { order_id: string };
-    await event({ kind: 'subscribed', order_id, card_mask: '4242' });
+    await event({ kind: 'subscribed', order_id, card_mask: '4242', card_token: 'tok-lost' });
 
     const cron = await runBillingCron({ repo, mailer, billing, appUrl: 'http://app.test', now: () => new Date(Date.now() + 8 * DAY) });
     expect(cron.intentsExpired).toBe(1);
-    expect(billing.calls).toContainEqual({ op: 'unsubscribe', args: order_id });
+    // Інакше картка лишилась би збереженою в mono назавжди — за акаунтом,
+    // якого так і не з'явилось.
+    expect(billing.calls).toContainEqual({ op: 'delete-token', args: 'tok-lost' });
     expect(await repo.getIntent(order_id)).toMatchObject({ state: 'expired' });
   });
 });

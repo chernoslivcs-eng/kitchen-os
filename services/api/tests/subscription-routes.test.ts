@@ -87,15 +87,17 @@ describe('/v1/subscription', () => {
     expect(billing.calls).toHaveLength(0);
   });
 
-  it('cancel у active → unsubscribe у провайдера, стан cancelled, доступ до дати списання', async () => {
+  it('cancel у active → токен видалено у провайдера, стан cancelled, доступ до дати списання', async () => {
     const A = await lapsed('x@example.com');
     const sub = (await repo.getSubscription(A.household_id))!;
-    await repo.saveSubscription({ ...sub, state: 'active', plan: 'self', provider_order_id: 'o9', next_charge_at: '2026-11-01T00:00:00.000Z' });
+    await repo.saveSubscription({ ...sub, state: 'active', plan: 'self', provider_order_id: 'o9', card_token: 'tok-9', next_charge_at: '2026-11-01T00:00:00.000Z' });
     const r = await app.inject({ method: 'POST', url: '/v1/subscription/cancel', headers: { cookie: A.cookie }, payload: {} });
     expect(r.statusCode).toBe(200);
-    expect(billing.calls.map((c) => c.op)).toContain('unsubscribe');
+    // Саме токен, а не order_id: звʼязок між ними є лише в нашій базі.
+    expect(billing.calls).toContainEqual({ op: 'delete-token', args: 'tok-9' });
     const after = await repo.getSubscription(A.household_id);
-    expect(after).toMatchObject({ state: 'cancelled', access_until: '2026-11-01T00:00:00.000Z', card_mask: null });
+    // Токен стерто й у себе — інакше крон спробував би списати ним ще раз.
+    expect(after).toMatchObject({ state: 'cancelled', access_until: '2026-11-01T00:00:00.000Z', card_mask: null, card_token: null });
   });
 
   it('тариф: підвищення одразу без дати, пониження — з датою наступного списання', async () => {

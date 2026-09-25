@@ -86,14 +86,6 @@ export class MonoProvider implements BillingProvider {
     await this.req('DELETE', `/api/merchant/wallet/card?cardToken=${encodeURIComponent(card_token)}`);
   }
 
-  /** У mono підписки як сутності немає — скасувати означає прибрати токен. */
-  async unsubscribe(): Promise<void> {
-    // Токен видаляє маршрут скасування: він один знає, який саме токен у дому.
-  }
-
-  /** Суму списуємо ми самі, провайдеру її повідомляти нема куди. */
-  async updateAmount(): Promise<void> {}
-
   private async req<T>(method: 'POST' | 'DELETE' | 'GET', path: string, body?: unknown): Promise<T> {
     const res = await this.fetchImpl(`${this.base}${path}`, {
       method,

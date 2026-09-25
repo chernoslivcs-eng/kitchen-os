@@ -65,7 +65,7 @@ export function billingRoutes(app: FastifyInstance, repo: Repo, billing: Billing
     if (sub && ['trial', 'active', 'past_due'].includes(sub.state)) {
       // Дім уже платить: другу картку в провайдера лишати не можна — з неї
       // колись спишуть гроші за те, чим людина вже користується.
-      await billing.unsubscribe(order_id);
+      if (intent.card_token) await billing.deleteToken(intent.card_token);
       await repo.updateIntent(order_id, { state: 'expired' });
       return reply.code(409).send({ error: 'already_subscribed' });
     }

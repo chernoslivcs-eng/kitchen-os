@@ -96,12 +96,12 @@ describe('runBillingCron · прострочені наміри', () => {
     expect(billing.calls).toHaveLength(0);
   });
 
-  it('subscribed → unsubscribe і expired', async () => {
+  it('subscribed → токен видалено й expired', async () => {
     const repo = new InMemoryRepo(); const billing = new FakeBillingProvider();
-    await repo.insertIntent(intent('ord-s', { state: 'subscribed', card_mask: '4242' }));
+    await repo.insertIntent(intent('ord-s', { state: 'subscribed', card_mask: '4242', card_token: 'tok-s' }));
     const r = await runBillingCron(deps(repo, new ConsoleMailer(), billing));
     expect(r.intentsExpired).toBe(1);
-    expect(billing.calls).toEqual([{ op: 'unsubscribe', args: 'ord-s' }]);
+    expect(billing.calls).toEqual([{ op: 'delete-token', args: 'tok-s' }]);
     expect(await repo.getIntent('ord-s')).toMatchObject({ state: 'expired' });
   });
 
@@ -117,9 +117,9 @@ describe('runBillingCron · прострочені наміри', () => {
   it('провайдер упав на одному намірі — решта все одно прибрана', async () => {
     const repo = new InMemoryRepo();
     const billing = new FakeBillingProvider();
-    billing.unsubscribe = async (order_id: string) => { if (order_id === 'ord-bad') throw new Error('liqpay down'); };
-    await repo.insertIntent(intent('ord-bad', { state: 'subscribed' }));
-    await repo.insertIntent(intent('ord-ok', { state: 'subscribed' }));
+    billing.deleteToken = async (t: string) => { if (t === 'tok-bad') throw new Error('mono down'); };
+    await repo.insertIntent(intent('ord-bad', { state: 'subscribed', card_token: 'tok-bad' }));
+    await repo.insertIntent(intent('ord-ok', { state: 'subscribed', card_token: 'tok-ok' }));
     const r = await runBillingCron(deps(repo, new ConsoleMailer(), billing));
     expect(r.intentsExpired).toBe(1);
     expect(await repo.getIntent('ord-bad')).toMatchObject({ state: 'subscribed' });

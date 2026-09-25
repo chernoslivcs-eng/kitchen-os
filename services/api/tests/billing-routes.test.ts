@@ -121,7 +121,8 @@ describe('/v1/billing', () => {
       const r = await bind(A.cookie, order_id);
       expect(r.statusCode).toBe(409);
       expect(r.json()).toMatchObject({ error: 'already_subscribed' });
-      expect(billing.calls.some((c) => c.op === 'unsubscribe' && c.args === order_id)).toBe(true);
+      // Картка наміру прибрана у провайдера: з неї вже нічого не спишуть.
+      expect(billing.calls.some((c) => c.op === 'delete-token')).toBe(true);
       expect(await repo.getIntent(order_id)).toMatchObject({ state: 'expired' });
       expect((await repo.getSubscription(household_id))?.provider_order_id).toBe('старий');
     });
