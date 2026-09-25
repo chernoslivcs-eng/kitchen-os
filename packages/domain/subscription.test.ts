@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyProviderEvent, entitlementOf, tick, type HouseholdSubscription } from './subscription.js';
+import { INTENT_TTL_DAYS, TRIAL_DAYS, applyProviderEvent, entitlementOf, tick, trialEndsFrom, type HouseholdSubscription } from './subscription.js';
 
 const base = (p: Partial<HouseholdSubscription>): HouseholdSubscription => ({
   household_id: 'h1', state: 'active', plan: 'self', trial_used_at: null, trial_ends_at: null,
@@ -28,18 +28,36 @@ describe('entitlementOf', () => {
 });
 
 describe('applyProviderEvent', () => {
-  it('subscribed з пробним → trial з датами і card_mask', () => {
-    const r = applyProviderEvent(null, { kind: 'subscribed', household_id: 'h1', order_id: 'o1', plan: 'home', card_mask: '4242', trial: true, paid_by_user_id: 'u1' }, now);
+  // Дата приходить У ПОДІЇ, домен її не рахує (спек біллінгу §9.1): між
+  // оформленням і привʼязкою може минути до 7 днів, і `now + 14` розійшлося б
+  // із тим, що вже стоїть у LiqPay як subscribe_date_start.
+  it('subscribed з датою пробного → trial із ТІЄЮ САМОЮ датою', () => {
+    const r = applyProviderEvent(null, { kind: 'subscribed', household_id: 'h1', order_id: 'o1', plan: 'home', card_mask: '4242', trial_ends_at: '2026-10-20T00:00:00.000Z', paid_by_user_id: 'u1' }, now);
     expect(r.sub.state).toBe('trial');
-    expect(r.sub.trial_ends_at).toBe('2026-10-15T12:00:00.000Z');
+    expect(r.sub.trial_ends_at).toBe('2026-10-20T00:00:00.000Z');
+    expect(r.sub.next_charge_at).toBe('2026-10-20T00:00:00.000Z');
     expect(r.sub.trial_used_at).toBe(now.toISOString());
-    expect(r.sub.next_charge_at).toBe('2026-10-15T12:00:00.000Z');
   });
   it('subscribed без пробного (повернення) → active, наступне списання через місяць', () => {
     const prev = base({ state: 'lapsed', trial_used_at: '2026-01-01T00:00:00Z' });
-    const r = applyProviderEvent(prev, { kind: 'subscribed', household_id: 'h1', order_id: 'o2', plan: 'self', card_mask: '1111', trial: false, paid_by_user_id: 'u2' }, now);
+    const r = applyProviderEvent(prev, { kind: 'subscribed', household_id: 'h1', order_id: 'o2', plan: 'self', card_mask: '1111', trial_ends_at: null, paid_by_user_id: 'u2' }, now);
     expect(r.sub.state).toBe('active');
     expect(r.sub.next_charge_at).toBe('2026-11-01T12:00:00.000Z');
+  });
+  // Намір із лендінга несе дату пробного навіть тоді, коли дім свій пробний уже
+  // витратив: списання все одно буде в цю дату, бо вона стоїть у LiqPay. Але
+  // ДРУГИМ пробним це не стає — `trial_used_at` лишається першим.
+  it('дата пробного на домі, що вже мав пробний → trial_used_at не переписується', () => {
+    const prev = base({ state: 'lapsed', trial_used_at: '2026-01-01T00:00:00.000Z' });
+    const r = applyProviderEvent(prev, { kind: 'subscribed', household_id: 'h1', order_id: 'o3', plan: 'self', card_mask: '1', trial_ends_at: '2026-10-20T00:00:00.000Z', paid_by_user_id: 'u3' }, now);
+    expect(r.sub.trial_ends_at).toBe('2026-10-20T00:00:00.000Z');
+    expect(r.sub.trial_used_at).toBe('2026-01-01T00:00:00.000Z');
+  });
+  it('інваріант: намір живе коротше за пробний', () => {
+    expect(INTENT_TTL_DAYS).toBeLessThan(TRIAL_DAYS);
+  });
+  it('trialEndsFrom рахує ту саму дату, що піде в LiqPay', () => {
+    expect(trialEndsFrom(now)).toBe('2026-10-15T12:00:00.000Z');
   });
   it('success у trial → active, платіж записаний, next_charge +1 міс', () => {
     const prev = base({ state: 'trial', trial_ends_at: '2026-10-01T00:00:00Z', next_charge_at: '2026-10-01T00:00:00Z', provider_order_id: 'o1' });
@@ -59,7 +77,7 @@ describe('applyProviderEvent', () => {
   // має тягти за собою старий слід «лист про кінець пробного надіслано».
   it('нове оформлення скидає trial_mail_sent_at', () => {
     const prev = base({ state: 'lapsed', trial_used_at: '2026-01-01T00:00:00Z', trial_mail_sent_at: '2026-01-10T00:00:00Z' });
-    expect(applyProviderEvent(prev, { kind: 'subscribed', household_id: 'h1', order_id: 'o3', plan: 'self', card_mask: '1111', trial: false, paid_by_user_id: 'u2' }, now).sub.trial_mail_sent_at).toBeNull();
+    expect(applyProviderEvent(prev, { kind: 'subscribed', household_id: 'h1', order_id: 'o4', plan: 'self', card_mask: '1111', trial_ends_at: null, paid_by_user_id: 'u2' }, now).sub.trial_mail_sent_at).toBeNull();
   });
 });
 

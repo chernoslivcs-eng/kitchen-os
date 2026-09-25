@@ -23,7 +23,7 @@ import type {
 } from '@kitchen/domain';
 import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
-import type { HouseholdSubscription, PaymentRow, SubscriptionState } from '@kitchen/domain/subscription';
+import type { HouseholdSubscription, PaymentIntent, PaymentRow, SubscriptionState } from '@kitchen/domain/subscription';
 
 type Row = Record<string, unknown>;
 
@@ -123,6 +123,22 @@ function subRow(r: Row): HouseholdSubscription {
     deletion_warned_at: iso(r.deletion_warned_at),
     trial_mail_sent_at: iso(r.trial_mail_sent_at),
     updated_at: new Date(r.updated_at as string).toISOString(),
+  };
+}
+
+// Намір оплати (міграція 0047).
+function intentRow(r: Row): PaymentIntent {
+  return {
+    order_id: r.order_id as string,
+    plan: r.plan as PaymentIntent['plan'],
+    state: r.state as PaymentIntent['state'],
+    trial_ends_at: iso(r.trial_ends_at),
+    card_mask: (r.card_mask as string | null) ?? null,
+    household_id: (r.household_id as string | null) ?? null,
+    ip: (r.ip as string | null) ?? null,
+    created_at: new Date(r.created_at as string).toISOString(),
+    expires_at: new Date(r.expires_at as string).toISOString(),
+    bound_at: iso(r.bound_at),
   };
 }
 
@@ -1738,6 +1754,42 @@ export class PostgresRepo implements Repo {
       'SELECT email, reason, comment, created_at FROM account_exit_survey ORDER BY created_at',
     );
     return rows;
+  }
+
+  // ── Намір оплати (спек біллінгу §4, міграція 0047) ──
+  async insertIntent(i: PaymentIntent): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO payment_intent (order_id, plan, state, trial_ends_at, card_mask, household_id, ip, created_at, expires_at, bound_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [i.order_id, i.plan, i.state, i.trial_ends_at, i.card_mask, i.household_id, i.ip, i.created_at, i.expires_at, i.bound_at],
+    );
+  }
+
+  async getIntent(order_id: string): Promise<PaymentIntent | null> {
+    const { rows } = await this.pool.query('SELECT * FROM payment_intent WHERE order_id = $1', [order_id]);
+    return rows[0] ? intentRow(rows[0]) : null;
+  }
+
+  async updateIntent(order_id: string, patch: Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'household_id' | 'bound_at'>>): Promise<void> {
+    // COALESCE не годиться: household_id і card_mask можна ставити в null
+    // навмисно. Тому збираємо лише передані поля.
+    const sets: string[] = [];
+    const vals: unknown[] = [order_id];
+    for (const k of ['state', 'card_mask', 'household_id', 'bound_at'] as const) {
+      if (!(k in patch)) continue;
+      vals.push(patch[k]);
+      sets.push(`${k} = $${vals.length}`);
+    }
+    if (!sets.length) return;
+    await this.pool.query(`UPDATE payment_intent SET ${sets.join(', ')} WHERE order_id = $1`, vals);
+  }
+
+  async listIntentsExpiring(before: Date): Promise<PaymentIntent[]> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM payment_intent WHERE state IN ('pending','subscribed') AND expires_at <= $1 ORDER BY expires_at`,
+      [before.toISOString()],
+    );
+    return rows.map(intentRow);
   }
 
   // ── Підписка дому (спек 2026-09-25 §6, міграція 0046) ──

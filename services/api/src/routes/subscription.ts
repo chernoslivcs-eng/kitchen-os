@@ -6,7 +6,8 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { Repo } from '@kitchen/domain';
-import { applyProviderEvent, betaFlag, entitlementOf, type Plan, type ProviderEvent } from '@kitchen/domain/subscription';
+import { applyProviderEvent, betaFlag, entitlementOf, trialEndsFrom, type Plan } from '@kitchen/domain/subscription';
+import { ingestProviderEvent, type InboundProviderEvent } from '../billing/ingest.js';
 import { PLAN_PRICE_UAH } from '@kitchen/domain/plans';
 import { bannerFor } from '@kitchen/domain/paywall';
 import { authenticated, requireUser } from '../middleware/session.js';
@@ -45,20 +46,24 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
     const open = !sub ? !betaFlag() : ['lapsed', 'cancelled', 'past_due'].includes(sub.state);
     if (!open) return reply.code(409).send({ error: 'already_active' });
     const order_id = randomUUID();
+    const now = new Date();
+    // Дата кінця пробного рахується ТУТ і один раз: те саме число піде в
+    // провайдера як date_start і лишиться в нас. Інакше лист «пробний до
+    // {дата}» розійдеться зі справжнім списанням (спек біллінгу §9.1).
+    const trial_ends_at = sub?.trial_used_at ? null : trialEndsFrom(now);
     // Записуємо order_id ДО походу в провайдера: інакше вебхук повернеться
     // раніше за нас і не знайде, якому дому він належить.
     await repo.saveSubscription({
       household_id, state: sub?.state ?? 'lapsed', plan,
-      trial_used_at: sub?.trial_used_at ?? null, trial_ends_at: sub?.trial_ends_at ?? null,
+      trial_used_at: sub?.trial_used_at ?? null, trial_ends_at,
       next_charge_at: sub?.next_charge_at ?? null, access_until: sub?.access_until ?? null,
       provider_order_id: order_id, card_mask: sub?.card_mask ?? null, paid_by_user_id: user_id,
       deletion_warned_at: null, trial_mail_sent_at: sub?.trial_mail_sent_at ?? null,
-      updated_at: new Date().toISOString(),
+      updated_at: now.toISOString(),
     });
     const url = await billing.checkoutUrl({
       order_id, household_id, plan, amount: PLAN_PRICE_UAH[plan],
-      // Пробний — один раз на дім.
-      trial: !sub?.trial_used_at,
+      date_start: trial_ends_at ?? now.toISOString(),
       result_url: `${appUrl}/profile/subscription?order=${order_id}`,
     });
     return { url };
@@ -91,22 +96,17 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
   });
 
   // Тільки для стенда й тестів: справжній вебхук LiqPay (підпис, мапінг
-  // статусів) — план біллінгу; він кликатиме ті самі applyProviderEvent +
-  // insertPayment.
-  app.post<{ Body: ProviderEvent }>('/v1/subscription/provider-event', async (req, reply) => {
+  // статусів) живе окремо — інша модель довіри. Спільне в них лише те, що
+  // відбувається ПІСЛЯ довіри: ingestProviderEvent.
+  //
+  // Асиметрія навмисна: цей вхід приймає й `order_id` наміру, щоб на стенді
+  // можна було програти сценарій лендінга без публічного https (спек §9.4).
+  app.post<{ Body: InboundProviderEvent }>('/v1/subscription/provider-event', async (req, reply) => {
     const secret = process.env.BILLING_EVENT_SECRET;
     if (!secret) return reply.code(503).send({ error: 'billing_events_not_configured' });
     if (req.headers['x-billing-secret'] !== secret) return reply.code(401).send({ error: 'forbidden' });
-    const ev = req.body;
-    const sub = ev.kind === 'subscribed'
-      ? (await repo.findSubscriptionByOrder(ev.order_id)) ?? (await repo.getSubscription(ev.household_id))
-      : await repo.findSubscriptionByOrder(ev.order_id);
-    if (!sub && ev.kind !== 'subscribed') return reply.code(404).send({ error: 'unknown_order' });
-    const r = applyProviderEvent(sub, ev, new Date());
-    await repo.saveSubscription(r.sub);
-    // Ідемпотентність подвійного вебхука — на рівні repo (UNIQUE по
-    // provider_payment_id), тут нічого перевіряти не треба.
-    if (r.payment) await repo.insertPayment(r.payment);
-    return { ok: true, state: r.sub.state };
+    const result = await ingestProviderEvent(repo, req.body, new Date(), req.log);
+    if (result.target === 'none' && result.reason === 'unknown_order') return reply.code(404).send({ error: 'unknown_order' });
+    return { ok: true, result };
   });
 }

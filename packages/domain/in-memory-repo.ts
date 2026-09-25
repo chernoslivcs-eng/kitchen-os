@@ -16,7 +16,7 @@ import {
 } from './profile-text.js';
 import { BUILTIN_OCCASIONS, adminRowToOccasion, type OccasionRow } from './occasion-data.js';
 import type { OccasionSubscriptionRow } from './periods.js';
-import type { HouseholdSubscription, PaymentRow, SubscriptionState } from './subscription.js';
+import type { HouseholdSubscription, PaymentIntent, PaymentRow, SubscriptionState } from './subscription.js';
 
 export class InMemoryRepo implements Repo {
   private batches = new Map<string, PantryBatch>();
@@ -104,6 +104,7 @@ export class InMemoryRepo implements Repo {
   // (OccasionSubscriptionRow, міграція 0027). Це підписка дому на продукт.
   private householdSubs = new Map<string, HouseholdSubscription>();
   private payments: PaymentRow[] = [];
+  private intents = new Map<string, PaymentIntent>();
 
   async insertProduct(p: HouseholdProduct): Promise<void> {
     this.products.set(p.id, { ...p, tags: { ...p.tags } });
@@ -789,6 +790,17 @@ export class InMemoryRepo implements Repo {
 
   async listExitSurveys() {
     return [...this.exitSurveys];
+  }
+
+  // ── Намір оплати (спек біллінгу §4) ──
+  async insertIntent(i: PaymentIntent): Promise<void> { this.intents.set(i.order_id, { ...i }); }
+  async getIntent(order_id: string): Promise<PaymentIntent | null> { return this.intents.get(order_id) ?? null; }
+  async updateIntent(order_id: string, patch: Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'household_id' | 'bound_at'>>): Promise<void> {
+    const cur = this.intents.get(order_id);
+    if (cur) this.intents.set(order_id, { ...cur, ...patch });
+  }
+  async listIntentsExpiring(before: Date): Promise<PaymentIntent[]> {
+    return [...this.intents.values()].filter((i) => (i.state === 'pending' || i.state === 'subscribed') && new Date(i.expires_at) <= before);
   }
 
   // ── Підписка дому (спек 2026-09-25 §6) ──

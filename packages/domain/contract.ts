@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
-import type { HouseholdSubscription } from './subscription.js';
+import type { HouseholdSubscription, PaymentIntent } from './subscription.js';
 import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard, AdminOccasionRow, PeriodCard, Card } from './types.js';
 import { noteHash, type ProfileNote, type VetoRow } from './profile-text.js';
 import { createPending, applyCard, undoCard, dismissCard } from './apply.js';
@@ -1546,6 +1546,42 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         await repo.createUserFromTelegram({ telegram_user_id: 990003, chat_id: 2, name: 'Б' });
         expect(await repo.getUserByTelegramId(990002)).not.toBeNull();
         expect(await repo.getUserByTelegramId(990003)).not.toBeNull();
+      });
+    });
+
+    // Намір оплати (спек біллінгу §4, міграція 0047): оформлення з лендінга,
+    // коли дому ще немає.
+    describe('payment_intent', () => {
+      const intentOf = (order_id: string, over: Partial<PaymentIntent> = {}): PaymentIntent => ({
+        order_id, plan: 'home', state: 'pending', trial_ends_at: '2026-10-15T00:00:00.000Z',
+        card_mask: null, household_id: null, ip: '1.2.3.4',
+        created_at: '2026-10-01T00:00:00.000Z', expires_at: '2026-10-08T00:00:00.000Z', bound_at: null, ...over,
+      });
+
+      it('insert → get; update міняє стан, маску й дім', async () => {
+        const { household_id } = await ctx.repo.createUserWithHousehold('i1@x.test', 'I');
+        const order_id = randomUUID();
+        await ctx.repo.insertIntent(intentOf(order_id));
+        expect(await ctx.repo.getIntent(order_id)).toMatchObject({ plan: 'home', state: 'pending', trial_ends_at: '2026-10-15T00:00:00.000Z' });
+        await ctx.repo.updateIntent(order_id, { state: 'bound', card_mask: '4242', household_id, bound_at: '2026-10-02T00:00:00.000Z' });
+        expect(await ctx.repo.getIntent(order_id)).toMatchObject({ state: 'bound', card_mask: '4242', household_id, bound_at: '2026-10-02T00:00:00.000Z' });
+      });
+
+      it('getIntent невідомого order — null', async () => {
+        expect(await ctx.repo.getIntent(randomUUID())).toBeNull();
+      });
+
+      it('listIntentsExpiring бере лише прострочені pending і subscribed', async () => {
+        const [a, b, c, d] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+        await ctx.repo.insertIntent(intentOf(a!));                                        // pending, прострочений
+        await ctx.repo.insertIntent(intentOf(b!, { state: 'subscribed' }));                // subscribed, прострочений
+        await ctx.repo.insertIntent(intentOf(c!, { state: 'bound' }));                     // привʼязаний — не чіпати
+        await ctx.repo.insertIntent(intentOf(d!, { expires_at: '2027-01-01T00:00:00.000Z' })); // ще живий
+        const got = (await ctx.repo.listIntentsExpiring(new Date('2026-10-09T00:00:00.000Z'))).map((x) => x.order_id);
+        expect(got).toContain(a);
+        expect(got).toContain(b);
+        expect(got).not.toContain(c);
+        expect(got).not.toContain(d);
       });
     });
 
