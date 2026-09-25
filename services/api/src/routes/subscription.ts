@@ -6,7 +6,8 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { Repo } from '@kitchen/domain';
-import { applyProviderEvent, betaFlag, entitlementOf, trialEndsFrom, type Plan, type ProviderEvent } from '@kitchen/domain/subscription';
+import { applyProviderEvent, betaFlag, entitlementOf, trialEndsFrom, type Plan } from '@kitchen/domain/subscription';
+import { ingestProviderEvent, type InboundProviderEvent } from '../billing/ingest.js';
 import { PLAN_PRICE_UAH } from '@kitchen/domain/plans';
 import { bannerFor } from '@kitchen/domain/paywall';
 import { authenticated, requireUser } from '../middleware/session.js';
@@ -95,22 +96,17 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
   });
 
   // Тільки для стенда й тестів: справжній вебхук LiqPay (підпис, мапінг
-  // статусів) — план біллінгу; він кликатиме ті самі applyProviderEvent +
-  // insertPayment.
-  app.post<{ Body: ProviderEvent }>('/v1/subscription/provider-event', async (req, reply) => {
+  // статусів) живе окремо — інша модель довіри. Спільне в них лише те, що
+  // відбувається ПІСЛЯ довіри: ingestProviderEvent.
+  //
+  // Асиметрія навмисна: цей вхід приймає й `order_id` наміру, щоб на стенді
+  // можна було програти сценарій лендінга без публічного https (спек §9.4).
+  app.post<{ Body: InboundProviderEvent }>('/v1/subscription/provider-event', async (req, reply) => {
     const secret = process.env.BILLING_EVENT_SECRET;
     if (!secret) return reply.code(503).send({ error: 'billing_events_not_configured' });
     if (req.headers['x-billing-secret'] !== secret) return reply.code(401).send({ error: 'forbidden' });
-    const ev = req.body;
-    const sub = ev.kind === 'subscribed'
-      ? (await repo.findSubscriptionByOrder(ev.order_id)) ?? (await repo.getSubscription(ev.household_id))
-      : await repo.findSubscriptionByOrder(ev.order_id);
-    if (!sub && ev.kind !== 'subscribed') return reply.code(404).send({ error: 'unknown_order' });
-    const r = applyProviderEvent(sub, ev, new Date());
-    await repo.saveSubscription(r.sub);
-    // Ідемпотентність подвійного вебхука — на рівні repo (UNIQUE по
-    // provider_payment_id), тут нічого перевіряти не треба.
-    if (r.payment) await repo.insertPayment(r.payment);
-    return { ok: true, state: r.sub.state };
+    const result = await ingestProviderEvent(repo, req.body, new Date(), req.log);
+    if (result.target === 'none' && result.reason === 'unknown_order') return reply.code(404).send({ error: 'unknown_order' });
+    return { ok: true, result };
   });
 }

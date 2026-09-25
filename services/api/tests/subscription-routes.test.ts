@@ -110,15 +110,25 @@ describe('/v1/subscription', () => {
     expect(down.json().effective_at).toBe('2026-11-01T00:00:00.000Z');
   });
 
+  // Подія приходить із самим order_id — дім і дата вже лежать у підписці,
+  // яку записав checkout. Тому сценарій тут повний: спершу checkout.
   it('подія провайдера: subscribed → trial, success двічі → один платіж', async () => {
     const A = await lapsed('e@example.com');
+    await app.inject({ method: 'POST', url: '/v1/subscription/checkout', headers: { cookie: A.cookie }, payload: { plan: 'self' } });
+    const order_id = (await repo.getSubscription(A.household_id))!.provider_order_id!;
     const send = (body: unknown) => app.inject({ method: 'POST', url: '/v1/subscription/provider-event', headers: { 'x-billing-secret': SECRET }, payload: body as never });
-    await send({ kind: 'subscribed', household_id: A.household_id, order_id: 'ord-9', plan: 'self', card_mask: '4242', trial_ends_at: '2026-12-01T00:00:00.000Z', paid_by_user_id: A.user_id });
-    expect((await repo.getSubscription(A.household_id))?.state).toBe('trial');
-    await send({ kind: 'success', order_id: 'ord-9', amount: 210, provider_payment_id: 'pay-9' });
-    await send({ kind: 'success', order_id: 'ord-9', amount: 210, provider_payment_id: 'pay-9' });
+    await send({ kind: 'subscribed', order_id, card_mask: '4242' });
+    expect(await repo.getSubscription(A.household_id)).toMatchObject({ state: 'trial', card_mask: '4242' });
+    await send({ kind: 'success', order_id, amount: 210, provider_payment_id: 'pay-9' });
+    await send({ kind: 'success', order_id, amount: 210, provider_payment_id: 'pay-9' });
     expect((await repo.getSubscription(A.household_id))?.state).toBe('active');
     expect(await repo.listPayments(A.household_id)).toHaveLength(1);
+  });
+
+  it('подія для невідомого order → 404', async () => {
+    await lapsed('e2@example.com');
+    const r = await app.inject({ method: 'POST', url: '/v1/subscription/provider-event', headers: { 'x-billing-secret': SECRET }, payload: { kind: 'failure', order_id: 'нема-такого' } });
+    expect(r.statusCode).toBe(404);
   });
 
   it('подія провайдера без секрету в заголовку → 401, без секрету в env → 503', async () => {
