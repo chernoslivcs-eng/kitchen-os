@@ -1618,9 +1618,11 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       // перестане платити й через тиждень піде в lapsed. Тому окремо.
       it('card_token переживає save/get і стирається в null', async () => {
         const { household_id } = await ctx.repo.createUserWithHousehold('s1t@x.test', 'S');
-        await ctx.repo.saveSubscription(subOf(household_id));
+        // Свій order_id: у базі він унікальний, а 'ord-1' із subOf уже зайнятий сусіднім тестом.
+        const ord = randomUUID();
+        await ctx.repo.saveSubscription({ ...subOf(household_id), provider_order_id: ord });
         expect((await ctx.repo.getSubscription(household_id))?.card_token).toBe('tok-1');
-        await ctx.repo.saveSubscription({ ...subOf(household_id), card_token: null });
+        await ctx.repo.saveSubscription({ ...subOf(household_id), provider_order_id: ord, card_token: null });
         expect((await ctx.repo.getSubscription(household_id))?.card_token).toBeNull();
       });
 
@@ -1636,9 +1638,13 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       // грошей: узяти дім без токена — виняток у кроні; узяти двічі за добу —
       // подвійне списання з людини.
       it('listSubscriptionsDue бере лише платні стани з токеном і насталою датою', async () => {
+        // provider_order_id унікальний у базі — кожному дому свій.
         const mk = async (email: string, over: Partial<HouseholdSubscription>) => {
           const { household_id } = await ctx.repo.createUserWithHousehold(email, 'D');
-          await ctx.repo.saveSubscription({ ...subOf(household_id), next_charge_at: '2026-10-15T00:00:00.000Z', state: 'active', ...over });
+          await ctx.repo.saveSubscription({
+            ...subOf(household_id), provider_order_id: randomUUID(),
+            next_charge_at: '2026-10-15T00:00:00.000Z', state: 'active', ...over,
+          });
           return household_id;
         };
         const yes = await mk('due1@x.test', {});

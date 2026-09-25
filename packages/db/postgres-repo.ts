@@ -19,7 +19,7 @@ import type {
   HouseholdProduct, ProductTriple,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule, OccasionSubscriptionRow,
   ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
-  TelegramAccountRow, TelegramLinkTokenRow, TelegramWebTokenRow, MergeStats,
+  TelegramAccountRow, TelegramLinkTokenRow, TelegramWebTokenRow, MergeStats, IntentPatch,
 } from '@kitchen/domain';
 import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
@@ -126,6 +126,19 @@ function subRow(r: Row): HouseholdSubscription {
     updated_at: new Date(r.updated_at as string).toISOString(),
   };
 }
+
+/**
+ * Поля наміру, які вміє оновлювати updateIntent. Список потрібен у рантаймі —
+ * тип у рантаймі не існує. Тому нижче стоїть перевірка, що список не відстав
+ * від типу: додане в IntentPatch поле, забуте тут, НЕ ЗБЕРЕТЬСЯ.
+ *
+ * Саме на цьому вже попались із card_token: тип розширили, список — ні, і
+ * токен мовчки не доїжджав до бази (in-memory працював, Postgres — ні).
+ */
+const INTENT_PATCH_FIELDS = ['state', 'card_mask', 'card_token', 'household_id', 'bound_at'] as const;
+type MissingIntentField = Exclude<keyof IntentPatch, (typeof INTENT_PATCH_FIELDS)[number]>;
+type AssertNever<T extends never> = T;
+export type __IntentPatchCovered = AssertNever<MissingIntentField>;
 
 // Намір оплати (міграція 0047).
 function intentRow(r: Row): PaymentIntent {
@@ -1772,12 +1785,12 @@ export class PostgresRepo implements Repo {
     return rows[0] ? intentRow(rows[0]) : null;
   }
 
-  async updateIntent(order_id: string, patch: Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'card_token' | 'household_id' | 'bound_at'>>): Promise<void> {
+  async updateIntent(order_id: string, patch: IntentPatch): Promise<void> {
     // COALESCE не годиться: household_id і card_mask можна ставити в null
     // навмисно. Тому збираємо лише передані поля.
     const sets: string[] = [];
     const vals: unknown[] = [order_id];
-    for (const k of ['state', 'card_mask', 'household_id', 'bound_at'] as const) {
+    for (const k of INTENT_PATCH_FIELDS) {
       if (!(k in patch)) continue;
       vals.push(patch[k]);
       sets.push(`${k} = $${vals.length}`);
