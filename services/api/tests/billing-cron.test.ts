@@ -1,0 +1,75 @@
+// Щоденний крон біллінгу (спек 2026-09-25 §5, §6). Головна вимога — ідемпотентність:
+// крон ходить щодня, а лист людина має отримати один раз.
+import { describe, it, expect } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { InMemoryRepo, type AuthSession } from '@kitchen/domain';
+import { ConsoleMailer } from '../src/mailer.js';
+import { runBillingCron } from '../src/billing-cron.js';
+
+const sub = (household_id: string, p: Record<string, unknown>) => ({
+  household_id, state: 'active', plan: 'self', trial_used_at: null, trial_ends_at: null,
+  next_charge_at: null, access_until: null, provider_order_id: 'o', card_mask: '4242',
+  paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null,
+  updated_at: '2026-09-01T00:00:00.000Z', ...p,
+}) as never;
+
+const seen = (repo: InMemoryRepo, user_id: string, at: string) => repo.saveSession({
+  id: randomUUID(), user_id, cookie_hash: randomUUID(), created_at: at, last_seen_at: at,
+  expires_at: '2030-01-01T00:00:00.000Z', revoked_at: null, ip: null, user_agent: null,
+} as AuthSession);
+
+const at = (repo: InMemoryRepo, mailer: ConsoleMailer, d: string) =>
+  ({ repo, mailer, appUrl: 'http://app.test', now: () => new Date(d) });
+
+describe('runBillingCron', () => {
+  it('cancelled після дати → lapsed і лист один раз', async () => {
+    const repo = new InMemoryRepo(); const mailer = new ConsoleMailer();
+    const { household_id } = await repo.createUserWithHousehold('a@x.test', 'A');
+    await repo.saveSubscription(sub(household_id, { state: 'cancelled', access_until: '2026-10-01T00:00:00.000Z' }));
+    const deps = at(repo, mailer, '2026-10-01T03:30:00.000Z');
+    expect((await runBillingCron(deps)).transitions).toBe(1);
+    expect((await repo.getSubscription(household_id))?.state).toBe('lapsed');
+    expect(mailer.plain.map((m) => m.subject)).toEqual(['Підписка закінчилась — усе на місці']);
+    await runBillingCron(deps);
+    expect(mailer.plain).toHaveLength(1);
+  });
+
+  it('лист за 3 дні до кінця пробного — раз, із сумою тарифу', async () => {
+    const repo = new InMemoryRepo(); const mailer = new ConsoleMailer();
+    const { household_id } = await repo.createUserWithHousehold('b@x.test', 'B');
+    await repo.saveSubscription(sub(household_id, { state: 'trial', plan: 'home', trial_ends_at: '2026-10-04T00:00:00.000Z', next_charge_at: '2026-10-04T00:00:00.000Z' }));
+    const deps = at(repo, mailer, '2026-10-01T03:30:00.000Z');
+    await runBillingCron(deps);
+    await runBillingCron(deps);
+    expect(mailer.plain).toHaveLength(1);
+    expect(mailer.plain[0]!.text).toContain('спишеться 290 ₴');
+  });
+
+  it('тиша пів року → попередження; вхід скидає відлік; далі знову попередження і видалення', async () => {
+    const repo = new InMemoryRepo(); const mailer = new ConsoleMailer();
+    const { user_id, household_id } = await repo.createUserWithHousehold('c@x.test', 'C');
+    await seen(repo, user_id, '2026-01-01T00:00:00.000Z');
+    await repo.saveSubscription(sub(household_id, { state: 'lapsed', access_until: '2026-01-15T00:00:00.000Z' }));
+
+    expect((await runBillingCron(at(repo, mailer, '2026-07-20T03:30:00.000Z'))).warnings).toBe(1);
+    expect((await repo.getSubscription(household_id))?.deletion_warned_at).toBeTruthy();
+
+    await seen(repo, user_id, '2026-08-01T00:00:00.000Z');   // зайшов після попередження
+    expect((await runBillingCron(at(repo, mailer, '2026-08-25T03:30:00.000Z'))).deleted).toBe(0);
+    expect((await repo.getSubscription(household_id))?.deletion_warned_at).toBeNull();
+
+    expect((await runBillingCron(at(repo, mailer, '2027-03-10T03:30:00.000Z'))).warnings).toBe(1);
+    expect((await runBillingCron(at(repo, mailer, '2027-04-15T03:30:00.000Z'))).deleted).toBe(1);
+    expect(await repo.getHousehold(household_id)).toBeNull();
+  });
+
+  it('акаунт без пошти: лист нікуди не йде, повідомлення — у бот', async () => {
+    const repo = new InMemoryRepo(); const mailer = new ConsoleMailer();
+    const made = await repo.createUserFromTelegram({ telegram_user_id: 9001, chat_id: 9001, name: 'Т' });
+    await repo.saveSubscription(sub(made.household_id, { state: 'cancelled', access_until: '2026-10-01T00:00:00.000Z' }));
+    const notes: string[] = [];
+    await runBillingCron({ ...at(repo, mailer, '2026-10-01T03:30:00.000Z'), telegramNotify: async (_u: string, text: string) => { notes.push(text); } });
+    expect(mailer.plain).toHaveLength(0);
+    expect(notes).toHaveLength(1);
+  });
+});
