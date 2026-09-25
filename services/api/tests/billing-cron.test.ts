@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { InMemoryRepo, type AuthSession } from '@kitchen/domain';
 import { ConsoleMailer } from '../src/mailer.js';
 import { runBillingCron } from '../src/billing-cron.js';
+import { FakeBillingProvider } from '../src/billing/fake-provider.js';
 
 const sub = (household_id: string, p: Record<string, unknown>) => ({
   household_id, state: 'active', plan: 'self', trial_used_at: null, trial_ends_at: null,
@@ -71,5 +72,57 @@ describe('runBillingCron', () => {
     await runBillingCron({ ...at(repo, mailer, '2026-10-01T03:30:00.000Z'), telegramNotify: async (_u: string, text: string) => { notes.push(text); } });
     expect(mailer.plain).toHaveLength(0);
     expect(notes).toHaveLength(1);
+  });
+});
+
+// Спек біллінгу §2: намір без привʼязки живе 7 днів. Далі його треба прибрати
+// — і, якщо картка вже дана, відписати в провайдера, інакше з неї колись
+// спишуть за акаунт, якого не існує.
+describe('runBillingCron · прострочені наміри', () => {
+  const intent = (order_id: string, over: Record<string, unknown> = {}) => ({
+    order_id, plan: 'home' as const, state: 'pending' as const, trial_ends_at: '2026-10-19T00:00:00.000Z',
+    card_mask: null, household_id: null, ip: null, created_at: '2026-10-01T00:00:00.000Z',
+    expires_at: '2026-10-08T00:00:00.000Z', bound_at: null, ...over,
+  });
+  const deps = (repo: InMemoryRepo, mailer: ConsoleMailer, billing: FakeBillingProvider) =>
+    ({ repo, mailer, billing, appUrl: 'http://app.test', now: () => new Date('2026-10-09T03:30:00.000Z') });
+
+  it('pending → expired без походу в провайдера', async () => {
+    const repo = new InMemoryRepo(); const billing = new FakeBillingProvider();
+    await repo.insertIntent(intent('ord-p'));
+    const r = await runBillingCron(deps(repo, new ConsoleMailer(), billing));
+    expect(r.intentsExpired).toBe(1);
+    expect(await repo.getIntent('ord-p')).toMatchObject({ state: 'expired' });
+    expect(billing.calls).toHaveLength(0);
+  });
+
+  it('subscribed → unsubscribe і expired', async () => {
+    const repo = new InMemoryRepo(); const billing = new FakeBillingProvider();
+    await repo.insertIntent(intent('ord-s', { state: 'subscribed', card_mask: '4242' }));
+    const r = await runBillingCron(deps(repo, new ConsoleMailer(), billing));
+    expect(r.intentsExpired).toBe(1);
+    expect(billing.calls).toEqual([{ op: 'unsubscribe', args: 'ord-s' }]);
+    expect(await repo.getIntent('ord-s')).toMatchObject({ state: 'expired' });
+  });
+
+  it('привʼязаний і ще живий — не чіпаємо', async () => {
+    const repo = new InMemoryRepo(); const billing = new FakeBillingProvider();
+    await repo.insertIntent(intent('ord-b', { state: 'bound' }));
+    await repo.insertIntent(intent('ord-f', { expires_at: '2027-01-01T00:00:00.000Z' }));
+    const r = await runBillingCron(deps(repo, new ConsoleMailer(), billing));
+    expect(r.intentsExpired).toBe(0);
+    expect(billing.calls).toHaveLength(0);
+  });
+
+  it('провайдер упав на одному намірі — решта все одно прибрана', async () => {
+    const repo = new InMemoryRepo();
+    const billing = new FakeBillingProvider();
+    billing.unsubscribe = async (order_id: string) => { if (order_id === 'ord-bad') throw new Error('liqpay down'); };
+    await repo.insertIntent(intent('ord-bad', { state: 'subscribed' }));
+    await repo.insertIntent(intent('ord-ok', { state: 'subscribed' }));
+    const r = await runBillingCron(deps(repo, new ConsoleMailer(), billing));
+    expect(r.intentsExpired).toBe(1);
+    expect(await repo.getIntent('ord-bad')).toMatchObject({ state: 'subscribed' });
+    expect(await repo.getIntent('ord-ok')).toMatchObject({ state: 'expired' });
   });
 });

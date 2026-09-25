@@ -12,6 +12,7 @@ import { pickRepo } from './server.js';
 import { pickMailer } from './mailer.js';
 import { telegramFetch, botInfoFor } from './telegram-bot.js';
 import { runBillingCron } from './billing-cron.js';
+import { pickBillingProvider } from './billing/pick-provider.js';
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   const secret = process.env.CRON_SECRET;
@@ -31,8 +32,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         await bot.api.sendMessage(acc.chat_id, text);
       }
       : undefined;
+    const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
     const summary = await runBillingCron({
-      repo, mailer: pickMailer(), appUrl: process.env.APP_URL ?? 'http://localhost:3000', telegramNotify,
+      repo, mailer: pickMailer(), appUrl, telegramNotify, billing: pickBillingProvider(appUrl),
     });
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, ms: Date.now() - t0, ...summary }));
