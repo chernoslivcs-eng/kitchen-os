@@ -816,6 +816,15 @@ export class InMemoryRepo implements Repo {
   async listSubscriptionsByState(states: SubscriptionState[]): Promise<HouseholdSubscription[]> {
     return [...this.householdSubs.values()].filter((s) => states.includes(s.state));
   }
+  async listSubscriptionsDue(now: Date): Promise<HouseholdSubscription[]> {
+    return [...this.householdSubs.values()].filter((s) =>
+      ['trial', 'active', 'past_due'].includes(s.state) && s.card_token != null
+      && s.next_charge_at != null && new Date(s.next_charge_at) <= now);
+  }
+  async hasPaymentToday(household_id: string, day: Date): Promise<boolean> {
+    const d = day.toISOString().slice(0, 10);
+    return this.payments.some((p) => p.household_id === household_id && p.created_at.slice(0, 10) === d);
+  }
   async insertPayment(p: Omit<PaymentRow, 'id'>): Promise<boolean> {
     if (p.provider_payment_id && this.payments.some((x) => x.provider_payment_id === p.provider_payment_id)) return false;
     this.payments.push({ id: randomUUID(), ...p });

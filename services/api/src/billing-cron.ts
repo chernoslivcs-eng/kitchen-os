@@ -7,17 +7,24 @@
 // те, що «сьогодні ми вже бігали».
 import { randomUUID } from 'node:crypto';
 import type { Repo } from '@kitchen/domain';
-import { tick } from '@kitchen/domain/subscription';
+import { applyProviderEvent, tick } from '@kitchen/domain/subscription';
 import { PLAN_PRICE_UAH } from '@kitchen/domain/plans';
 import { MAIL, SUBSCRIPTION_PATH } from '@kitchen/domain/paywall';
 import type { Mailer } from './mailer.js';
 import type { BillingProvider } from './billing/provider.js';
+import { ingestProviderEvent } from './billing/ingest.js';
 
 const DAY = 86_400_000;
 /** Пів року тиші — і дім отримує попередження (спек §5). */
 const QUIET_DAYS = 182;
 /** Після попередження — ще 30 днів. */
 const WARN_DAYS = 30;
+/**
+ * Скільки діб поспіль повторювати невдале списання. Далі мовчимо: банку
+ * однаково, а людину щоденні спроби лише дратують. До `lapsed` усе одно
+ * лишається PAST_DUE_GRACE_DAYS від тієї ж дати.
+ */
+const CHARGE_RETRY_DAYS = 3;
 const fmt = (iso: string) => new Date(iso).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
 
 export interface BillingCronDeps {
@@ -41,6 +48,10 @@ export interface BillingCronSummary {
   warnings: number;
   deleted: number;
   intentsExpired: number;
+  /** Скільки домів списано успішно сьогодні. */
+  charged: number;
+  /** Скільки списань не пройшло (дім пішов у past_due). */
+  chargeFailures: number;
 }
 
 async function notifyHousehold(deps: BillingCronDeps, household_id: string, subject: string, text: string): Promise<void> {
@@ -54,7 +65,7 @@ async function notifyHousehold(deps: BillingCronDeps, household_id: string, subj
 
 export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCronSummary> {
   const now = deps.now?.() ?? new Date();
-  const out: BillingCronSummary = { transitions: 0, trialMails: 0, lapsedMails: 0, warnings: 0, deleted: 0, intentsExpired: 0 };
+  const out: BillingCronSummary = { transitions: 0, trialMails: 0, lapsedMails: 0, warnings: 0, deleted: 0, intentsExpired: 0, charged: 0, chargeFailures: 0 };
 
   // 1. Переходи станів.
   for (const sub of await deps.repo.listSubscriptionsByState(['trial', 'cancelled', 'past_due'])) {
@@ -115,7 +126,60 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     out.warnings++;
   }
 
-  // 4. Прострочені наміри (спек §2). Намір живе 7 днів: якщо за цей час людина
+  // 4. Списання за токеном (план mono, задача 4). У mono підписки як сутності
+  // немає: щомісячні гроші знімає саме крон, а не провайдер.
+  if (deps.billing) {
+    for (const s of await deps.repo.listSubscriptionsDue(now)) {
+      // Тариф — джерело суми. Без нього списувати невідомо скільки.
+      if (!s.plan || !s.provider_order_id || !s.card_token) continue;
+      // Повтори не вічні: від дати списання рахуємо CHARGE_RETRY_DAYS ЦІЛИМИ
+      // добами. Порівнювати позначки часу не можна — крон ходить о 03:30, і
+      // третя доба обрізалася б на три з половиною години раніше.
+      if (Math.floor((now.getTime() - new Date(s.next_charge_at!).getTime()) / DAY) > CHARGE_RETRY_DAYS) continue;
+      // Крон могли запустити двічі за добу — рядок платежу за сьогодні
+      // означає, що спроба вже була, і другу робити не можна.
+      if (await deps.repo.hasPaymentToday(s.household_id, now)) continue;
+
+      let res;
+      try {
+        res = await deps.billing.chargeByToken({
+          card_token: s.card_token, amount: PLAN_PRICE_UAH[s.plan], reference: s.provider_order_id,
+        });
+      } catch (err) {
+        // Провайдер недоступний — це НЕ відмова картки. Стан не міняємо й
+        // рядка платежу не пишемо: завтра спробуємо ще раз.
+        console.error('charge failed', s.household_id, String(err));
+        continue;
+      }
+
+      if (res.status === 'processing') continue; // Рішення принесе вебхук.
+
+      if (res.status === 'success') {
+        // Через ingest, а не applyProviderEvent напряму: вебхук про це саме
+        // списання прийде слідом, і insertPayment по тому самому invoiceId
+        // не продублює рядок.
+        await ingestProviderEvent(deps.repo, {
+          kind: 'success', order_id: s.provider_order_id,
+          amount: PLAN_PRICE_UAH[s.plan], provider_payment_id: res.provider_payment_id,
+        }, now, { warn: (o, m) => console.warn(m, o) });
+        out.charged++;
+        continue;
+      }
+
+      const r = applyProviderEvent(s, { kind: 'failure', order_id: s.provider_order_id }, now);
+      await deps.repo.saveSubscription(r.sub);
+      // Рядок невдачі потрібен не для звітності, а як слід «сьогодні вже
+      // пробували»: саме його читає hasPaymentToday.
+      await deps.repo.insertPayment({
+        household_id: s.household_id, amount: PLAN_PRICE_UAH[s.plan], currency: 'UAH', status: 'failure',
+        provider_payment_id: res.provider_payment_id, paid_by_user_id: s.paid_by_user_id,
+        receipt_url: null, created_at: now.toISOString(),
+      });
+      out.chargeFailures++;
+    }
+  }
+
+  // 5. Прострочені наміри (спек §2). Намір живе 7 днів: якщо за цей час людина
   // не увійшла, прибираємо його. Картка вже могла бути дана провайдеру — тоді
   // спершу відписка, інакше з неї списуватимуть за акаунт, якого немає.
   for (const intent of await deps.repo.listIntentsExpiring(now)) {

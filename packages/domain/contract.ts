@@ -1632,6 +1632,39 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         expect(got).toMatchObject({ state: 'active', trial_mail_sent_at: '2026-10-12T00:00:00.000Z' });
       });
 
+      // Черга на списання (план mono, задача 4). Дві помилки тут коштують
+      // грошей: узяти дім без токена — виняток у кроні; узяти двічі за добу —
+      // подвійне списання з людини.
+      it('listSubscriptionsDue бере лише платні стани з токеном і насталою датою', async () => {
+        const mk = async (email: string, over: Partial<HouseholdSubscription>) => {
+          const { household_id } = await ctx.repo.createUserWithHousehold(email, 'D');
+          await ctx.repo.saveSubscription({ ...subOf(household_id), next_charge_at: '2026-10-15T00:00:00.000Z', state: 'active', ...over });
+          return household_id;
+        };
+        const yes = await mk('due1@x.test', {});
+        const noToken = await mk('due2@x.test', { card_token: null });
+        const notYet = await mk('due3@x.test', { next_charge_at: '2026-12-01T00:00:00.000Z' });
+        const cancelled = await mk('due4@x.test', { state: 'cancelled' });
+        const got = (await ctx.repo.listSubscriptionsDue(new Date('2026-10-16T03:30:00.000Z'))).map((s) => s.household_id);
+        expect(got).toContain(yes);
+        expect(got).not.toContain(noToken);
+        expect(got).not.toContain(notYet);
+        expect(got).not.toContain(cancelled);
+      });
+
+      it('hasPaymentToday бачить і невдалий платіж, і лише за потрібну добу', async () => {
+        const { household_id } = await ctx.repo.createUserWithHousehold('pay-today@x.test', 'P');
+        const day = new Date('2026-10-15T03:30:00.000Z');
+        expect(await ctx.repo.hasPaymentToday(household_id, day)).toBe(false);
+        await ctx.repo.insertPayment({
+          household_id, amount: 290, currency: 'UAH', status: 'failure', provider_payment_id: 'inv-f',
+          paid_by_user_id: null, receipt_url: null, created_at: '2026-10-15T03:30:05.000Z',
+        });
+        // Саме невдалий: він і є слід «сьогодні вже пробували».
+        expect(await ctx.repo.hasPaymentToday(household_id, day)).toBe(true);
+        expect(await ctx.repo.hasPaymentToday(household_id, new Date('2026-10-16T03:30:00.000Z'))).toBe(false);
+      });
+
       it('insertPayment ідемпотентний по provider_payment_id', async () => {
         const { household_id } = await ctx.repo.createUserWithHousehold('s2@x.test', 'S');
         const p = { household_id, amount: 210, currency: 'UAH' as const, status: 'success' as const, provider_payment_id: 'pay-1', paid_by_user_id: null, receipt_url: null, created_at: '2026-10-15T00:00:00.000Z' };

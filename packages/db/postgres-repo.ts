@@ -1786,6 +1786,25 @@ export class PostgresRepo implements Repo {
     await this.pool.query(`UPDATE payment_intent SET ${sets.join(', ')} WHERE order_id = $1`, vals);
   }
 
+  async listSubscriptionsDue(now: Date): Promise<HouseholdSubscription[]> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM household_subscription
+        WHERE state IN ('trial','active','past_due') AND card_token IS NOT NULL
+          AND next_charge_at IS NOT NULL AND next_charge_at <= $1
+        ORDER BY next_charge_at`,
+      [now.toISOString()],
+    );
+    return rows.map(subRow);
+  }
+
+  async hasPaymentToday(household_id: string, day: Date): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      `SELECT 1 FROM payment WHERE household_id = $1 AND created_at::date = $2::date LIMIT 1`,
+      [household_id, day.toISOString()],
+    );
+    return rows.length > 0;
+  }
+
   async listIntentsExpiring(before: Date): Promise<PaymentIntent[]> {
     const { rows } = await this.pool.query(
       `SELECT * FROM payment_intent WHERE state IN ('pending','subscribed') AND expires_at <= $1 ORDER BY expires_at`,

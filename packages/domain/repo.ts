@@ -327,6 +327,16 @@ export interface Repo {
   updateIntent(order_id: string, patch: Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'card_token' | 'household_id' | 'bound_at'>>): Promise<void>;
   /** Наміри, яким час вийшов і які ще можуть щось означати: `pending` і `subscribed`. */
   listIntentsExpiring(before: Date): Promise<PaymentIntent[]>;
+  /**
+   * Кому крон має списати сьогодні: стан платний, дата настала, токен є.
+   * Без токена списувати нічим — такий дім у чергу не потрапляє взагалі.
+   */
+  listSubscriptionsDue(now: Date): Promise<HouseholdSubscription[]>;
+  /**
+   * Чи є за цю добу (UTC) хоч один платіж дому — успішний або ні. Захист від
+   * подвійного списання, якщо крон сьогодні вже бігав або його запустили руками.
+   */
+  hasPaymentToday(household_id: string, day: Date): Promise<boolean>;
   createUserOnly(email: string, name: string): Promise<string>;
   firstHouseholdOf(user_id: string): Promise<string | null>;
   getHousehold(id: string): Promise<HouseholdRow | null>;
