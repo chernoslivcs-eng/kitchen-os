@@ -17,3 +17,12 @@ export const PLAN_OPTIONS: PlanOption[] = [
   { id: 'basic', name: 'Для себе', price: '210 ₴/міс', blurb: 'Одна людина, один дім', available: false },
   { id: 'family', name: 'Для дому', price: '290 ₴/міс', blurb: 'Спільна комора на кількох', available: false },
 ];
+
+// Спек 2026-09-25 §1: новий домен підписки оперує тарифами `self`/`home` —
+// це НЕ ті самі рядки, що `PlanOption.id` вище (`beta`/`basic`/`family`,
+// значення колонки "user".plan з міграції 0024). Старі лишаються на місці:
+// поле user.plan цим етапом не видаляється, лише перестає бути джерелом
+// правди про доступ. Числом, а не рядком «210 ₴/міс», бо ці значення йдуть
+// у суму списання й у текст банера.
+export const PLAN_PRICE_UAH: Record<'self' | 'home', number> = { self: 210, home: 290 };
+export const PLAN_NAME: Record<'self' | 'home', string> = { self: 'Для себе', home: 'Для дому' };

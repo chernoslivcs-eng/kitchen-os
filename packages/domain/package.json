@@ -14,7 +14,9 @@
     "./plans": "./plans.ts",
     "./help-topics": "./help-topics.ts",
     "./shelf-thresholds": "./shelf-thresholds.ts",
-    "./dish-category": "./dish-category.ts"
+    "./dish-category": "./dish-category.ts",
+    "./subscription": "./subscription.ts",
+    "./paywall": "./paywall.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

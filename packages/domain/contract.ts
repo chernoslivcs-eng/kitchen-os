@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
+import type { HouseholdSubscription } from './subscription.js';
 import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard, AdminOccasionRow, PeriodCard, Card } from './types.js';
 import { noteHash, type ProfileNote, type VetoRow } from './profile-text.js';
 import { createPending, applyCard, undoCard, dismissCard } from './apply.js';
@@ -1545,6 +1546,69 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         await repo.createUserFromTelegram({ telegram_user_id: 990003, chat_id: 2, name: 'Б' });
         expect(await repo.getUserByTelegramId(990002)).not.toBeNull();
         expect(await repo.getUserByTelegramId(990003)).not.toBeNull();
+      });
+    });
+
+    // Режим без підписки (спек 2026-09-25 §6, міграція 0046): підписка на ДІМ.
+    describe('subscription', () => {
+      const subOf = (household_id: string): HouseholdSubscription => ({
+        household_id, state: 'trial', plan: 'self',
+        trial_used_at: '2026-10-01T00:00:00.000Z', trial_ends_at: '2026-10-15T00:00:00.000Z',
+        next_charge_at: '2026-10-15T00:00:00.000Z', access_until: null,
+        provider_order_id: 'ord-1', card_mask: '4242', paid_by_user_id: null,
+        deletion_warned_at: null, trial_mail_sent_at: null, updated_at: '2026-10-01T00:00:00.000Z',
+      });
+
+      it('save/get/findByOrder/listByState', async () => {
+        const { household_id } = await ctx.repo.createUserWithHousehold('s1@x.test', 'S');
+        const sub = subOf(household_id);
+        await ctx.repo.saveSubscription(sub);
+        expect(await ctx.repo.getSubscription(household_id)).toMatchObject({ state: 'trial', provider_order_id: 'ord-1' });
+        expect((await ctx.repo.findSubscriptionByOrder('ord-1'))?.household_id).toBe(household_id);
+        await ctx.repo.saveSubscription({ ...sub, state: 'lapsed' });
+        expect((await ctx.repo.listSubscriptionsByState(['lapsed'])).map((x) => x.household_id)).toContain(household_id);
+      });
+
+      it('saveSubscription — upsert, а не другий рядок', async () => {
+        const { household_id } = await ctx.repo.createUserWithHousehold('s1b@x.test', 'S');
+        await ctx.repo.saveSubscription({ ...subOf(household_id), provider_order_id: 'ord-1b' });
+        await ctx.repo.saveSubscription({ ...subOf(household_id), provider_order_id: 'ord-1b', state: 'active', trial_mail_sent_at: '2026-10-12T00:00:00.000Z' });
+        const got = await ctx.repo.getSubscription(household_id);
+        expect(got).toMatchObject({ state: 'active', trial_mail_sent_at: '2026-10-12T00:00:00.000Z' });
+      });
+
+      it('insertPayment ідемпотентний по provider_payment_id', async () => {
+        const { household_id } = await ctx.repo.createUserWithHousehold('s2@x.test', 'S');
+        const p = { household_id, amount: 210, currency: 'UAH' as const, status: 'success' as const, provider_payment_id: 'pay-1', paid_by_user_id: null, receipt_url: null, created_at: '2026-10-15T00:00:00.000Z' };
+        expect(await ctx.repo.insertPayment(p)).toBe(true);
+        expect(await ctx.repo.insertPayment(p)).toBe(false);
+        expect(await ctx.repo.listPayments(household_id)).toHaveLength(1);
+      });
+
+      // last_seen_at у цьому коді — НЕ колонка user, а max(auth_session.last_seen_at)
+      // по членах дому (postgres-repo.ts: той самий підзапит у UserRow). Тому
+      // відлік тиші рахується від сесій, і тест ставить саме сесію.
+      it('householdLastSeenAt — максимум по сесіях членів дому', async () => {
+        const { user_id, household_id } = await ctx.repo.createUserWithHousehold('s3@x.test', 'S');
+        expect(await ctx.repo.householdLastSeenAt(household_id)).toBeNull();
+        const mk = (id: string, hash: string, seen: string) => ({
+          id, user_id, cookie_hash: hash, created_at: seen, last_seen_at: seen,
+          expires_at: '2027-01-01T00:00:00.000Z', revoked_at: null, ip: null, user_agent: null,
+        });
+        await ctx.repo.saveSession(mk(randomUUID(), 'h-s3-a', '2026-09-01T00:00:00.000Z'));
+        await ctx.repo.saveSession(mk(randomUUID(), 'h-s3-b', '2026-09-10T00:00:00.000Z'));
+        expect(await ctx.repo.householdLastSeenAt(household_id)).toBe('2026-09-10T00:00:00.000Z');
+      });
+
+      it('deleteHousehold зносить дім із вмістом, акаунт лишається', async () => {
+        const { user_id, household_id } = await ctx.repo.createUserWithHousehold('s4@x.test', 'S');
+        await seedFarsh(ctx.repo, household_id, 'Моцарела');
+        await ctx.repo.saveSubscription(subOf(household_id));
+        await ctx.repo.deleteHousehold(household_id);
+        expect(await ctx.repo.getHousehold(household_id)).toBeNull();
+        expect(await ctx.repo.getSubscription(household_id)).toBeNull();
+        expect(await ctx.repo.listBatches(household_id)).toHaveLength(0);
+        expect(await ctx.repo.getUser(user_id)).not.toBeNull();
       });
     });
   });
