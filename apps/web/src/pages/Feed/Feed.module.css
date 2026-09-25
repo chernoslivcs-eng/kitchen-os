@@ -88,6 +88,26 @@
   overflow-wrap: break-word;
 }
 
+/* Постановка 2026-09-25 (режим без підписки): кнопка під паювел-баблом —
+ * чорна пігулка, бандл Kitchen OS - Subscription.dc.html «Паювел · 1440»:
+ * 44px, r22, ink/bg, 14.5/600, gap 8 до стрілки. Відступ від бабла — .turn
+ * gap:6px (той самий ритм, що attachments/note під реплікою), не бандлівські
+ * 10px окремо. */
+.paywallCta {
+  align-self: flex-start;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 22px;
+  background: var(--ink);
+  color: var(--bg);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.paywallCta:hover { color: var(--bg); background: var(--muted); }
+
 /* QA9-04 / канон Бриф-3: репліки людини — справа, в баблі (surface + бордер,
    r14, до 80% ширини). Мітка «ТИ» вирівнюється разом із баблом через flex-end. */
 .turn-user { align-items: flex-end; }
