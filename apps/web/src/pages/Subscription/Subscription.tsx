@@ -18,6 +18,9 @@ import { Icon } from '../../components/Icon/Icon';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { PLANS } from '../Landing/copy';
 import { PLAN_NAME, PLAN_PRICE_UAH } from '@kitchen/domain/plans';
+// Глибокі шляхи, не барел: барел тягне node:crypto й ламає vite.
+import { bankNotice } from '@kitchen/domain/paywall';
+import { TRIAL_DAYS } from '@kitchen/domain/subscription';
 import { fmtDate } from './summary';
 import styles from './Subscription.module.css';
 
@@ -111,6 +114,14 @@ export function SubscriptionPage() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Пробний дає лише НОВЕ оформлення й лише тим, хто його не витрачав. Сервер
+  // каже про це `trial_available` (та сама умова, що в checkout), і без цього
+  // поля обіцянка про перше списання була б вигадкою.
+  const notice = (plan: Plan) => bankNotice(
+    PLAN_PRICE_UAH[plan],
+    sub?.trial_available === false ? null : fmtDate(new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString()),
+  );
 
   async function checkout(plan: Plan) {
     if (busy) return;
@@ -209,11 +220,18 @@ export function SubscriptionPage() {
         <div className={styles.tariffGrid}>
           {TARIFF_CARDS.map((p) => (
             <PlanCard key={p.key} data={p} bp={bp} soonLabel="скоро" reveal={undefined}>
+              {/*
+                Борг живого тесту 26.09: сторінка mono не показує ні суми, ні
+                слова «верифікація» — лише «Оплата для {ФОП}». Підпис стоїть над
+                кнопкою, а кнопка називається «До банку»: окремий аркуш додав би
+                зайвий тап на мобайлі.
+              */}
+              <p className={styles.bankNote}>{notice(p.key === 'solo' ? 'self' : 'home').text}</p>
               <button
                 type="button" className={planCardStyles.planBtn} disabled={busy}
                 onClick={() => void checkout(p.key === 'solo' ? 'self' : 'home')}
               >
-                Оформити<Icon name="sys.go" size={16} inherit decorative />
+                {notice(p.key === 'solo' ? 'self' : 'home').cta}<Icon name="sys.go" size={16} inherit decorative />
               </button>
             </PlanCard>
           ))}

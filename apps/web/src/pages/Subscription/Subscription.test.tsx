@@ -107,14 +107,18 @@ describe('Екран «Підписка» — верхній рядок і кн�
     expect(host!.textContent).toContain('Оновити картку');
   });
 
-  it('lapsed — дві картки тарифів, без «Бета-тест», кожна з «Оформити»', async () => {
+  it('lapsed — дві картки тарифів, без «Бета-тест», кожна з «До банку» і підписом про банк', async () => {
     getResponse = { subscription: sub({ state: 'lapsed', plan: null, access_until: '2026-09-18T00:00:00Z' }), payments: [] };
     await mount();
     expect(host!.textContent).toContain('Підписка закінчилась 18.09 · дані на місці');
     expect(host!.textContent).not.toContain('Бета-тест');
-    const btns = [...host!.querySelectorAll('button')].filter((b) => b.textContent?.includes('Оформити'));
+    const btns = [...host!.querySelectorAll('button')].filter((b) => b.textContent?.includes('До банку'));
     expect(btns).toHaveLength(2);
-  });
+  
+    // Борг 26.09: банк не покаже ні суми, ні «верифікації» — мусимо ми.
+    expect(host!.textContent).toContain('зараз нічого не спише — 0 ₴');
+    expect(host!.textContent).toContain('ФОП Білянський П. М.');
+});
 
   it('lapsed без дат (дім ніколи не мав підписки) — без «закінчилась», лише «дані на місці»', async () => {
     getResponse = { subscription: sub({ state: 'lapsed', plan: null }), payments: [] };
@@ -161,7 +165,7 @@ describe('«Оформити» (lapsed) — checkout і редирект', () =>
     (window as unknown as { location: { assign: (u: string) => void } }).location = { assign: vi.fn() };
     await mount();
 
-    const btns = [...host!.querySelectorAll('button')].filter((b) => b.textContent?.includes('Оформити'));
+    const btns = [...host!.querySelectorAll('button')].filter((b) => b.textContent?.includes('До банку'));
     await act(async () => { btns[0]!.click(); });
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 

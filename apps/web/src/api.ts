@@ -123,6 +123,7 @@ export interface Me {
     next_charge_at: string | null;
     access_until: string | null;
     card_mask: string | null;
+    trial_available?: boolean;
     banner: { text: string; cta?: string; to?: string } | null;
   };
 }
