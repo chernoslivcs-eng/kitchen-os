@@ -16,8 +16,6 @@ import { api } from '../../api';
 import { setIntent } from '../../lib/billing-intent';
 import { bankNotice } from '@kitchen/domain/paywall';
 import { PLAN_PRICE_UAH } from '@kitchen/domain/plans';
-// Глибокі шляхи, не барел: барел тягне node:crypto й ламає vite (див. пам'ятку).
-import { TRIAL_DAYS } from '@kitchen/domain/subscription';
 import { Icon } from '../../components/Icon/Icon';
 import { PlanCard } from '../../components/PlanCard/PlanCard';
 import planCardStyles from '../../components/PlanCard/PlanCard.module.css';
@@ -74,11 +72,9 @@ export function Landing() {
   // вкладці. checkingOut — щоб подвійний клік не бив по ліміту 10/год.
   const [checkingOut, setCheckingOut] = useState<'self' | 'home' | null>(null);
   // З лендінга пробний отримує КОЖЕН: наміру ще нема кому належати, і сервер
-  // ставить trial_ends_at = сьогодні + TRIAL_DAYS. Тому дату рахуємо тим самим
-  // числом, а не вигадуємо окрему.
-  const trialEnd = new Date(Date.now() + TRIAL_DAYS * 86_400_000)
-    .toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
-  const notice = (plan: 'self' | 'home') => bankNotice(PLAN_PRICE_UAH[plan], trialEnd);
+  // ставить trial_ends_at = сьогодні + TRIAL_DAYS. Дату рахує сам bankNotice —
+  // щоб на двох поверхнях вона не розʼїхалась у вигляді.
+  const notice = (plan: 'self' | 'home') => bankNotice(PLAN_PRICE_UAH[plan], true);
   async function checkout(plan: 'self' | 'home') {
     if (checkingOut) return;
     setCheckingOut(plan);

@@ -6,7 +6,7 @@
 // Один модуль на всі канали (веб, бот, пошта), щоб той самий стан не
 // розповідався двома різними голосами.
 import { PLAN_PRICE_UAH } from './plans.js';
-import type { HouseholdSubscription, SubscriptionState } from './subscription.js';
+import { TRIAL_DAYS, type HouseholdSubscription, type SubscriptionState } from './subscription.js';
 
 export const SUBSCRIPTION_PATH = '/profile/subscription';
 
@@ -31,6 +31,19 @@ export const PAYWALL = {
 export const MERCHANT_LEGAL_NAME = 'ФОП Білянський П. М.';
 
 /**
+ * Дата першого списання для НОВОГО оформлення: сьогодні + TRIAL_DAYS, словами.
+ *
+ * Рахується тут, а не в кожного, хто малює підпис. Спершу дату приймали
+ * готовим рядком — і лендінг з екраном «Підписка» показали одну й ту саму
+ * обіцянку в різному вигляді («10 жовтня» проти «10.10»). Формат той самий,
+ * що в листі MAIL.trialEnds: про одне й те саме списання людина читає двічі.
+ */
+function trialDate(now: Date): string {
+  return new Date(now.getTime() + TRIAL_DAYS * 86_400_000)
+    .toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
+}
+
+/**
  * Що сказати перед переходом на сторінку банку (борг живого тесту 26.09).
  *
  * Перевірено живцем: сторінка mono не показує ні суми, ні слова «верифікація»
@@ -38,13 +51,13 @@ export const MERCHANT_LEGAL_NAME = 'ФОП Білянський П. М.';
  * людина бачить слово «Оплата» без жодного числа. Обіцянку «зараз не спишемо»
  * не підтвердить ніхто, крім нас, тому вона мусить стояти тут.
  *
- * `trialEndsAt` — null, коли пробний уже витрачено: тоді першого списання «в
- * дату» немає, воно станеться найближчим проходом крону. Обіцяти конкретний
+ * `trialAvailable` — false, коли пробний уже витрачено: тоді першого списання
+ * «в дату» немає, воно станеться найближчим проходом крону. Обіцяти конкретний
  * день у цьому випадку означало б обіцяти те, чого ми не контролюємо.
  */
-export function bankNotice(sum: number, trialEndsAt: string | null): { title: string; text: string; cta: string } {
-  const when = trialEndsAt
-    ? `буде ${trialEndsAt}`
+export function bankNotice(sum: number, trialAvailable: boolean, now: Date = new Date()): { title: string; text: string; cta: string } {
+  const when = trialAvailable
+    ? `буде ${trialDate(now)}`
     : 'буде протягом доби — пробний період уже використано';
   return {
     title: 'Далі — сторінка банку',

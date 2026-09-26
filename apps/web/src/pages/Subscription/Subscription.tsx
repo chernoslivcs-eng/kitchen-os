@@ -18,9 +18,8 @@ import { Icon } from '../../components/Icon/Icon';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { PLANS } from '../Landing/copy';
 import { PLAN_NAME, PLAN_PRICE_UAH } from '@kitchen/domain/plans';
-// Глибокі шляхи, не барел: барел тягне node:crypto й ламає vite.
+// Глибокий шлях, не барел: барел тягне node:crypto й ламає vite.
 import { bankNotice } from '@kitchen/domain/paywall';
-import { TRIAL_DAYS } from '@kitchen/domain/subscription';
 import { fmtDate } from './summary';
 import styles from './Subscription.module.css';
 
@@ -118,10 +117,7 @@ export function SubscriptionPage() {
   // Пробний дає лише НОВЕ оформлення й лише тим, хто його не витрачав. Сервер
   // каже про це `trial_available` (та сама умова, що в checkout), і без цього
   // поля обіцянка про перше списання була б вигадкою.
-  const notice = (plan: Plan) => bankNotice(
-    PLAN_PRICE_UAH[plan],
-    sub?.trial_available === false ? null : fmtDate(new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString()),
-  );
+  const notice = (plan: Plan) => bankNotice(PLAN_PRICE_UAH[plan], sub?.trial_available !== false);
 
   async function checkout(plan: Plan) {
     if (busy) return;
