@@ -16,7 +16,7 @@ const errJson = (status: number, body: unknown) => ({ ok: false, status, json: a
 describe('MonoProvider · checkoutUrl', () => {
   it('інвойс на 0 ₴ зі збереженням картки, reference = order_id', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(okJson({ invoiceId: 'inv-1', pageUrl: 'https://pay.mbnk.biz/inv-1' }));
-    const p = new MonoProvider('tok', 'https://app.test/v1/billing/mono', fetchImpl as never);
+    const p = new MonoProvider('tok', 'https://app.test/v1/billing/mono', { fetchImpl: fetchImpl as never });
     const url = await p.checkoutUrl({
       order_id: 'ord-1', household_id: 'h1', plan: 'home', amount: 290,
       wallet_id: 'h1', result_url: 'https://app.test/ok',
@@ -35,14 +35,14 @@ describe('MonoProvider · checkoutUrl', () => {
     expect(body.merchantPaymInfo.reference).toBe('ord-1');
     expect(body.webHookUrl).toBe('https://app.test/v1/billing/mono');
     expect(body.redirectUrl).toBe('https://app.test/ok');
-    // paymentType не шлемо: в API mono його enum — лише debit|hold, а
-    // 'verification' із плану не існує (звірено зі специфікацією 25.09).
-    expect(body.paymentType).toBeUndefined();
+    // verification немає в публічній OpenAPI, але є в бекенді — підтвердила
+    // підтримка mono 26.09. Саме він дозволяє нульову суму.
+    expect(body.paymentType).toBe('verification');
   });
 
   it('mono відповів помилкою — кидаємо, а не віддаємо порожнє посилання', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(errJson(400, { errCode: 'BAD', errText: 'невірний параметр' }));
-    const p = new MonoProvider('tok', 'https://app.test/v1/billing/mono', fetchImpl as never);
+    const p = new MonoProvider('tok', 'https://app.test/v1/billing/mono', { fetchImpl: fetchImpl as never });
     await expect(p.checkoutUrl({
       order_id: 'o', household_id: null, plan: 'self', amount: 210,
       wallet_id: 'o', result_url: 'https://app.test/ok',
@@ -50,10 +50,30 @@ describe('MonoProvider · checkoutUrl', () => {
   });
 });
 
+// Запасний шлях на випадок, якщо verification колись відмовить. Перевіряємо,
+// бо неперевірений запас — не запас, а обіцянка.
+describe('MonoProvider · запасний режим hold', () => {
+  it('hold шле мінімальну суму й paymentType hold, картку так само зберігає', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(okJson({ invoiceId: 'inv-h', pageUrl: 'https://pay/h' }));
+    const p = new MonoProvider('tok', 'https://app.test/v1/billing/mono', { fetchImpl: fetchImpl as never, verification: 'hold' });
+    await p.checkoutUrl({ order_id: 'ord-h', household_id: 'h1', plan: 'self', amount: 210, wallet_id: 'h1', result_url: 'https://app.test/ok' });
+    const body = JSON.parse((fetchImpl.mock.calls[0]![1] as { body: string }).body);
+    expect(body).toMatchObject({ paymentType: 'hold', amount: 100, ccy: 980 });
+    expect(body.saveCardData).toEqual({ saveCard: true, walletId: 'h1' });
+  });
+
+  it('releaseHold скасовує інвойс — інакше гроші висіли б 9 днів', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(okJson({ status: 'success' }));
+    await new MonoProvider('tok', 'https://app.test/v1/billing/mono', { fetchImpl: fetchImpl as never, verification: 'hold' }).releaseHold('inv-h');
+    expect(fetchImpl.mock.calls[0]![0]).toBe('https://api.monobank.ua/api/merchant/invoice/cancel');
+    expect(JSON.parse((fetchImpl.mock.calls[0]![1] as { body: string }).body)).toEqual({ invoiceId: 'inv-h' });
+  });
+});
+
 describe('MonoProvider · chargeByToken', () => {
   it('сума в копійках, initiationKind merchant', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(okJson({ invoiceId: 'inv-9', status: 'success', amount: 21000, ccy: 980 }));
-    const p = new MonoProvider('tok', 'https://app.test/v1/billing/mono', fetchImpl as never);
+    const p = new MonoProvider('tok', 'https://app.test/v1/billing/mono', { fetchImpl: fetchImpl as never });
     const r = await p.chargeByToken({ card_token: 'tok-c', amount: 210, reference: 'ord-1' });
     expect(r).toEqual({ provider_payment_id: 'inv-9', status: 'success' });
 
@@ -66,7 +86,7 @@ describe('MonoProvider · chargeByToken', () => {
   it('три статуси відповіді проходять як є', async () => {
     for (const status of ['success', 'failure', 'processing'] as const) {
       const fetchImpl = vi.fn().mockResolvedValue(okJson({ invoiceId: 'i', status }));
-      const p = new MonoProvider('tok', 'https://app.test/v1/billing/mono', fetchImpl as never);
+      const p = new MonoProvider('tok', 'https://app.test/v1/billing/mono', { fetchImpl: fetchImpl as never });
       expect((await p.chargeByToken({ card_token: 'c', amount: 1, reference: 'r' })).status).toBe(status);
     }
   });
@@ -75,7 +95,7 @@ describe('MonoProvider · chargeByToken', () => {
 describe('MonoProvider · deleteToken', () => {
   it('DELETE із токеном у query', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(okJson({}));
-    await new MonoProvider('tok', 'https://app.test/v1/billing/mono', fetchImpl as never).deleteToken('a b/c');
+    await new MonoProvider('tok', 'https://app.test/v1/billing/mono', { fetchImpl: fetchImpl as never }).deleteToken('a b/c');
     const [u, init] = fetchImpl.mock.calls[0]!;
     expect(u).toBe('https://api.monobank.ua/api/merchant/wallet/card?cardToken=a%20b%2Fc');
     expect((init as { method: string }).method).toBe('DELETE');
@@ -126,6 +146,19 @@ describe('monoToEvent', () => {
 
   it('картка не пройшла верифікацію → unsubscribed: підписки так і не стало', () => {
     expect(monoToEvent(inv({ status: 'failure', amount: 0 }))).toEqual({ kind: 'unsubscribed', order_id: 'ord-1' });
+  });
+
+  it('hold-верифікація (сума > 0, але є walletData) → subscribed, не списання', () => {
+    expect(monoToEvent(inv({
+      status: 'success', amount: 100,
+      walletData: { walletId: 'h1', cardToken: 'tok-h', status: 'created' },
+      paymentInfo: { maskedPan: '444403******1902' },
+    }))).toEqual({ kind: 'subscribed', order_id: 'ord-1', card_mask: '1902', card_token: 'tok-h' });
+  });
+
+  it('hold-верифікація не пройшла → unsubscribed, а не failure списання', () => {
+    expect(monoToEvent(inv({ status: 'failure', amount: 100, walletData: { walletId: 'h1', cardToken: 'c', status: 'failed' } })))
+      .toEqual({ kind: 'unsubscribed', order_id: 'ord-1' });
   });
 
   it('проміжні статуси — null', () => {

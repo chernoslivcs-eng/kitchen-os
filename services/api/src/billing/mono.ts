@@ -1,20 +1,26 @@
-// Адаптер monobank (план біллінгу mono, задача 2; специфікація звірена з
-// api.monobank.ua/docs/acquiring 25.09).
+// Адаптер monobank (план біллінгу mono, задача 2).
 //
 // Різниця з LiqPay, з якої випливає все інше: у mono немає підписки, яка вміє
 // «картку сьогодні, перше списання через 14 днів». Тому картку токенізуємо
 // інвойсом, а списує НАШ крон викликом wallet/payment. Підписка живе в нас.
 //
-// ВАЖЛИВО про нульовий інвойс. План казав `paymentType: 'verification'` — у
-// API mono такого значення НЕМАЄ: enum рівно debit|hold. Токенізацію без
-// списання робимо сумою 0 зі `saveCardData`. Специфікація нуля не забороняє,
-// але й не обіцяє; якщо mono його відкине, заміна — `hold` на малу суму з
-// негайним `invoice/cancel`, і міняти доведеться лише `verificationInvoice`
-// нижче. Перевірити можна лише живим тестовим токеном.
+// ВАЖЛИВО про `paymentType: 'verification'`. Його немає в публічній OpenAPI
+// (`api.monobank.ua/docs/acquiring`, звірено 25.09: enum там рівно debit|hold),
+// але він ЄСТЬ у їхньому бекенді — підтверджено підтримкою mono 26.09:
+// «можна використовувати paymentType verification, і тоді можна amount: 0;
+// якщо hold чи debit — треба мінімальну суму». Тобто документація відстає;
+// правда — відповідь підтримки, і типово ми шлемо verification з нулем.
 //
-// Ще дві речі зі специфікації, які легко проґавити:
+// `hold` лишається запасним шляхом (VerificationMode) на випадок, якщо
+// verification колись відмовить. УВАГА: перемикання на 'hold' — це не лише
+// тіло інвойсу. Холд блокує гроші на 9 днів, тож його треба ще й відпустити
+// через `releaseHold()`; сам виклик у вебхук НЕ вплетений, бо шлях запасний.
+// Хто перемкне режим, мусить вплести.
+//
+// Ще дві речі, які легко проґавити:
 //   • суми скрізь у копійках — і в invoice/create, і в wallet/payment;
-//   • порядок вебхуків не гарантований (success може випередити processing).
+//   • порядок вебхуків не гарантований (success може випередити processing);
+//     ідемпотентність тримає ingest, по invoiceId і по токену.
 import { createVerify } from 'node:crypto';
 import { PLAN_NAME } from '@kitchen/domain/plans';
 import type { BillingProvider, CheckoutInput, ChargeInput, ChargeResult } from './provider.js';
@@ -24,8 +30,24 @@ const BASE = 'https://api.monobank.ua';
 const CCY_UAH = 980;
 /** Скільки живе посилання на оплату картки, секунд. */
 const INVOICE_VALIDITY_SEC = 3600;
+/** Запасний режим: мінімальна сума холду, гривні. */
+const HOLD_UAH_DEFAULT = 1;
 
 type FetchLike = typeof fetch;
+
+/**
+ * Чим токенізуємо картку. `verification` — нуль і жодних грошей (типово).
+ * `hold` — запас: блокує мінімальну суму, і її треба відпустити releaseHold().
+ */
+export type VerificationMode = 'verification' | 'hold';
+
+export interface MonoOpts {
+  fetchImpl?: FetchLike;
+  base?: string;
+  verification?: VerificationMode;
+  /** Лише для режиму 'hold'. */
+  holdUah?: number;
+}
 
 /** Статус інвойсу — і відповідь `invoice/status`, і тіло вебхука. */
 export interface MonoInvoiceStatus {
@@ -42,24 +64,34 @@ export interface MonoInvoiceStatus {
 }
 
 export class MonoProvider implements BillingProvider {
+  private fetchImpl: FetchLike;
+  private base: string;
+  private mode: VerificationMode;
+  private holdUah: number;
+
   // Адресу вебхука тримає сам провайдер, а не той, хто його кличе: інакше
   // крон і маршрути мусили б знати шлях /v1/billing/mono, тобто знати
   // провайдера — рівно те, від чого рятує pick-provider.
-  constructor(private token: string, private webhookUrl: string, private fetchImpl: FetchLike = fetch, private base = BASE) {}
+  constructor(private token: string, private webhookUrl: string, opts: MonoOpts = {}) {
+    this.fetchImpl = opts.fetchImpl ?? fetch;
+    this.base = opts.base ?? BASE;
+    this.mode = opts.verification ?? 'verification';
+    this.holdUah = opts.holdUah ?? HOLD_UAH_DEFAULT;
+  }
 
   async checkoutUrl(i: CheckoutInput): Promise<string> {
     const r = await this.req<{ invoiceId: string; pageUrl: string }>('POST', '/api/merchant/invoice/create', this.verificationInvoice(i));
     return r.pageUrl;
   }
 
-  /**
-   * Єдине місце, де вирішено, яким саме інвойсом токенізується картка. Якщо
-   * mono не прийме нульову суму — змінюється тільки цей метод.
-   */
+  /** Єдине місце, де вирішено, яким саме інвойсом токенізується картка. */
   private verificationInvoice(i: CheckoutInput) {
+    const hold = this.mode === 'hold';
     return {
-      amount: 0,
+      // verification дозволяє нуль; hold і debit вимагають мінімальної суми.
+      amount: hold ? Math.round(this.holdUah * 100) : 0,
       ccy: CCY_UAH,
+      paymentType: hold ? 'hold' : 'verification',
       saveCardData: { saveCard: true, walletId: i.wallet_id },
       redirectUrl: i.result_url,
       webHookUrl: this.webhookUrl,
@@ -80,6 +112,14 @@ export class MonoProvider implements BillingProvider {
       merchantPaymInfo: { reference: i.reference, destination: 'Kitchen OS · підписка' },
     });
     return { provider_payment_id: r.invoiceId, status: r.status };
+  }
+
+  /**
+   * Відпустити холд запасного режиму. У режимі verification не потрібен —
+   * там нічого й не блокувалось.
+   */
+  async releaseHold(invoiceId: string): Promise<void> {
+    await this.req('POST', '/api/merchant/invoice/cancel', { invoiceId });
   }
 
   async deleteToken(card_token: string): Promise<void> {
@@ -140,9 +180,14 @@ export function monoToEvent(body: MonoInvoiceStatus): InboundProviderEvent | nul
   // Без reference подія нічия: ні дім, ні намір за нею не знайти.
   if (!order_id) return null;
 
+  // Ознака верифікації — walletData: його несе лише інвойс, створений зі
+  // saveCardData. Нуль теж підходить, але лише в режимі verification; у
+  // запасному hold сума більша за нуль, і без walletData ми прочитали б
+  // верифікацію як звичайне списання.
+  const verification = body.walletData != null || body.amount === 0;
+
   if (body.status === 'success') {
-    // Нульова сума — це верифікація картки, а не оплата. Токен у walletData.
-    if (body.amount === 0) {
+    if (verification) {
       const w = body.walletData;
       if (!w || w.status !== 'created') return null;
       return { kind: 'subscribed', order_id, card_mask: last4(body.paymentInfo?.maskedPan), card_token: w.cardToken };
@@ -153,7 +198,7 @@ export function monoToEvent(body: MonoInvoiceStatus): InboundProviderEvent | nul
   if (body.status === 'failure') {
     // Не пройшла верифікація — підписки так і не з'явилось; для наміру це
     // те саме, що відмова від нього.
-    return body.amount === 0 ? { kind: 'unsubscribed', order_id } : { kind: 'failure', order_id };
+    return verification ? { kind: 'unsubscribed', order_id } : { kind: 'failure', order_id };
   }
 
   // created | processing | hold | reversed | expired — нічого не міняють.
