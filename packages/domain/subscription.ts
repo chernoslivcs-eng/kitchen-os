@@ -72,12 +72,19 @@ export type ProviderEvent =
   // `trial_ends_at` — не «чи є пробний», а САМЕ ЧИСЛО, яке вже стоїть у
   // провайдера. null — без пробного, списання одразу.
   | { kind: 'subscribed'; household_id: string; order_id: string; plan: Plan; card_mask: string | null; card_token: string | null; trial_ends_at: string | null; paid_by_user_id: string }
-  | { kind: 'success'; order_id: string; amount: number; provider_payment_id: string }
+  // `fee` — комісія провайдера, у тих самих одиницях, що `amount`. null, коли
+  // провайдер її не назвав (синхронна відповідь на списання, наприклад).
+  | { kind: 'success'; order_id: string; amount: number; fee: number | null; provider_payment_id: string }
   | { kind: 'failure'; order_id: string }
   | { kind: 'unsubscribed'; order_id: string };
 
 export interface PaymentRow {
   id: string; household_id: string; amount: number; currency: 'UAH';
+  /**
+   * Комісія провайдера в тих самих одиницях, що `amount`. Зберігаємо одразу:
+   * mono повідомляє її раз, у вебхуку списання, і потім не відновити.
+   */
+  fee: number | null;
   status: 'success' | 'failure'; provider_payment_id: string | null;
   paid_by_user_id: string | null; receipt_url: string | null; created_at: string;
 }
@@ -110,7 +117,7 @@ export function applyProviderEvent(sub: HouseholdSubscription | null, ev: Provid
   if (ev.kind === 'success') {
     return {
       sub: { ...sub, state: 'active', next_charge_at: addMonth(sub.next_charge_at ?? now), updated_at: at },
-      payment: { household_id: sub.household_id, amount: ev.amount, currency: 'UAH', status: 'success', provider_payment_id: ev.provider_payment_id, paid_by_user_id: sub.paid_by_user_id, receipt_url: null, created_at: at },
+      payment: { household_id: sub.household_id, amount: ev.amount, fee: ev.fee, currency: 'UAH', status: 'success', provider_payment_id: ev.provider_payment_id, paid_by_user_id: sub.paid_by_user_id, receipt_url: null, created_at: at },
     };
   }
   if (ev.kind === 'failure') return { sub: { ...sub, state: 'past_due', updated_at: at } };

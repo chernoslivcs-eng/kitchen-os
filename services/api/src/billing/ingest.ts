@@ -55,7 +55,15 @@ export async function ingestProviderEvent(
     // місяць даром. А mono бʼє до трьох спроб, поки не побачить 200.
     if (r.payment) {
       const fresh = await repo.insertPayment(r.payment);
-      if (!fresh) return { target: 'household', state: sub.state };
+      if (!fresh) {
+        // Рядок уже є — найчастіше його поклав крон одразу після синхронного
+        // списання, а комісію mono називає тільки тут, у вебхуку. Якщо просто
+        // вийти, вона втратиться назавжди.
+        if (r.payment.fee != null && ev.kind === 'success') {
+          await repo.setPaymentFee(ev.provider_payment_id, r.payment.fee);
+        }
+        return { target: 'household', state: sub.state };
+      }
     }
     await repo.saveSubscription(r.sub);
     return { target: 'household', state: r.sub.state };

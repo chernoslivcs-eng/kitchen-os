@@ -59,8 +59,20 @@ export interface MonoInvoiceStatus {
   failureReason?: string;
   errCode?: string;
   modifiedDate?: string;
-  walletData?: { walletId: string; cardToken: string; status: 'new' | 'created' | 'failed' };
-  paymentInfo?: { maskedPan?: string };
+  payMethod?: string;
+  /**
+   * Є лише в тілі ВЕРИФІКАЦІЇ. Маска картки тут — і лише тут: `paymentInfo` у
+   * такому тілі відсутній зовсім (перевірено живим прогоном 26.09).
+   */
+  walletData?: {
+    walletId: string;
+    cardToken: string;
+    status: 'new' | 'created' | 'failed';
+    maskedPan?: string;
+    paymentSystem?: string;
+  };
+  /** Є в тілі СПИСАННЯ. Полів там більше; читаємо лише ці. */
+  paymentInfo?: { maskedPan?: string; fee?: number; paymentSystem?: string };
 }
 
 export class MonoProvider implements BillingProvider {
@@ -169,10 +181,19 @@ export function monoVerify(pem: string, rawBody: Buffer, xSignBase64: string): b
   }
 }
 
-/** Останні чотири цифри з маски виду `444403******1902`. */
-const last4 = (masked: string | undefined): string | null => {
-  const d = (masked ?? '').replace(/\D/g, '');
-  return d.length >= 4 ? d.slice(-4) : null;
+/**
+ * Цифри, які провайдер ВІДКРИВ — ті, що стоять після зірочок.
+ *
+ * Не «останні чотири з усіх цифр»: mono маскує як `42424242******42`, тобто
+ * відкриває вісім перших і лише ДВІ останні. Старе правило брало чотири
+ * останні з усіх цифр і на `53754112******90` давало '1290' для картки, що
+ * закінчується на 90. Тестова картка з самих 4242 цього не показувала —
+ * знайшлось лише на живому прогоні.
+ */
+export const revealedDigits = (masked: string | undefined | null): string | null => {
+  const tail = (masked ?? '').split('*').pop() ?? '';
+  const d = tail.replace(/\D/g, '');
+  return d.length ? d : null;
 };
 
 export function monoToEvent(body: MonoInvoiceStatus): InboundProviderEvent | null {
@@ -190,9 +211,20 @@ export function monoToEvent(body: MonoInvoiceStatus): InboundProviderEvent | nul
     if (verification) {
       const w = body.walletData;
       if (!w || w.status !== 'created') return null;
-      return { kind: 'subscribed', order_id, card_mask: last4(body.paymentInfo?.maskedPan), card_token: w.cardToken };
+      // Маска — з walletData; paymentInfo тут не буває, але відкат лишаємо:
+      // дешевше, ніж покладатись на те, що mono не поміняє місце поля.
+      return {
+        kind: 'subscribed', order_id, card_token: w.cardToken,
+        card_mask: revealedDigits(w.maskedPan ?? body.paymentInfo?.maskedPan),
+      };
     }
-    return { kind: 'success', order_id, amount: body.amount / 100, provider_payment_id: body.invoiceId };
+    return {
+      kind: 'success', order_id, amount: body.amount / 100,
+      // Комісія mono, копійки → гривні. Приходить лише у вебхуку списання;
+      // синхронна відповідь wallet/payment її не несе.
+      fee: body.paymentInfo?.fee != null ? body.paymentInfo.fee / 100 : null,
+      provider_payment_id: body.invoiceId,
+    };
   }
 
   if (body.status === 'failure') {

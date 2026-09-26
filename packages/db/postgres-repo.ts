@@ -163,6 +163,7 @@ function payRow(r: Row): PaymentRow {
     household_id: r.household_id as string,
     // numeric(10,2) приїжджає рядком — у домені це число.
     amount: Number(r.amount),
+    fee: r.fee == null ? null : Number(r.fee),
     currency: r.currency as PaymentRow['currency'],
     status: r.status as PaymentRow['status'],
     provider_payment_id: (r.provider_payment_id as string | null) ?? null,
@@ -1857,13 +1858,21 @@ export class PostgresRepo implements Repo {
     return rows.map(subRow);
   }
 
+  async setPaymentFee(provider_payment_id: string, fee: number): Promise<void> {
+    // Лише коли комісії ще немає: перезаписувати вже відому не за чим.
+    await this.pool.query(
+      'UPDATE payment SET fee = $2 WHERE provider_payment_id = $1 AND fee IS NULL',
+      [provider_payment_id, fee],
+    );
+  }
+
   async insertPayment(p: Omit<PaymentRow, 'id'>): Promise<boolean> {
     // Ідемпотентність тримає UNIQUE(provider_payment_id): вебхук приходить
     // двічі, другий раз DO NOTHING і rowCount 0 (спек §7).
     const { rowCount } = await this.pool.query(
-      `INSERT INTO payment (household_id, amount, currency, status, provider_payment_id, paid_by_user_id, receipt_url, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (provider_payment_id) DO NOTHING`,
-      [p.household_id, p.amount, p.currency, p.status, p.provider_payment_id, p.paid_by_user_id, p.receipt_url, p.created_at],
+      `INSERT INTO payment (household_id, amount, fee, currency, status, provider_payment_id, paid_by_user_id, receipt_url, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (provider_payment_id) DO NOTHING`,
+      [p.household_id, p.amount, p.fee, p.currency, p.status, p.provider_payment_id, p.paid_by_user_id, p.receipt_url, p.created_at],
     );
     return (rowCount ?? 0) > 0;
   }

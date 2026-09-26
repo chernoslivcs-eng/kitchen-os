@@ -84,7 +84,9 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
   for (const sub of await deps.repo.listSubscriptionsByState(['trial'])) {
     if (!sub.trial_ends_at || !sub.plan || sub.trial_mail_sent_at) continue;
     if (new Date(sub.trial_ends_at).getTime() - now.getTime() > 3 * DAY) continue;
-    const m = MAIL.trialEnds(fmt(sub.trial_ends_at), sub.card_mask ?? '····', PLAN_PRICE_UAH[sub.plan], `${deps.appUrl}${SUBSCRIPTION_PATH}`);
+    // Маску віддаємо як є: якщо її немає, лист сам прибере згадку про картку,
+    // а не намалює «•• ····».
+    const m = MAIL.trialEnds(fmt(sub.trial_ends_at), sub.card_mask, PLAN_PRICE_UAH[sub.plan], `${deps.appUrl}${SUBSCRIPTION_PATH}`);
     await notifyHousehold(deps, sub.household_id, m.subject, m.text);
     await deps.repo.saveSubscription({ ...sub, trial_mail_sent_at: now.toISOString() });
     out.trialMails++;
@@ -164,7 +166,10 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
         // не продублює рядок.
         await ingestProviderEvent(deps.repo, {
           kind: 'success', order_id: s.provider_order_id,
-          amount: PLAN_PRICE_UAH[s.plan], provider_payment_id: res.provider_payment_id,
+          amount: PLAN_PRICE_UAH[s.plan],
+          // Синхронна відповідь wallet/payment комісії не несе — її принесе
+          // вебхук, і ingest допише її в цей самий рядок.
+          fee: null, provider_payment_id: res.provider_payment_id,
         }, now, { warn: (o, m) => console.warn(m, o) });
         out.charged++;
         continue;
@@ -175,7 +180,7 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
       // Рядок невдачі потрібен не для звітності, а як слід «сьогодні вже
       // пробували»: саме його читає hasPaymentToday.
       await deps.repo.insertPayment({
-        household_id: s.household_id, amount: PLAN_PRICE_UAH[s.plan], currency: 'UAH', status: 'failure',
+        household_id: s.household_id, amount: PLAN_PRICE_UAH[s.plan], fee: null, currency: 'UAH', status: 'failure',
         provider_payment_id: res.provider_payment_id, paid_by_user_id: s.paid_by_user_id,
         receipt_url: null, created_at: now.toISOString(),
       });

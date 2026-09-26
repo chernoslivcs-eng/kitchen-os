@@ -825,6 +825,10 @@ export class InMemoryRepo implements Repo {
     const d = day.toISOString().slice(0, 10);
     return this.payments.some((p) => p.household_id === household_id && p.created_at.slice(0, 10) === d);
   }
+  async setPaymentFee(provider_payment_id: string, fee: number): Promise<void> {
+    const p = this.payments.find((x) => x.provider_payment_id === provider_payment_id);
+    if (p && p.fee == null) p.fee = fee;
+  }
   async insertPayment(p: Omit<PaymentRow, 'id'>): Promise<boolean> {
     if (p.provider_payment_id && this.payments.some((x) => x.provider_payment_id === p.provider_payment_id)) return false;
     this.payments.push({ id: randomUUID(), ...p });
