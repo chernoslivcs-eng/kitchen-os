@@ -17,7 +17,7 @@ const sub = (household_id: string, order_id: string, over: Record<string, unknow
 
 const intent = (order_id: string, over: Record<string, unknown> = {}) => ({
   order_id, plan: 'home' as const, state: 'pending' as const, trial_ends_at: '2026-10-19T00:00:00.000Z',
-  card_mask: null, card_token: null, household_id: null, ip: null, created_at: '2026-10-05T00:00:00.000Z',
+  card_mask: null, card_token: null, provider_invoice_id: null, household_id: null, ip: null, created_at: '2026-10-05T00:00:00.000Z',
   expires_at: '2026-10-12T00:00:00.000Z', bound_at: null, ...over,
 });
 
@@ -84,7 +84,7 @@ describe('ingestProviderEvent · card_token', () => {
     const order_id = randomUUID();
     await repo.insertIntent({
       order_id, plan: 'home', state: 'pending', trial_ends_at: '2026-10-19T00:00:00.000Z',
-      card_mask: null, card_token: null, household_id: null, ip: null,
+      card_mask: null, card_token: null, provider_invoice_id: null, household_id: null, ip: null,
       created_at: '2026-10-01T00:00:00.000Z', expires_at: '2026-10-08T00:00:00.000Z', bound_at: null,
     });
     await ingestProviderEvent(repo, { kind: 'subscribed', order_id, card_mask: '4242', card_token: 'tok-7' }, NOW, log);

@@ -52,7 +52,7 @@ export function Shell() {
   // означає «ще не прийшов», не помилку: пробуємо ще раз кожні 3 с до 30 с,
   // і якщо й тоді pending — лишаємо ключ (наступний вхід/перезавантаження
   // спробує знову) і кажемо, що чекаємо банк, а не мовчимо.
-  const [billingToast, setBillingToast] = useState<{ text: string; tone: ToastTone } | null>(null);
+  const [billingToast, setBillingToast] = useState<{ text: string; tone: ToastTone; action?: { label: string; run: () => void } } | null>(null);
   useEffect(() => {
     if (!me) return;
     const orderId = getIntent();
@@ -66,7 +66,22 @@ export function Shell() {
         if ('status' in r && r.status === 'pending') {
           elapsed += 3000;
           if (elapsed >= 30_000) {
-            setBillingToast({ text: 'Чекаємо підтвердження від банку — спробуємо ще раз пізніше.', tone: 'amber' });
+            // Тридцять секунд без підтвердження — найімовірніше людина не
+            // довела оплату до кінця або сторінка банку вже протухла. Даємо
+            // вихід замість глухого «спробуємо пізніше»: рахунок відкривається
+            // заново для ТОГО САМОГО наміру (див. /renew).
+            setBillingToast({
+              text: 'Оплата не підтвердилась. Можна відкрити сторінку банку ще раз.',
+              tone: 'amber',
+              action: {
+                label: 'Відкрити оплату ще раз',
+                run: () => {
+                  void api.billing.renewIntent(orderId)
+                    .then(({ url }) => window.location.assign(url))
+                    .catch(() => setBillingToast({ text: 'Не вдалось відкрити оплату. Спробуй ще раз трохи пізніше.', tone: 'amber' }));
+                },
+              },
+            });
             return;
           }
           window.setTimeout(() => { if (!cancelled) void tryBind(); }, 3000);
@@ -126,7 +141,7 @@ export function Shell() {
           не існувало — подія на ≥1200 відкривалась шторкою всупереч канвасу. */}
       <ArtifactPanel />
       {billingToast && (
-        <Toast tone={billingToast.tone} text={billingToast.text} onDismiss={() => setBillingToast(null)} />
+        <Toast tone={billingToast.tone} text={billingToast.text} action={billingToast.action} onDismiss={() => setBillingToast(null)} />
       )}
     </>
   );

@@ -32,21 +32,67 @@ export function billingRoutes(app: FastifyInstance, repo: Repo, billing: Billing
     // Намір пишеться ДО походу в провайдера з тієї ж причини, що й order_id у
     // checkout: вебхук повертається раніше, ніж людина бачить сторінку.
     await repo.insertIntent({
-      order_id, plan, state: 'pending', trial_ends_at, card_mask: null, card_token: null, household_id: null,
+      order_id, plan, state: 'pending', trial_ends_at, card_mask: null, card_token: null, provider_invoice_id: null, household_id: null,
       ip: req.ip ?? null, created_at: now.toISOString(),
       expires_at: new Date(now.getTime() + INTENT_TTL_DAYS * DAY).toISOString(), bound_at: null,
     });
-    const url = await billing.checkoutUrl({
+    const { url, invoice_id } = await billing.checkoutUrl({
       order_id, household_id: null, plan, amount: PLAN_PRICE_UAH[plan],
       // Дому ще немає — гаманцем служить сам намір. Після bind картка вже
       // привʼязана токеном, і walletId ролі не грає.
       wallet_id: order_id,
       result_url: `${appUrl}/?intent=${order_id}#l3-signin`,
     });
+    await repo.updateIntent(order_id, { provider_invoice_id: invoice_id });
     // order_id віддаємо разом з адресою: він уже є всередині result_url, але
     // лендінг має покласти його собі ДО того, як людина піде в оплату. Хто
     // закрив вкладку замість повернення по result_url, інакше лишається без
     // жодного способу привʼязати сплачене.
+    return { url, order_id };
+  });
+
+  /**
+   * Відкрити оплату заново для того самого наміру.
+   *
+   * Рахунок провайдера живе обмежений час, намір — INTENT_TTL_DAYS. Людина,
+   * яка відкрила оплату й повернулась пізніше, лишалась із мертвою сторінкою:
+   * `bind` відповідав 202 `pending`, і вийти з цього стану було нічим.
+   *
+   * Сесії тут немає з тієї ж причини, що й у наміру: акаунта ще не існує.
+   * Ліміт той самий і той самий екземпляр — інакше renew обходив би ліміт
+   * наміру, створюючи рахунки без обмежень.
+   */
+  app.post<{ Params: { order_id: string } }>('/v1/billing/intent/:order_id/renew', async (req, reply) => {
+    if (!intentLimiter.check(req.ip)) {
+      return reply.code(429).header('retry-after', String(intentLimiter.retryAfter(req.ip))).send({ error: 'too_many' });
+    }
+    const { order_id } = req.params;
+    const intent = await repo.getIntent(order_id);
+    if (!intent) return reply.code(404).send({ error: 'unknown_intent' });
+    // Картку вже дано або намір уже прожив своє — новий рахунок не допоможе.
+    if (intent.state !== 'pending') return reply.code(409).send({ error: `intent_${intent.state}` });
+
+    const { url, invoice_id } = await billing.checkoutUrl({
+      order_id, household_id: null, plan: intent.plan, amount: PLAN_PRICE_UAH[intent.plan],
+      wallet_id: order_id,
+      result_url: `${appUrl}/?intent=${order_id}#l3-signin`,
+    });
+    await repo.updateIntent(order_id, { provider_invoice_id: invoice_id });
+
+    // Попередній рахунок прибираємо ПІСЛЯ того, як новий уже є: якщо провайдер
+    // відмовить на створенні, людина лишиться хоч зі старим посиланням.
+    if (intent.provider_invoice_id) {
+      try {
+        await billing.removeInvoice(intent.provider_invoice_id);
+      } catch (err) {
+        // Не змогли прибрати — не привід ламати відкриття оплати. Старий
+        // рахунок сам протухне; у найгіршому разі людина оплатить його, і
+        // вебхук усе одно знайде намір за тим самим reference.
+        req.log.warn({ err: String(err), order_id }, 'intent-old-invoice-remove-failed');
+      }
+    }
+
+    // Дата пробного НЕ перераховується: вона вже пішла людині в обіцянку.
     return { url, order_id };
   });
 

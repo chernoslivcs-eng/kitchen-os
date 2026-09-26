@@ -139,4 +139,56 @@ describe('/v1/billing', () => {
       expect((await app.inject({ method: 'POST', url: '/v1/billing/bind', payload: { order_id } })).statusCode).toBe(401);
     });
   });
+
+  describe('/v1/billing/intent/:order_id/renew', () => {
+    it('на pending — новий рахунок, ТОЙ САМИЙ намір, попередній інвалідовано', async () => {
+      const { order_id } = await makeIntent('home');
+      const first = await repo.getIntent(order_id);
+      expect(first!.provider_invoice_id).toBe('fake-inv-1');
+
+      const r = await app.inject({ method: 'POST', url: `/v1/billing/intent/${order_id}/renew` });
+      expect(r.statusCode).toBe(200);
+      const body = r.json() as { url: string; order_id: string };
+      expect(body.order_id).toBe(order_id);
+      expect(body.url).not.toBe(first ? `http://localhost:5190/fake-checkout?order=${encodeURIComponent(order_id)}&inv=1` : '');
+
+      const after = await repo.getIntent(order_id);
+      expect(after).toMatchObject({ state: 'pending', provider_invoice_id: 'fake-inv-2' });
+      // Попередній рахунок прибрано: два живих означали б дві токенізації.
+      expect(billing.calls).toContainEqual({ op: 'remove-invoice', args: 'fake-inv-1' });
+      // Дата пробного не перераховується: вона вже пішла людині в обіцянку.
+      expect(after!.trial_ends_at).toBe(first!.trial_ends_at);
+    });
+
+    it('невідомий намір — 404', async () => {
+      expect((await app.inject({ method: 'POST', url: '/v1/billing/intent/нема-такого/renew' })).statusCode).toBe(404);
+    });
+
+    it('картку вже дано (subscribed) — 409, новий рахунок не створюємо', async () => {
+      const { order_id } = await makeIntent('self');
+      await subscribed(order_id, '42');
+      const r = await app.inject({ method: 'POST', url: `/v1/billing/intent/${order_id}/renew` });
+      expect(r.statusCode).toBe(409);
+      expect(billing.calls.filter((c) => c.op === 'checkout')).toHaveLength(1);
+    });
+
+    it('намір прострочено — 409, а не тихе продовження життя', async () => {
+      const { order_id } = await makeIntent('self');
+      await repo.updateIntent(order_id, { state: 'expired' });
+      expect((await app.inject({ method: 'POST', url: `/v1/billing/intent/${order_id}/renew` })).statusCode).toBe(409);
+    });
+
+    it('той самий ліміт по IP, що й у наміру', async () => {
+      const { order_id } = await makeIntent('self');
+      // Один намір уже витратив одну спробу з десяти.
+      for (let i = 0; i < 9; i += 1) {
+        expect((await app.inject({ method: 'POST', url: `/v1/billing/intent/${order_id}/renew` })).statusCode).toBe(200);
+      }
+      const over = await app.inject({ method: 'POST', url: `/v1/billing/intent/${order_id}/renew` });
+      expect(over.statusCode).toBe(429);
+      expect(over.headers['retry-after']).toBeTruthy();
+    });
+  });
+
+
 });

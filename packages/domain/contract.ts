@@ -1554,7 +1554,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
     describe('payment_intent', () => {
       const intentOf = (order_id: string, over: Partial<PaymentIntent> = {}): PaymentIntent => ({
         order_id, plan: 'home', state: 'pending', trial_ends_at: '2026-10-15T00:00:00.000Z',
-        card_mask: null, card_token: null, household_id: null, ip: '1.2.3.4',
+        card_mask: null, card_token: null, provider_invoice_id: null, household_id: null, ip: '1.2.3.4',
         created_at: '2026-10-01T00:00:00.000Z', expires_at: '2026-10-08T00:00:00.000Z', bound_at: null, ...over,
       });
 

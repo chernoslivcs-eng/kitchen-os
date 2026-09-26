@@ -14,6 +14,8 @@ import { useRef, useState, type MouseEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { api } from '../../api';
 import { setIntent } from '../../lib/billing-intent';
+import { bankNotice } from '@kitchen/domain/paywall';
+import { PLAN_PRICE_UAH } from '@kitchen/domain/plans';
 import { Icon } from '../../components/Icon/Icon';
 import { PlanCard } from '../../components/PlanCard/PlanCard';
 import planCardStyles from '../../components/PlanCard/PlanCard.module.css';
@@ -69,6 +71,10 @@ export function Landing() {
   // закінчується — вебхук і повернення прийдуть пізніше, можливо в іншій
   // вкладці. checkingOut — щоб подвійний клік не бив по ліміту 10/год.
   const [checkingOut, setCheckingOut] = useState<'self' | 'home' | null>(null);
+  // З лендінга пробний отримує КОЖЕН: наміру ще нема кому належати, і сервер
+  // ставить trial_ends_at = сьогодні + TRIAL_DAYS. Дату рахує сам bankNotice —
+  // щоб на двох поверхнях вона не розʼїхалась у вигляді.
+  const notice = (plan: 'self' | 'home') => bankNotice(PLAN_PRICE_UAH[plan], true);
   async function checkout(plan: 'self' | 'home') {
     if (checkingOut) return;
     setCheckingOut(plan);
@@ -235,12 +241,23 @@ export function Landing() {
               ) : p.key === 'beta' ? (
                 <a href="#l3-signin" className={planCardStyles.planBtn} onClick={go}>{PRICE.cta}<Icon name="sys.go" size={16} inherit decorative /></a>
               ) : (
-                <button
-                  type="button" className={planCardStyles.planBtn} disabled={checkingOut !== null}
-                  onClick={() => void checkout(p.key === 'solo' ? 'self' : 'home')}
-                >
-                  {PRICE.cta}<Icon name="sys.go" size={16} inherit decorative />
-                </button>
+                <>
+                  {/*
+                    Борг живого тесту 26.09: сторінка mono не показує ні суми,
+                    ні слова «верифікація» — лише «Оплата для {ФОП}». Тобто
+                    людина бачить «Оплата» без числа й чуже прізвище. Сказати
+                    це мусимо ми, і саме ТУТ, над кнопкою: окремий екран або
+                    аркуш додав би зайвий тап на мобайлі, а сама кнопка вже
+                    називається «До банку», тож підпис пояснює саме її.
+                  */}
+                  <p className={s.bankNote}>{notice(p.key === 'solo' ? 'self' : 'home').text}</p>
+                  <button
+                    type="button" className={planCardStyles.planBtn} disabled={checkingOut !== null}
+                    onClick={() => void checkout(p.key === 'solo' ? 'self' : 'home')}
+                  >
+                    {notice(p.key === 'solo' ? 'self' : 'home').cta}<Icon name="sys.go" size={16} inherit decorative />
+                  </button>
+                </>
               )}
             </PlanCard>
           ))}

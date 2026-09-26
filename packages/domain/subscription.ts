@@ -149,6 +149,12 @@ export interface PaymentIntent {
   card_mask: string | null;
   /** Токен із verification-інвойсу: переїде в підписку при `bind`. */
   card_token: string | null;
+  /**
+   * Рахунок у провайдера, який зараз відкритий для цього наміру. Потрібен, щоб
+   * при повторному відкритті оплати інвалідувати попередній: два живих рахунки
+   * на один намір дали б дві токенізації.
+   */
+  provider_invoice_id: string | null;
   household_id: string | null;
   ip: string | null;
   created_at: string;

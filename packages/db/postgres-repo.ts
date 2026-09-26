@@ -135,7 +135,7 @@ function subRow(r: Row): HouseholdSubscription {
  * Саме на цьому вже попались із card_token: тип розширили, список — ні, і
  * токен мовчки не доїжджав до бази (in-memory працював, Postgres — ні).
  */
-const INTENT_PATCH_FIELDS = ['state', 'card_mask', 'card_token', 'household_id', 'bound_at'] as const;
+const INTENT_PATCH_FIELDS = ['state', 'card_mask', 'card_token', 'provider_invoice_id', 'household_id', 'bound_at'] as const;
 type MissingIntentField = Exclude<keyof IntentPatch, (typeof INTENT_PATCH_FIELDS)[number]>;
 type AssertNever<T extends never> = T;
 export type __IntentPatchCovered = AssertNever<MissingIntentField>;
@@ -149,6 +149,7 @@ function intentRow(r: Row): PaymentIntent {
     trial_ends_at: iso(r.trial_ends_at),
     card_mask: (r.card_mask as string | null) ?? null,
     card_token: (r.card_token as string | null) ?? null,
+    provider_invoice_id: (r.provider_invoice_id as string | null) ?? null,
     household_id: (r.household_id as string | null) ?? null,
     ip: (r.ip as string | null) ?? null,
     created_at: new Date(r.created_at as string).toISOString(),
@@ -1775,9 +1776,9 @@ export class PostgresRepo implements Repo {
   // ── Намір оплати (спек біллінгу §4, міграція 0047) ──
   async insertIntent(i: PaymentIntent): Promise<void> {
     await this.pool.query(
-      `INSERT INTO payment_intent (order_id, plan, state, trial_ends_at, card_mask, card_token, household_id, ip, created_at, expires_at, bound_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-      [i.order_id, i.plan, i.state, i.trial_ends_at, i.card_mask, i.card_token, i.household_id, i.ip, i.created_at, i.expires_at, i.bound_at],
+      `INSERT INTO payment_intent (order_id, plan, state, trial_ends_at, card_mask, card_token, provider_invoice_id, household_id, ip, created_at, expires_at, bound_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [i.order_id, i.plan, i.state, i.trial_ends_at, i.card_mask, i.card_token, i.provider_invoice_id, i.household_id, i.ip, i.created_at, i.expires_at, i.bound_at],
     );
   }
 

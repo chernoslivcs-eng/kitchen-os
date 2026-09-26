@@ -47,6 +47,14 @@ export function meRoute(app: FastifyInstance, repo: Repo) {
         plan: sub?.plan ?? null,
         entitlement: entitlementOf(sub, now, { beta: betaFlag() }),
         trial_ends_at: sub?.trial_ends_at ?? null,
+        /**
+         * Чи дасть НОВЕ оформлення пробний період. Та сама умова, що в
+         * checkout (`sub?.trial_used_at ? null : …`), і клієнту вона потрібна
+         * не для краси: текст перед сторінкою банку обіцяє або «перше списання
+         * {дата}», або «протягом доби». Без цього поля екран «Підписка» не
+         * може відрізнити ці випадки й обіцяв би людині не те.
+         */
+        trial_available: !sub?.trial_used_at,
         next_charge_at: sub?.next_charge_at ?? null,
         access_until: sub?.access_until ?? null,
         card_mask: sub?.card_mask ?? null,

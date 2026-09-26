@@ -123,6 +123,7 @@ export interface Me {
     next_charge_at: string | null;
     access_until: string | null;
     card_mask: string | null;
+    trial_available?: boolean;
     banner: { text: string; cta?: string; to?: string } | null;
   };
 }
@@ -670,6 +671,10 @@ export const api = {
   billing: {
     intent: (plan: 'self' | 'home') =>
       req<{ url: string; order_id: string }>('/v1/billing/intent', { method: 'POST', body: JSON.stringify({ plan }) }),
+    // Рахунок банку живе не вічно, намір — 7 днів. Відкрити оплату заново для
+    // того самого наміру, не створюючи другого.
+    renewIntent: (order_id: string) =>
+      req<{ url: string; order_id: string }>(`/v1/billing/intent/${encodeURIComponent(order_id)}/renew`, { method: 'POST' }),
     bind: (order_id: string) =>
       req<{ subscription: { state: string; plan: string | null; trial_ends_at: string | null; next_charge_at: string | null; card_mask: string | null } } | { status: 'pending' }>(
         '/v1/billing/bind', { method: 'POST', body: JSON.stringify({ order_id }) },

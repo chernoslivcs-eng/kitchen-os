@@ -23,13 +23,17 @@
 //     ідемпотентність тримає ingest, по invoiceId і по токену.
 import { createVerify } from 'node:crypto';
 import { PLAN_NAME } from '@kitchen/domain/plans';
-import type { BillingProvider, CheckoutInput, ChargeInput, ChargeResult } from './provider.js';
+import type { BillingProvider, CheckoutInput, CheckoutResult, ChargeInput, ChargeResult } from './provider.js';
 import type { InboundProviderEvent } from './ingest.js';
 
 const BASE = 'https://api.monobank.ua';
 const CCY_UAH = 980;
-/** Скільки живе посилання на оплату картки, секунд. */
-const INVOICE_VALIDITY_SEC = 3600;
+/**
+ * Скільки живе посилання на оплату картки, секунд. Доба, а не година: намір
+ * живе 7 днів, і людина, яка відкрила оплату й повернулась увечері, не мусить
+ * натикатись на мертву сторінку. Коли й доби не досить — є renew.
+ */
+const INVOICE_VALIDITY_SEC = 24 * 3600;
 /** Запасний режим: мінімальна сума холду, гривні. */
 const HOLD_UAH_DEFAULT = 1;
 
@@ -91,9 +95,19 @@ export class MonoProvider implements BillingProvider {
     this.holdUah = opts.holdUah ?? HOLD_UAH_DEFAULT;
   }
 
-  async checkoutUrl(i: CheckoutInput): Promise<string> {
+  async checkoutUrl(i: CheckoutInput): Promise<CheckoutResult> {
     const r = await this.req<{ invoiceId: string; pageUrl: string }>('POST', '/api/merchant/invoice/create', this.verificationInvoice(i));
-    return r.pageUrl;
+    return { url: r.pageUrl, invoice_id: r.invoiceId };
+  }
+
+  /**
+   * `invoice/remove`, а НЕ `invoice/cancel`. У специфікації mono:
+   * remove — «інвалідація рахунку, якщо за ним ще не було здійснено оплати»,
+   * cancel — «скасування успішної оплати», тобто повернення грошей. Для
+   * неоплаченого рахунку cancel був би спробою повернути те, чого не платили.
+   */
+  async removeInvoice(invoice_id: string): Promise<void> {
+    await this.req('POST', '/api/merchant/invoice/remove', { invoiceId: invoice_id });
   }
 
   /** Єдине місце, де вирішено, яким саме інвойсом токенізується картка. */

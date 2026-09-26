@@ -2,7 +2,8 @@
 // Постановка 2026-09-25 (біллінг LiqPay), Task 7: після входу з intent у
 // localStorage (kos_intent) Shell привʼязує намір до дому.
 //   200 {subscription} → ключ прибрано, тост «Підписка привʼязана», /profile
-//   202 {status:'pending'} → повтор 3с до 30с; після 30с ключ лишається, тост «чекаємо банк»
+//   202 {status:'pending'} → повтор 3с до 30с; після 30с ключ лишається, і тост
+//     дає вихід «Відкрити оплату ще раз» → /renew → новий pageUrl (борг 26.09)
 //   410 → ключ прибрано, тост «застаріло»
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act } from 'react';
@@ -18,9 +19,10 @@ function Where() { return <div data-where>{useLocation().pathname}</div>; }
 
 const ME = { user: { id: 'u1', name: 'Т', email: 't@x.test', welcome_seen_at: '2026-01-01T00:00:00Z' }, household: { id: 'h1', name: 'Дім', role: 'owner', members: [] } } as never;
 
-function installFetch(bindHandler: () => Response | Promise<Response>) {
+// Обробник бачить url: після 202 сюди приходить ще й /renew.
+function installFetch(handler: (url: string) => Response | Promise<Response>) {
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
-    if (url === '/v1/billing/bind') return bindHandler();
+    if (url === '/v1/billing/bind' || url.includes('/renew')) return handler(url);
     void init;
     return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
   }));
@@ -43,6 +45,8 @@ beforeEach(() => {
   vi.stubGlobal('matchMedia', (q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} }));
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
   useAuth.setState({ me: ME });
+  delete (window as unknown as { location?: unknown }).location;
+  (window as unknown as { location: { assign: (u: string) => void } }).location = { assign: vi.fn() };
 });
 afterEach(async () => {
   await act(async () => { root?.unmount(); });
@@ -102,7 +106,7 @@ describe('Shell · привʼязка intent після входу', () => {
     expect(host!.querySelector('[role="alert"], [class*="toast"]')).toBeNull();
   });
 
-  it('202 pending 30с поспіль — ключ лишається, тост «чекаємо банк»', async () => {
+  it('202 pending 30с поспіль — ключ лишається, і є вихід: відкрити оплату ще раз', async () => {
     vi.useFakeTimers();
     localStorage.setItem('kos_intent', 'ord-5');
     installFetch(() => json({ status: 'pending' }, 202));
@@ -110,6 +114,29 @@ describe('Shell · привʼязка intent після входу', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
 
     expect(localStorage.getItem('kos_intent')).toBe('ord-5');
-    expect(host!.textContent).toContain('Чекаємо підтвердження від банку');
+    // Глухого «спробуємо пізніше» тут більше немає: рахунок банку міг протухнути,
+    // і єдиний вихід із 202 — відкрити оплату заново для того самого наміру.
+    expect(host!.textContent).toContain('Оплата не підтвердилась');
+    expect(host!.textContent).toContain('Відкрити оплату ще раз');
+  });
+
+  it('кнопка «Відкрити оплату ще раз» кличе renew і веде на новий pageUrl', async () => {
+    vi.useFakeTimers();
+    localStorage.setItem('kos_intent', 'ord-6');
+    const seen: string[] = [];
+    installFetch((url: string) => {
+      seen.push(url);
+      if (url.includes('/renew')) return json({ url: 'https://pay.monobank.ua/новий', order_id: 'ord-6' });
+      return json({ status: 'pending' }, 202);
+    });
+    await mount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+
+    const btn = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('Відкрити оплату ще раз'));
+    expect(btn).toBeTruthy();
+    await act(async () => { btn!.click(); await vi.advanceTimersByTimeAsync(0); });
+
+    expect(seen.some((u) => u === '/v1/billing/intent/ord-6/renew')).toBe(true);
+    expect(window.location.assign).toHaveBeenCalledWith('https://pay.monobank.ua/новий');
   });
 });

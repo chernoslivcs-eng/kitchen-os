@@ -101,5 +101,6 @@ export function lazyBillingProvider(appUrl: string): BillingProvider {
     checkoutUrl: (i) => resolve().checkoutUrl(i),
     chargeByToken: (i) => resolve().chargeByToken(i),
     deleteToken: (t) => resolve().deleteToken(t),
+    removeInvoice: (id) => resolve().removeInvoice(id),
   };
 }
