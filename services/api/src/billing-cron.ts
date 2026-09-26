@@ -13,6 +13,7 @@ import { MAIL, SUBSCRIPTION_PATH } from '@kitchen/domain/paywall';
 import type { Mailer } from './mailer.js';
 import type { BillingProvider } from './billing/provider.js';
 import { ingestProviderEvent } from './billing/ingest.js';
+import { BillingNotConfiguredError } from './billing/pick-provider.js';
 
 const DAY = 86_400_000;
 /** Пів року тиші — і дім отримує попередження (спек §5). */
@@ -146,6 +147,9 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
           card_token: s.card_token, amount: PLAN_PRICE_UAH[s.plan], reference: s.provider_order_id,
         });
       } catch (err) {
+        // Незаданий провайдер — не «полежить і встане»: молчки пропускати
+        // списання щодня означало б тихо не брати грошей ні з кого.
+        if (err instanceof BillingNotConfiguredError) throw err;
         // Провайдер недоступний — це НЕ відмова картки. Стан не міняємо й
         // рядка платежу не пишемо: завтра спробуємо ще раз.
         console.error('charge failed', s.household_id, String(err));
@@ -189,6 +193,7 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
       try {
         await deps.billing.deleteToken(intent.card_token);
       } catch (err) {
+        if (err instanceof BillingNotConfiguredError) throw err;
         // Провайдер лежить — намір лишається subscribed і повернеться завтра.
         // Позначити expired зараз означало б забути про живу картку назавжди.
         console.error('intent token delete failed', intent.order_id, String(err));
