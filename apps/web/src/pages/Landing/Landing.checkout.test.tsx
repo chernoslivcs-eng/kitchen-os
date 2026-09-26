@@ -64,9 +64,9 @@ afterEach(async () => {
 });
 
 describe('Landing · checkout з картки тарифу (!BETA_PLAN)', () => {
-  it('клік на «Почати з того, що є» — intent({plan}), order_id у localStorage, редирект на url', async () => {
+  it('клік на «До банку» — intent({plan}), order_id у localStorage, редирект на url', async () => {
     await mount();
-    const buttons = [...host!.querySelectorAll('button')].filter((b) => b.textContent?.includes('Почати з того, що є'));
+    const buttons = [...host!.querySelectorAll('button')].filter((b) => b.textContent?.includes('До банку'));
     expect(buttons.length).toBeGreaterThan(0);
 
     await act(async () => { buttons[0]!.click(); });

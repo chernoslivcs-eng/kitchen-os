@@ -61,7 +61,7 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
       deletion_warned_at: null, trial_mail_sent_at: sub?.trial_mail_sent_at ?? null,
       updated_at: now.toISOString(),
     });
-    const url = await billing.checkoutUrl({
+    const { url } = await billing.checkoutUrl({
       order_id, household_id, plan, amount: PLAN_PRICE_UAH[plan],
       // Картка ляже в гаманець дому: наступного разу провайдер упізнає його.
       wallet_id: household_id,

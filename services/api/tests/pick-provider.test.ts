@@ -126,7 +126,8 @@ describe('радіус відмови без MONO_TOKEN у проді', () => {
   it('поза продом усе те саме працює на фейку', async () => {
     delete process.env.VERCEL_ENV;
     const p = lazyBillingProvider('https://kitchen-os.app');
-    await expect(p.checkoutUrl({ order_id: 'o', household_id: null, plan: 'self', amount: 210, wallet_id: 'o', result_url: 'x' })).resolves.toContain('fake');
+    const r = await p.checkoutUrl({ order_id: 'o', household_id: null, plan: 'self', amount: 210, wallet_id: 'o', result_url: 'x' });
+    expect(r.url).toContain('fake');
   });
 });
 

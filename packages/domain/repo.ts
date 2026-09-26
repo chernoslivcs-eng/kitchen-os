@@ -22,7 +22,7 @@ import type { HouseholdSubscription, PaymentIntent, PaymentRow, SubscriptionStat
  * перелічує ці поля ще й списком у SQL — і має спосіб не зібратись, якщо
  * список відстане від типу (див. postgres-repo.ts, updateIntent).
  */
-export type IntentPatch = Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'card_token' | 'household_id' | 'bound_at'>>;
+export type IntentPatch = Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'card_token' | 'provider_invoice_id' | 'household_id' | 'bound_at'>>;
 
 export interface UserRow {
   id: string;

@@ -17,11 +17,13 @@ describe('MonoProvider · checkoutUrl', () => {
   it('інвойс на 0 ₴ зі збереженням картки, reference = order_id', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(okJson({ invoiceId: 'inv-1', pageUrl: 'https://pay.mbnk.biz/inv-1' }));
     const p = new MonoProvider('tok', 'https://app.test/v1/billing/mono', { fetchImpl: fetchImpl as never });
-    const url = await p.checkoutUrl({
+    const r = await p.checkoutUrl({
       order_id: 'ord-1', household_id: 'h1', plan: 'home', amount: 290,
       wallet_id: 'h1', result_url: 'https://app.test/ok',
     });
-    expect(url).toBe('https://pay.mbnk.biz/inv-1');
+    // invoiceId віддаємо разом із адресою: без нього не інвалідувати рахунок,
+    // коли людина відкриє оплату заново (див. /renew).
+    expect(r).toEqual({ url: 'https://pay.mbnk.biz/inv-1', invoice_id: 'inv-1' });
 
     const [u, init] = fetchImpl.mock.calls[0]!;
     expect(u).toBe('https://api.monobank.ua/api/merchant/invoice/create');
@@ -38,6 +40,12 @@ describe('MonoProvider · checkoutUrl', () => {
     // verification немає в публічній OpenAPI, але є в бекенді — підтвердила
     // підтримка mono 26.09. Саме він дозволяє нульову суму.
     expect(body.paymentType).toBe('verification');
+    // Доба, не година: намір живе 7 днів, і людина, яка повернулась увечері, не
+    // мусить натикатись на мертву сторінку (перевірено живцем 26.09).
+    expect(body.validity).toBe(86_400);
+    // Доба, не година: намір живе 7 днів, і людина, яка повернулась увечері,
+    // не мусить натикатись на мертву сторінку (перевірено живцем 26.09).
+    expect(body.validity).toBe(86_400);
   });
 
   it('mono відповів помилкою — кидаємо, а не віддаємо порожнє посилання', async () => {

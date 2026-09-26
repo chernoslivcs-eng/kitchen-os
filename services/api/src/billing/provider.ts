@@ -17,6 +17,16 @@ export interface CheckoutInput {
   result_url: string;
 }
 
+export interface CheckoutResult {
+  /** Сторінка, де людина дає картку. */
+  url: string;
+  /**
+   * Ідентифікатор рахунку у провайдера. Потрібен, щоб згодом інвалідувати
+   * неоплачений рахунок: наш order_id провайдер для цього не приймає.
+   */
+  invoice_id: string;
+}
+
 export interface ChargeInput {
   card_token: string;
   /** У гривнях; у копійки переводить адаптер. */
@@ -33,7 +43,13 @@ export interface ChargeResult {
 
 export interface BillingProvider {
   /** Посилання, де людина дає картку. Грошей не списує. */
-  checkoutUrl(input: CheckoutInput): Promise<string>;
+  checkoutUrl(input: CheckoutInput): Promise<CheckoutResult>;
+  /**
+   * Інвалідувати НЕОПЛАЧЕНИЙ рахунок. Потрібно, коли людина відкриває оплату
+   * заново: два живих рахунки на один намір означали б дві токенізації, з яких
+   * друга затерла б першу, а перша картка лишилась би збереженою назавжди.
+   */
+  removeInvoice(invoice_id: string): Promise<void>;
   /** Списання за збереженим токеном; ініціює лише крон. */
   chargeByToken(input: ChargeInput): Promise<ChargeResult>;
   /**

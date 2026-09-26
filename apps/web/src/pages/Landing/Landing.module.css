@@ -683,6 +683,17 @@
  * 2026-09-25 (екран «Підписка»): винесено в components/PlanCard, спільна з
  * /profile/subscription. Тут лишається тільки розкладка сітки лендінга. */
 
+/* Підпис перед переходом на сторінку банку (борг живого тесту 26.09): банк не
+   показує ні суми, ні призначення, тож це єдине місце, де людина про них
+   дізнається. Дрібний, але не сірий до невидимості — його мусять прочитати. */
+.bankNote {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
 .tab .price { padding: 120px 48px 0; gap: 16px; }
 .tab .priceH2 { max-width: 760px; }
 .tab .priceP { font-size: 16px; max-width: 600px; }
