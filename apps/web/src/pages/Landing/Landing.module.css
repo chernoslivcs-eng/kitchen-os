@@ -31,8 +31,15 @@
 }
 .desk { width: 1920px; zoom: var(--z, 1); }
 .tab, .mob { width: 100%; }
-.page a { color: inherit; text-decoration: none; }
-.page a:hover { color: var(--sage); text-decoration: none; }
+/* :where(a) — постановка 2026-09-25 (екран «Підписка»): PlanCard.module.css
+ * тепер окремий файл від Landing.module.css, і a.planBtn (тег+клас, (0,1,1))
+ * та .page a (клас+тег, теж (0,1,1)) рівні за специфічністю — хто виграє,
+ * вирішує порядок КОНКАТЕНАЦІЇ файлів у бандлі, не порядок у джерелі; на
+ * лендінгу це дало ink-на-ink (той самий баг, що 24.09, іншим шляхом). Той
+ * самий :where(), що вже стояв на button/input нижче — нуль специфічності,
+ * і a.planBtn/button.planBtn виграють завжди, незалежно від порядку файлів. */
+.page :where(a) { color: inherit; text-decoration: none; }
+.page :where(a):hover { color: var(--sage); text-decoration: none; }
 .page p, .page h1, .page h2, .page h3 { margin: 0; }
 .page :where(button) { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
 .page :where(input) { font: inherit; color: inherit; outline: none; }
@@ -672,53 +679,9 @@
  * піднятий під 3×340+gap). .mob .planGrid (нижче) лишається одноколонковим
  * незалежно — вища специфічність (.mob .planGrid) виграє в обох випадках. */
 .planGridThree { grid-template-columns: repeat(3, 1fr); max-width: 1160px; }
-.plan { background: var(--card); border-radius: 32px; padding: 8px; box-shadow: 0 1px 2px rgba(26, 28, 30, .04), 0 24px 60px rgba(26, 28, 30, .1); display: flex; flex-direction: column; }
-/* min-height — бандл: панель із двома різної довжини підзаголовками («Для
- * дому» переноситься на два рядки, «Для себе»/«Бета-тест» — ні) інакше різної
- * висоти, і низи трьох панелей (а з ними — початок переліку) розʼїжджаються
- * на кілька px. 236 (десктоп) — з бандла; .tab (нижче) — 210, не бандлівські
- * 200: на ширині картки в .tab (333px, після розширення .planGridThree)
- * двострічковий підзаголовок «Для дому» потребує 206.7 — 200 не вистачає. */
-.planPanel { border-radius: 25px; padding: 22px 24px 24px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9); display: flex; flex-direction: column; gap: 14px; min-height: 236px; }
-.tintAmber { background: var(--amber-bg); }
-.tintSage { background: var(--sage-bg); }
-/* «Бета-тест» — період, не тариф: нейтральна паперова панель, без кольору. */
-.tintPaper { background: var(--bg); }
-.planHead { display: flex; align-items: center; justify-content: space-between; }
-.planLabel { font-size: 13.5px; font-weight: 600; color: var(--ink); }
-.planHeadIcon { display: inline-flex; }
-.tintAmber .planHeadIcon { color: var(--amber); }
-.tintSage .planHeadIcon { color: var(--sage); }
-.tintPaper .planHeadIcon { color: var(--muted); }
-.planPrice { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-.planSum { font-size: 64px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: proportional-nums; color: var(--ink); }
-.planPer { font-size: 15px; color: var(--muted); }
-.planApprox { font-size: 13px; color: var(--muted); }
-.planBlurb { font-size: 14px; line-height: 1.4; color: var(--muted); margin: 0; }
-
-/* flex:1 — картки рівної висоти (grid align-items:stretch), але «Для дому»
- * має менше рядків (5 проти 6): без flex:1 список сідає на свою природну
- * висоту, і кнопка не притиснута до низу — права висить на 14–16px вище. */
-.planList { list-style: none; margin: 0; padding: 22px 18px; display: flex; flex-direction: column; gap: 13px; font-size: 14.5px; color: var(--ink); flex: 1; }
-.planLine { display: flex; align-items: center; gap: 12px; }
-/* «Скоро» (§1.8) — пунктир зверху відсікає від оплаченого; сірий і на 0.5px дрібніший. */
-.planLineSoon { display: flex; align-items: center; gap: 12px; padding-top: 10px; margin-top: 3px; border-top: 1px dashed var(--line2); color: var(--dim); font-size: 14px; }
-.planSoonBadge { margin-left: auto; height: 22px; padding: 0 9px; border-radius: 11px; background: var(--line); color: var(--muted); display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; white-space: nowrap; }
-
-/* Наведення — лише кнопка темнішає (§1.10); картка сама не реагує. */
-/* a.planBtn (не .planBtn): .page a{color:inherit} — клас+елемент, (0,1,1) —
- * б'є звичайний однокласовий селектор і топив текст кнопки в ink-на-ink.
- * button.planBtn — постановка 2026-09-25 (біллінг): картки тарифів при
- * !BETA_PLAN ведуть на checkout через async intent(), не на #l3-signin —
- * семантично кнопка, не посилання; той самий button{color:inherit} у
- * reset.css має нижчу специфічність (0,0,1), а.planBtn тут не потрібен. */
-a.planBtn, button.planBtn { height: 56px; border-radius: 28px; background: var(--ink); color: var(--bg); display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-size: 15.5px; font-weight: 600; transition: background 120ms var(--e); }
-a.planBtn:hover, button.planBtn:hover { color: var(--bg); background: var(--muted); }
-button.planBtn:disabled { opacity: .6; }
-/* §1.3: «після бети» на «Для себе»/«Для дому», доки BETA_PLAN — та сама
- * геометрія, що a.planBtn (щоб кнопка/пігулка сиділи на одному рівні), але
- * сіра пігулка (як .planSoonBadge), не мертва чорна кнопка, і не посилання. */
-.planBtnAfter { height: 56px; border-radius: 28px; background: var(--line); color: var(--muted); display: inline-flex; align-items: center; justify-content: center; font-size: 15.5px; font-weight: 600; }
+/* Сама картка (.plan, .planPanel, .planList, a/button.planBtn, …) — постановка
+ * 2026-09-25 (екран «Підписка»): винесено в components/PlanCard, спільна з
+ * /profile/subscription. Тут лишається тільки розкладка сітки лендінга. */
 
 .tab .price { padding: 120px 48px 0; gap: 16px; }
 .tab .priceH2 { max-width: 760px; }
@@ -727,14 +690,9 @@ button.planBtn:disabled { opacity: .6; }
 .tab .planGrid { gap: 16px; max-width: 720px; padding-top: 12px; }
 /* BETA_PLAN: три колонки не влазять у 720 (рахований на два тарифи #208) —
  * та сама ширина, що на .desk (1160), інакше картки звужуються до ~230px і
- * min-height панелі вище (200) вже не вистачає під два рядки підзаголовка. */
+ * min-height панелі PlanCard (210 на .tab) вже не вистачає під два рядки
+ * підзаголовка. */
 .tab .planGridThree { max-width: 1160px; }
-.tab .plan { border-radius: 28px; }
-.tab .planPanel { padding: 18px 20px 20px; min-height: 210px; }
-.tab .planSum { font-size: 52px; }
-.tab .planList { font-size: 14px; padding: 18px 16px; }
-.tab .planBtn { height: 52px; font-size: 14.5px; }
-.tab .planBtnAfter { height: 52px; font-size: 14.5px; }
 .mob .price { padding: 80px 20px 0; gap: 16px; align-items: stretch; }
 .mob .priceP { font-size: 15px; line-height: 1.5; max-width: none; }
 .mob .trial { flex-wrap: wrap; gap: 10px; }
@@ -742,11 +700,6 @@ button.planBtn:disabled { opacity: .6; }
 .mob .trialSub { margin-top: -4px; }
 /* На 390 — стовпчиком, не горизонтальний снап-скрол (§1.11: дві картки — не потребують снапу). */
 .mob .planGrid { grid-template-columns: 1fr; gap: 14px; max-width: none; padding-top: 12px; }
-.mob .planPanel { padding: 18px 18px 20px; }
-.mob .planSum { font-size: 52px; }
-.mob .planList { font-size: 14px; padding: 18px 16px; }
-.mob .planBtn { height: 52px; font-size: 15px; }
-.mob .planBtnAfter { height: 52px; font-size: 15px; }
 
 /* ── фінал · 1920: 200/160/48, телефон 300 із маскою, h2 72 ≤1100, p 18 ≤640; 1024: 140/48/32, 52; 390: 96/20/32, 36 ── */
 .final { padding: 200px 160px 48px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 28px; }

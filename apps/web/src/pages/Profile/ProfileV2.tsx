@@ -16,7 +16,8 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ClipboardEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, ApiError, type ProfileV2Response, type ProfileFieldV2, type ProfileNoteV2, type InviteInfo, type InviteCreated, type AccountConflict } from '../../api';
-import { PROFILE_ROWS, SECTION, PLAN_LABEL, TELEGRAM, MERGE, type ProfileRowCopy } from '../../lib/profile-copy';
+import { PROFILE_ROWS, SECTION, TELEGRAM, MERGE, type ProfileRowCopy } from '../../lib/profile-copy';
+import { subscriptionRowSummary } from '../Subscription/summary';
 import { TABLET_MIN } from '../../lib/device';
 import { KIT_DEFAULTS, type ProfileFieldKey } from '@kitchen/domain/profile-fields';
 import { useAuth } from '../../store/auth';
@@ -400,7 +401,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
 
   // PR 1 (0036): акаунт народжений із Telegram — пошти нема, рядок каже «Telegram».
   const email = me?.user.email ?? SECTION.emailNone;
-  const plan = PLAN_LABEL[me?.user.plan ?? 'beta'] ?? me?.user.plan ?? '';
+  const subscriptionSummary = subscriptionRowSummary(me?.subscription);
   const others = me ? me.household.members.filter((m) => m.user_id !== me.user.id).map((m) => m.name) : [];
 
   const me1 = me;
@@ -536,7 +537,9 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
       {(merge.kind === 'done' ? merge.which : merge.kind !== 'none' ? merge.conflict.kind : null) === 'email' && mergeNote}
       <div className={styles.accRow}>
         <span className={styles.accKey}>{SECTION.plan}</span>
-        <span className={styles.accVal}>{plan}</span>
+        <Link to="/profile/subscription" className={`${styles.accVal} ${styles.accValIcon} ${styles.accRowLink}`}>
+          {subscriptionSummary}<Icon name="sys.next" size={16} inherit decorative />
+        </Link>
       </div>
       <div className={`${styles.accRow} ${styles.accRowTg}`} data-telegram>
         <span className={styles.accKey}>{TELEGRAM.row}</span>

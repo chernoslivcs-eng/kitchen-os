@@ -1,0 +1,82 @@
+/* /profile/subscription — виміряно з бандла Kitchen OS - Subscription.dc.html
+ * (усі шість кадрів, 1440/390) і Аркуш · Змінити тариф/Скасувати. */
+.page { max-width: 720px; margin: 0 auto; padding: 32px 24px 64px; display: flex; flex-direction: column; gap: 24px; }
+.tab.page { padding: 28px 20px 56px; }
+.mob.page { padding: 20px 16px 48px; gap: 18px; }
+/* desk — базовий .page вище; клас лишається порожнім тут заради styles.desk
+ * (три ключі Bp мають існувати в модулі, інакше styles['desk'] === undefined
+ * і className дістає буквальний рядок "undefined"). */
+.desk {}
+
+.head { display: flex; flex-direction: column; gap: 4px; }
+.back { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; height: 32px; color: var(--muted); font-size: 14px; font-weight: 600; }
+.back:hover { color: var(--ink); }
+.title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+
+.statusCard { background: var(--card); border-radius: 20px; padding: 20px 24px; box-shadow: 0 1px 2px rgba(26, 28, 30, .05), 0 8px 24px rgba(26, 28, 30, .05); display: flex; flex-direction: column; gap: 14px; }
+.statusRow { display: flex; align-items: flex-start; gap: 14px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; margin-top: 10px; }
+.dot-sage { background: var(--sage); }
+.dot-amber { background: #a67c2e; } /* та сама амбер-крапка, що past_due-іконка банера — не збігається точно з --amber */
+.dot-dim { background: var(--dim); }
+.statusText { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.statusTitle { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.3; text-wrap: pretty; }
+.statusSub { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.statusActions { display: flex; gap: 10px; padding-left: 24px; }
+
+.outlineBtn { height: 46px; padding: 0 22px; border-radius: 23px; border: 1px solid var(--line2); background: var(--card); font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.outlineBtn:hover { background: var(--line); }
+.outlineBtn:disabled { opacity: .6; }
+.textBtn { height: 46px; padding: 0 16px; border: 0; background: transparent; color: var(--muted); font-size: 14.5px; font-weight: 500; }
+.textBtn:hover { color: var(--ink); }
+.textBtn:disabled { opacity: .6; }
+
+.error { color: var(--danger); font-size: 14px; margin: -8px 0 0; }
+
+.tariffGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+.mob .tariffGrid { grid-template-columns: 1fr; }
+
+.history { display: flex; flex-direction: column; gap: 12px; }
+.historyTitle { font-size: 16px; font-weight: 700; margin: 0; }
+.historyList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.historyRow { display: grid; grid-template-columns: 56px 64px 76px 1fr auto; align-items: center; gap: 12px; padding: 12px 4px; border-top: 1px solid var(--line); font-size: 14px; }
+.historyRow:first-child { border-top: 0; }
+.historyDate { color: var(--muted); }
+.historySum { font-weight: 600; font-variant-numeric: proportional-nums; }
+.historyOk { color: var(--sage); }
+.historyFail { color: #a67c2e; }
+.historyWho { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.historyReceipt { color: var(--muted); text-align: right; text-decoration: underline; text-underline-offset: 2px; }
+.mob .historyRow { grid-template-columns: 1fr 1fr; grid-template-areas: "date sum" "status who" "receipt receipt"; row-gap: 4px; }
+.mob .historyDate { grid-area: date; }
+.mob .historySum { grid-area: sum; text-align: right; }
+.mob .historyOk, .mob .historyFail { grid-area: status; }
+.mob .historyWho { grid-area: who; text-align: right; }
+.mob .historyReceipt { grid-area: receipt; text-align: left; }
+
+/* ── Аркуш «Скасувати»/«Змінити тариф»: контент усередині components/Sheet ── */
+.sheetBody { display: flex; flex-direction: column; gap: 18px; }
+.sheetText { margin: 0; font-size: 16px; line-height: 1.5; text-wrap: pretty; }
+.sheetActions { display: flex; flex-direction: column; gap: 8px; }
+.sheetPrimary { height: 52px; border-radius: 26px; border: 0; background: var(--ink); color: var(--bg); font-size: 15.5px; font-weight: 600; }
+.sheetPrimary:disabled { opacity: .5; }
+.sheetSecondary { height: 52px; border-radius: 26px; border: 1px solid var(--line2); background: var(--card); font-size: 15.5px; font-weight: 600; color: var(--ink); }
+.sheetSecondary:disabled { opacity: .5; }
+
+.miniCards { display: flex; flex-direction: column; gap: 10px; }
+.miniCard { text-align: left; border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 0 1px var(--line2) inset; background: var(--card); }
+.miniCard-self { background: var(--amber-bg); }
+.miniCard-home { background: var(--sage-bg); }
+.miniCardOn { background: var(--card); box-shadow: 0 0 0 2px var(--ink) inset; }
+.miniHead { display: flex; align-items: center; justify-content: space-between; }
+.miniPill { height: 28px; padding: 0 12px; border-radius: 14px; display: inline-flex; align-items: center; font-size: 13px; font-weight: 600; }
+.miniPillInk { background: var(--ink); color: var(--bg); }
+.miniPillSage { background: var(--sage); color: var(--bg); }
+.radio { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line2); display: grid; place-items: center; flex: none; }
+.radioOn { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.miniPrice { display: flex; align-items: baseline; gap: 6px; }
+.miniSum { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: proportional-nums; color: var(--ink); }
+.miniPer { font-size: 14px; color: var(--muted); }
+.miniBlurb { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
+.planNote { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.45; padding: 4px 2px 0; color: var(--ink); }
+.planNote :global(svg) { margin-top: 2px; color: var(--sage); }

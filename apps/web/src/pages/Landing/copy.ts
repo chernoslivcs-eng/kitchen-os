@@ -166,19 +166,13 @@ export const PRICE = {
 // PR #208 (два тарифи, жодних слідів картки) без ручного відкату коду.
 export const BETA_PLAN = true;
 
-export interface PlanLine { text: string; icon: IconName; soon?: boolean }
-export interface PlanCard {
+// PlanCardData/PlanLine — форма самої картки (панель, ціна, перелік), спільна
+// з /profile/subscription: канонічно визначена в components/PlanCard, тут
+// лише додаються поля-оркестрація лендінга (key, cta).
+export type { PlanLine } from '../../components/PlanCard/PlanCard';
+import type { PlanCardData } from '../../components/PlanCard/PlanCard';
+export interface PlanCard extends PlanCardData {
   key: 'beta' | 'solo' | 'home';
-  /** paper — нейтральна панель «Бета-тест» (це період, не тариф): без бурштину/шавлії. */
-  tint: 'paper' | 'amber' | 'sage';
-  headIcon: IconName;
-  label: string;
-  price: string;
-  per: string;
-  /** Орієнтир у доларах поруч із ціною — «Бета-тест» його не має (0 ₴ і так зрозуміло). */
-  approx?: string;
-  blurb: string;
-  lines: PlanLine[];
   /** false → сіра пігулка PRICE.afterBeta замість кнопки (§1.3). */
   cta: boolean;
 }

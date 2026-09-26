@@ -127,6 +127,19 @@ export interface Me {
   };
 }
 
+/** Рядок історії списань (packages/domain/subscription.ts PaymentRow) — екран «Підписка». */
+export interface Payment {
+  id: string;
+  household_id: string;
+  amount: number;
+  currency: 'UAH';
+  status: 'success' | 'failure';
+  provider_payment_id: string | null;
+  paid_by_user_id: string | null;
+  receipt_url: string | null;
+  created_at: string;
+}
+
 // --- Крок О1: /admin/pulse -------------------------------------------------
 
 export type HouseholdRole = 'owner' | 'member';
@@ -660,6 +673,22 @@ export const api = {
     bind: (order_id: string) =>
       req<{ subscription: { state: string; plan: string | null; trial_ends_at: string | null; next_charge_at: string | null; card_mask: string | null } } | { status: 'pending' }>(
         '/v1/billing/bind', { method: 'POST', body: JSON.stringify({ order_id }) },
+      ),
+  },
+
+  // Постановка 2026-09-25 (режим без підписки), Task 12: екран «Підписка»,
+  // єдине місце платіжних дій усередині акаунта. checkout тут — для того,
+  // хто вже увійшов (дім відомий одразу); оформлення з лендінга — окремий
+  // api.billing.intent вище, різні моделі довіри, той самий провайдер.
+  subscription: {
+    get: () => req<{ subscription: NonNullable<Me['subscription']>; payments: Payment[] }>('/v1/subscription'),
+    checkout: (plan: 'self' | 'home') =>
+      req<{ url: string }>('/v1/subscription/checkout', { method: 'POST', body: JSON.stringify({ plan }) }),
+    cancel: () =>
+      req<{ subscription: NonNullable<Me['subscription']> }>('/v1/subscription/cancel', { method: 'POST', body: '{}' }),
+    setPlan: (plan: 'self' | 'home') =>
+      req<{ subscription: NonNullable<Me['subscription']>; effective_at: string | null }>(
+        '/v1/subscription/plan', { method: 'POST', body: JSON.stringify({ plan }) },
       ),
   },
 

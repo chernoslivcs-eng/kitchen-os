@@ -8,6 +8,7 @@ const IconLab = lazyPage(() => import('./pages/Dev/IconLab').then((m) => ({ defa
 const PantryPage = lazyPage(() => import('./pages/Pantry/Pantry').then((m) => ({ default: m.PantryPage })));
 const ShoppingPage = lazyPage(() => import('./pages/Shopping/Shopping').then((m) => ({ default: m.ShoppingPage })));
 const ProfileRoute = lazyPage(() => import('./pages/Profile/ProfileRoute').then((m) => ({ default: m.ProfileRoute })));
+const SubscriptionPage = lazyPage(() => import('./pages/Subscription/Subscription').then((m) => ({ default: m.SubscriptionPage })));
 const RecipePage = lazyPage(() => import('./pages/Recipe/Recipe').then((m) => ({ default: m.RecipePage })));
 const CookOverlay = lazyPage(() => import('./pages/Cook/Cook').then((m) => ({ default: m.CookOverlay })));
 import { useCookStore } from './store/cook';
@@ -111,6 +112,7 @@ function RootRoutes() {
             <Route path="/pantry" element={<PantryPage />} />
             <Route path="/list" element={<ShoppingPage />} />
             <Route path="/profile" element={<ProfileRoute />} />
+            <Route path="/profile/subscription" element={<SubscriptionPage />} />
             <Route path="/recipe" element={<RecipePage />} />
             {/* Р-3: стабільна адреса — рецепт більше не живе тільки в router state. */}
             <Route path="/recipe/:id" element={<RecipePage />} />

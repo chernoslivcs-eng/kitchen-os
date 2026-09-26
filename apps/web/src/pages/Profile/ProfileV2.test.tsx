@@ -104,7 +104,7 @@ describe('Профіль v6', () => {
     expect(host.textContent).toContain('Профіль');
     expect(host.textContent).toContain('Нотатки');
     expect(host.textContent).toContain('Акаунт');
-    expect(host.textContent).toContain('Тариф');
+    expect(host.textContent).toContain('Підписка');
   });
 
   it('PATCH /v1/profile/:key по blur, якщо текст змінився; без зміни — нічого', async () => {
@@ -403,14 +403,14 @@ describe('профіль за Prototype · дім, мережі, акаунт', 
   });
 });
 
-// Р148: рядок «Telegram» в «Акаунті» після «Тариф» і мітка каналу в чаті.
+// Р148: рядок «Telegram» в «Акаунті» після «Підписка» і мітка каналу в чаті.
 describe('Р148 · Telegram у профілі', () => {
   const row = () => host.querySelector<HTMLElement>('[data-telegram]')!;
 
-  it('не підключено: рядок після «Тариф», кнопка «Підключити»', async () => {
+  it('не підключено: рядок після «Підписка», кнопка «Підключити»', async () => {
     await mount();
     const rows = [...host.querySelectorAll('[data-section="account"] > div')];
-    const plan = rows.findIndex((r) => r.textContent?.startsWith('Тариф'));
+    const plan = rows.findIndex((r) => r.textContent?.startsWith('Підписка'));
     expect(rows[plan + 1]!.hasAttribute('data-telegram')).toBe(true);
     expect(row().textContent).toContain('Telegram');
     const btn = row().querySelector<HTMLButtonElement>('button')!;
