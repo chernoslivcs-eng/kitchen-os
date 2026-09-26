@@ -15,7 +15,7 @@ import { authRoutes } from './routes/auth.js';
 import { invitesRoutes } from './routes/invites.js';
 import { meRoute } from './routes/me.js';
 import { subscriptionRoute } from './routes/subscription.js';
-import { pickBillingProvider } from './billing/pick-provider.js';
+import { lazyBillingProvider } from './billing/pick-provider.js';
 import { billingRoutes } from './routes/billing.js';
 import { monoWebhookRoute } from './routes/mono-webhook.js';
 import type { BillingProvider } from './billing/provider.js';
@@ -185,7 +185,8 @@ export function buildApp(
   invitesRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.invite });
   meRoute(app, repo);
   const appUrl = process.env.APP_URL ?? 'http://localhost:5173';
-  const billing = opts.billing ?? pickBillingProvider(appUrl);
+  // Ліниво: без токена в проді мусять падати лише оплати, а не весь API.
+  const billing = opts.billing ?? lazyBillingProvider(appUrl);
   subscriptionRoute(app, repo, billing, appUrl);
   billingRoutes(app, repo, billing, appUrl);
   monoWebhookRoute(app, repo, { pubKey: opts.monoPubKey });
