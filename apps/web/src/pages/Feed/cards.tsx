@@ -370,8 +370,9 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
   const signFor = (op?: IntakeOp['op']) => {
     if (op === 'deplete') return '−';
     if (op === 'open') return '◔';
-    // Етап 1.6: гліф ✎ знято — знак «рукою» зі словника.
-    if (op === 'rename' || op === 'correct') return 'live.byHand';
+    // Етап 1.6: гліф ✎ знято — знак «рукою» зі словника. Саме знак, не
+    // його назва: рядок 'live.byHand' друкувався текстом у рядку позиції.
+    if (op === 'rename' || op === 'correct') return <Icon name="live.byHand" size={12} inherit decorative />;
     return '+';
   };
   // M13: intake з чека — шапка-джерело, сірі «додати руками», згорнуте
@@ -577,7 +578,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
             // Порожній чек виглядав би зламаним, тому кажемо прямо, скільки
             // позицій уже зʼїли. Це не список — числа досить.
             <div className={styles['op-gone-tail']}>
-              ще {goneCount} {goneCount === 1 ? 'позиція' : 'позицій'} з цього запису вже закінчилось
+              ще {goneCount} {plural(goneCount, ['позиція', 'позиції', 'позицій'])} з цього запису вже {plural(goneCount, ['закінчилась', 'закінчились', 'закінчилось'])}
             </div>
           )}
         </div>

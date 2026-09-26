@@ -554,7 +554,7 @@ export function CookOverlay() {
   // один ряд — число зліва, дії справа, без картки-з-числом-по-центру.
   const timerCompact = stepTier !== 's';
   const timerBox = !!step?.s && (
-    <div className={`${styles.timer} ${styles[`timer-${timerTone}`]} ${secondsLeft === 0 ? styles['timer-zero'] : ''} ${timerCompact ? styles['timer-compact'] : ''}`} data-timer data-timer-compact={timerCompact || undefined}>
+    <div className={`${styles.timer} ${styles[`timer-${timerTone}`] ?? ''} ${secondsLeft === 0 ? styles['timer-zero'] : ''} ${timerCompact ? styles['timer-compact'] : ''}`} data-timer data-timer-compact={timerCompact || undefined}>
       <span className={styles['timer-icon']}><Icon name="cook.timer" size={20} inherit decorative live={running && secondsLeft > 0 ? 'timer' : undefined} /></span>
       <span className={`${styles['timer-value']} t-timer`} data-timer-value>{formatMS(secondsLeft, step.s)}</span>
       <span className={styles['timer-base']}>
