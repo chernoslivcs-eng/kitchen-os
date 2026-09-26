@@ -14,11 +14,18 @@
 /* «Бета-тест» — період, не тариф: нейтральна паперова панель, без кольору. */
 .tintPaper { background: var(--bg); }
 .planHead { display: flex; align-items: center; justify-content: space-between; }
-.planLabel { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+/* Ярлик — білий заокруглений чіп на тонованій панелі (Price Card.dc.html,
+ * Subscription.dc.html, Pricing.dc.html: height 30, radius 15, padding 0 13),
+ * не голий текст. Колір тексту в амбер/шавлії — з бандла напряму (не --amber/
+ * --sage: там трохи інший, темніший відтінок саме для тексту на білому). */
+.planLabel { height: 30px; padding: 0 13px; border-radius: 15px; background: var(--card); display: inline-flex; align-items: center; font-size: 13.5px; font-weight: 600; color: var(--ink); }
 .planHeadIcon { display: inline-flex; }
 .tintAmber .planHeadIcon { color: var(--amber); }
 .tintSage .planHeadIcon { color: var(--sage); }
 .tintPaper .planHeadIcon { color: var(--muted); }
+.tintAmber .planLabel { color: #8a6420; }
+.tintSage .planLabel { color: #3f5837; }
+.tintPaper .planLabel { color: var(--muted); }
 .planPrice { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .planSum { font-size: 64px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: proportional-nums; color: var(--ink); }
 .planPer { font-size: 15px; color: var(--muted); }
