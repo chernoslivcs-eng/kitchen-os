@@ -15,6 +15,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { api } from '../../api';
 import { setIntent } from '../../lib/billing-intent';
 import { Icon } from '../../components/Icon/Icon';
+import { PlanCard } from '../../components/PlanCard/PlanCard';
+import planCardStyles from '../../components/PlanCard/PlanCard.module.css';
 import { SignInForm } from './SignInForm';
 import { LiveSession } from './LiveSession';
 import { PhoneMock } from './PhoneMock';
@@ -227,41 +229,20 @@ export function Landing() {
         {!BETA_PLAN && <p className={s.trialSub}>{PRICE.trialSub}</p>}
         <div className={`${s.planGrid} ${BETA_PLAN ? s.planGridThree : ''}`}>
           {PLANS.map((p, i) => (
-            <div key={p.key} data-reveal={i === 0 ? '0' : '120'} className={s.plan}>
-              <div className={`${s.planPanel} ${p.tint === 'amber' ? s.tintAmber : p.tint === 'sage' ? s.tintSage : s.tintPaper}`}>
-                <span className={s.planHead}>
-                  <span className={s.planLabel}>{p.label}</span>
-                  <span className={s.planHeadIcon}><Icon name={p.headIcon} size={20} inherit decorative /></span>
-                </span>
-                <span className={s.planPrice}>
-                  <span className={s.planSum}>{p.price}</span>
-                  <span className={s.planPer}>{p.per}</span>
-                  {p.approx && <span className={s.planApprox}>{p.approx}</span>}
-                </span>
-                <p className={s.planBlurb}>{p.blurb}</p>
-              </div>
-              <ul className={s.planList}>
-                {p.lines.map((l) => (
-                  <li key={l.text} className={l.soon ? s.planLineSoon : s.planLine}>
-                    <Icon name={l.icon} size={18} inherit={!l.soon} decorative />
-                    <span>{l.text}</span>
-                    {l.soon && <span className={s.planSoonBadge}>{PRICE.soon}</span>}
-                  </li>
-                ))}
-              </ul>
+            <PlanCard key={p.key} data={p} bp={bp} soonLabel={PRICE.soon} reveal={i === 0 ? '0' : '120'}>
               {!p.cta ? (
-                <span className={s.planBtnAfter}>{PRICE.afterBeta}</span>
+                <span className={planCardStyles.planBtnAfter}>{PRICE.afterBeta}</span>
               ) : p.key === 'beta' ? (
-                <a href="#l3-signin" className={s.planBtn} onClick={go}>{PRICE.cta}<Icon name="sys.go" size={16} inherit decorative /></a>
+                <a href="#l3-signin" className={planCardStyles.planBtn} onClick={go}>{PRICE.cta}<Icon name="sys.go" size={16} inherit decorative /></a>
               ) : (
                 <button
-                  type="button" className={s.planBtn} disabled={checkingOut !== null}
+                  type="button" className={planCardStyles.planBtn} disabled={checkingOut !== null}
                   onClick={() => void checkout(p.key === 'solo' ? 'self' : 'home')}
                 >
                   {PRICE.cta}<Icon name="sys.go" size={16} inherit decorative />
                 </button>
               )}
-            </div>
+            </PlanCard>
           ))}
         </div>
       </section>

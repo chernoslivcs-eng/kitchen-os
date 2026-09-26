@@ -41,7 +41,7 @@ import { DishPasta, DishGrill, DishPancake, DishSushi, DishBurger, DishStew } fr
 // 12.09 (ANSWERS A, ряд «Дії й стани» в Icons): нові знаки — окремим рядком.
 import { ArrowRight, Equal, EyeOff, ListPlus, Lock, Lightbulb, Mail, Trash2, Ellipsis, StickyNote, CircleDashed } from 'lucide-react';
 // Лендінг (блок «landing» у кінці мапи) — окремим рядком, щоб не чіпати імпорт вище.
-import { PackageOpen, History, List, Shuffle, ChevronLeft, CircleHelp } from 'lucide-react';
+import { PackageOpen, History, List, Shuffle, ChevronLeft, CircleHelp, CreditCard } from 'lucide-react';
 // Sent · Invite (Auth.dc.html) — теж окремим рядком.
 import { Send, MailCheck, UserRoundX, Image } from 'lucide-react';
 
@@ -126,6 +126,9 @@ export const ICONS = {
   'sys.notes':     { glyph: StickyNote,        label: 'Нотатки',       family: 'system' },
   // 14.09: «?» у шапці чату — ряд довідок над композитором.
   'sys.help':      { glyph: CircleHelp,        label: 'Довідка',       family: 'system' },
+  // Постановка 2026-09-25 (екран «Підписка»): маска картки в статусі —
+  // credit-card, той самий глиф, що в бандлі Kitchen OS - Subscription.dc.html.
+  'sys.card':      { glyph: CreditCard,        label: 'Картка',        family: 'system' },
 
   // ---- зони комори ----
   // Знаки — ті, що бандл ставить зонам (Screens, Icons «Зони комори»): leaf ·

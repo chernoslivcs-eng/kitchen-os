@@ -1,0 +1,62 @@
+/* Постановка 2026-09-25: винесено з Landing.module.css (секція «Ціна») без
+ * зміни жодного значення — лендінг і /profile/subscription малюють однакову
+ * картку. .tab/.mob лендінга — класи кореня .page (свій хеш на файл), тут
+ * замість них data-bp на самій картці (передається пропом bp, дивись PlanCard.tsx). */
+.plan { background: var(--card); border-radius: 32px; padding: 8px; box-shadow: 0 1px 2px rgba(26, 28, 30, .04), 0 24px 60px rgba(26, 28, 30, .1); display: flex; flex-direction: column; }
+/* min-height — бандл: панель із двострічковим підзаголовком («Для дому»)
+ * інакше вища за сусідні, і низи трьох панелей розʼїжджаються. 236 (десктоп)
+ * — з бандла; .tab — 210, не бандлівські 200: на ширині картки в .tab (333px
+ * після розширення .planGridThree на лендінгу) двострічковий підзаголовок
+ * потребує 206.7 — 200 не вистачає. */
+.planPanel { border-radius: 25px; padding: 22px 24px 24px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9); display: flex; flex-direction: column; gap: 14px; min-height: 236px; }
+.tintAmber { background: var(--amber-bg); }
+.tintSage { background: var(--sage-bg); }
+/* «Бета-тест» — період, не тариф: нейтральна паперова панель, без кольору. */
+.tintPaper { background: var(--bg); }
+.planHead { display: flex; align-items: center; justify-content: space-between; }
+/* Ярлик — білий заокруглений чіп на тонованій панелі (Price Card.dc.html,
+ * Subscription.dc.html, Pricing.dc.html: height 30, radius 15, padding 0 13),
+ * не голий текст. Колір тексту в амбер/шавлії — з бандла напряму (не --amber/
+ * --sage: там трохи інший, темніший відтінок саме для тексту на білому). */
+.planLabel { height: 30px; padding: 0 13px; border-radius: 15px; background: var(--card); display: inline-flex; align-items: center; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.planHeadIcon { display: inline-flex; }
+.tintAmber .planHeadIcon { color: var(--amber); }
+.tintSage .planHeadIcon { color: var(--sage); }
+.tintPaper .planHeadIcon { color: var(--muted); }
+.tintAmber .planLabel { color: #8a6420; }
+.tintSage .planLabel { color: #3f5837; }
+.tintPaper .planLabel { color: var(--muted); }
+.planPrice { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.planSum { font-size: 64px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: proportional-nums; color: var(--ink); }
+.planPer { font-size: 15px; color: var(--muted); }
+.planApprox { font-size: 13px; color: var(--muted); }
+.planBlurb { font-size: 14px; line-height: 1.4; color: var(--muted); margin: 0; }
+.planList { list-style: none; margin: 0; padding: 22px 18px; display: flex; flex-direction: column; gap: 13px; font-size: 14.5px; color: var(--ink); flex: 1; }
+.planLine { display: flex; align-items: center; gap: 12px; }
+.planLineSoon { display: flex; align-items: center; gap: 12px; padding-top: 10px; margin-top: 3px; border-top: 1px dashed var(--line2); color: var(--dim); font-size: 14px; }
+.planSoonBadge { margin-left: auto; height: 22px; padding: 0 9px; border-radius: 11px; background: var(--line); color: var(--muted); display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+/* Наведення — лише кнопка темнішає; картка сама не реагує. a.planBtn (не
+ * .planBtn): деякі глобальні reset.css правила (a{color}, button{color:inherit})
+ * мають специфічність (0,0,1) — тег+клас (0,1,1) завжди старший, надійніше
+ * за один клас (0,1,0), незалежно від того, чи є в предків ще й .page a. */
+a.planBtn, button.planBtn { height: 56px; border-radius: 28px; background: var(--ink); color: var(--bg); display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-size: 15.5px; font-weight: 600; transition: background 120ms var(--e); }
+a.planBtn:hover, button.planBtn:hover { color: var(--bg); background: var(--muted); }
+button.planBtn:disabled { opacity: .6; }
+/* Сіра пігулка на місці кнопки (напр. «після бети») — та сама геометрія, що
+ * planBtn (щоб кнопка/пігулка сиділи на одному рівні), не мертва чорна
+ * кнопка, і не посилання. */
+.planBtnAfter { height: 56px; border-radius: 28px; background: var(--line); color: var(--muted); display: inline-flex; align-items: center; justify-content: center; font-size: 15.5px; font-weight: 600; }
+
+.plan[data-bp="tab"] { border-radius: 28px; }
+.plan[data-bp="tab"] .planPanel { padding: 18px 20px 20px; min-height: 210px; }
+.plan[data-bp="tab"] .planSum { font-size: 52px; }
+.plan[data-bp="tab"] .planList { font-size: 14px; padding: 18px 16px; }
+.plan[data-bp="tab"] .planBtn { height: 52px; font-size: 14.5px; }
+.plan[data-bp="tab"] .planBtnAfter { height: 52px; font-size: 14.5px; }
+
+.plan[data-bp="mob"] .planPanel { padding: 18px 18px 20px; }
+.plan[data-bp="mob"] .planSum { font-size: 52px; }
+.plan[data-bp="mob"] .planList { font-size: 14px; padding: 18px 16px; }
+.plan[data-bp="mob"] .planBtn { height: 52px; font-size: 15px; }
+.plan[data-bp="mob"] .planBtnAfter { height: 52px; font-size: 15px; }

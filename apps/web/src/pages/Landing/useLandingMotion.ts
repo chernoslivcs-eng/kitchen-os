@@ -10,29 +10,13 @@
 // prefers-reduced-motion: дрейф бліку 0, reveal одразу видимий; кейфрейми
 // глушить CSS (блок reduce у Landing.module.css).
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useBreakpoint, type Bp } from '../../lib/useBreakpoint';
 
-export type Bp = 'desk' | 'tab' | 'mob';
-const DESK = '(min-width: 1280px)';
-const TAB = '(min-width: 768px)';
+export type { Bp };
+export { useBreakpoint };
 const REDUCE = '(prefers-reduced-motion: reduce)';
 
-const pick = (): Bp => {
-  if (typeof window === 'undefined') return 'desk';
-  return window.matchMedia(DESK).matches ? 'desk' : window.matchMedia(TAB).matches ? 'tab' : 'mob';
-};
-
 export const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia(REDUCE).matches;
-
-export function useBreakpoint(): Bp {
-  const [bp, setBp] = useState<Bp>(pick);
-  useEffect(() => {
-    const qs = [window.matchMedia(DESK), window.matchMedia(TAB)];
-    const on = () => setBp(pick());
-    qs.forEach((q) => q.addEventListener('change', on));
-    return () => qs.forEach((q) => q.removeEventListener('change', on));
-  }, []);
-  return bp;
-}
 
 type Root = RefObject<HTMLElement | null>;
 

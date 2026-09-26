@@ -74,7 +74,9 @@ export const SECTION = {
   emailSent: 'Лист надіслано — перевір пошту',
   emailTaken: 'Ця пошта вже має акаунт',
   emailAddError: 'Не вийшло надіслати лист. Спробуй ще раз за хвилину.',
-  plan: 'Тариф',
+  // Постановка 2026-09-25 (екран «Підписка»): рядок веде на /profile/subscription,
+  // значення — стан підписки одним рядком, не легасі user.plan.
+  plan: 'Підписка',
   theme: 'Тема',
   themeSub: 'на цьому пристрої',
   themeLight: 'Світла',
@@ -93,8 +95,6 @@ export const SECTION = {
   documentsContacts: 'Реквізити',
   banPrivacyNote: 'Це дані про здоровʼя. Як ми їх використовуємо',
 };
-
-export const PLAN_LABEL: Record<string, string> = { beta: 'Бета-тест' };
 
 // Р148: Telegram — рядок в «Акаунті» і мітка каналу в чаті. Один голос із
 // ErrorState/copy.ts: помилка каже, що робити, без «упс».
