@@ -46,7 +46,7 @@
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:640},&quot;plan&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;self&quot;,&quot;home&quot;],&quot;default&quot;:&quot;self&quot;,&quot;tsType&quot;:&quot;'self'|'home'&quot;},&quot;look&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;soft&quot;,&quot;glow&quot;,&quot;glass&quot;],&quot;default&quot;:&quot;soft&quot;,&quot;tsType&quot;:&quot;'glow'|'glass'&quot;},&quot;pattern&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;mark&quot;,&quot;rings&quot;,&quot;grid&quot;,&quot;dots&quot;,&quot;none&quot;],&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;trial&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;compact&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;hover&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:640},&quot;plan&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;self&quot;,&quot;home&quot;],&quot;default&quot;:&quot;self&quot;,&quot;tsType&quot;:&quot;'self'|'home'&quot;},&quot;look&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;soft&quot;,&quot;glow&quot;,&quot;glass&quot;],&quot;default&quot;:&quot;soft&quot;,&quot;tsType&quot;:&quot;'glow'|'glass'&quot;},&quot;pattern&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;mark&quot;,&quot;rings&quot;,&quot;grid&quot;,&quot;dots&quot;,&quot;none&quot;],&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;cta&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Почати з того, що є&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;trial&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;compact&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;hover&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
 class Component extends DCLogic {
   icons() { const run = () => { if (window.lucide) window.lucide.createIcons({ attrs: { 'stroke-width': 1.75 } }); else setTimeout(run, 200); }; run(); }
   componentDidMount() { this.icons(); }
@@ -125,7 +125,7 @@ class Component extends DCLogic {
       ...(((this.props.look ?? 'soft') === 'soft')
         ? { gloss:false, btnBg:'#1a1c1e', btnSh:'0 12px 40px rgba(26,28,30,.18)' }
         : { gloss:true, btnBg:'linear-gradient(180deg, #3a3e43 0%, #1f2225 46%, #111315 100%)', btnSh:'inset 0 1px 0 rgba(255,255,255,.28), inset 0 -2px 4px rgba(0,0,0,.45), 0 10px 22px rgba(17,19,21,.28)' }),
-      cta: 'Почати з того, що є',
+      cta: this.props.cta ?? 'Почати з того, що є',
       trial: !!this.props.trial,
       hover: !!this.props.hover,
       cursorTop: '360px',
