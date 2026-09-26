@@ -63,7 +63,7 @@ describe('applyProviderEvent', () => {
   });
   it('success у trial → active, платіж записаний, next_charge +1 міс', () => {
     const prev = base({ state: 'trial', trial_ends_at: '2026-10-01T00:00:00Z', next_charge_at: '2026-10-01T00:00:00Z', provider_order_id: 'o1' });
-    const r = applyProviderEvent(prev, { kind: 'success', order_id: 'o1', amount: 210, provider_payment_id: 'p1' }, now);
+    const r = applyProviderEvent(prev, { kind: 'success', order_id: 'o1', amount: 210, fee: null, provider_payment_id: 'p1' }, now);
     expect(r.sub.state).toBe('active');
     expect(r.payment).toMatchObject({ household_id: 'h1', amount: 210, status: 'success' });
     expect(r.sub.next_charge_at).toBe('2026-11-01T00:00:00.000Z');
@@ -128,7 +128,7 @@ describe('card_token', () => {
   });
 
   it('успішне списання токен НЕ чіпає — ним списуватимемо й наступного місяця', () => {
-    const r = applyProviderEvent(subscribed(), { kind: 'success', order_id: 'o1', amount: 210, provider_payment_id: 'p1' }, now);
+    const r = applyProviderEvent(subscribed(), { kind: 'success', order_id: 'o1', amount: 210, fee: null, provider_payment_id: 'p1' }, now);
     expect(r.sub.card_token).toBe('tok-1');
   });
 

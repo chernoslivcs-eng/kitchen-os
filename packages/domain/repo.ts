@@ -344,6 +344,12 @@ export interface Repo {
    * подвійного списання, якщо крон сьогодні вже бігав або його запустили руками.
    */
   hasPaymentToday(household_id: string, day: Date): Promise<boolean>;
+  /**
+   * Дописати комісію платежу, який уже є. Потрібно тому, що крон пише рядок
+   * одразу після синхронного списання, а комісію mono називає лише згодом, у
+   * вебхуку — і той вебхук за ідемпотентністю нового рядка вже не створить.
+   */
+  setPaymentFee(provider_payment_id: string, fee: number): Promise<void>;
   createUserOnly(email: string, name: string): Promise<string>;
   firstHouseholdOf(user_id: string): Promise<string | null>;
   getHousehold(id: string): Promise<HouseholdRow | null>;

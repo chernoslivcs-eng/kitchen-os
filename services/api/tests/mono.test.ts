@@ -137,7 +137,7 @@ describe('monoToEvent', () => {
 
   it('успішне списання (сума > 0) → success із сумою в гривнях', () => {
     expect(monoToEvent(inv({ status: 'success', amount: 21000 })))
-      .toEqual({ kind: 'success', order_id: 'ord-1', amount: 210, provider_payment_id: 'inv-1' });
+      .toEqual({ kind: 'success', order_id: 'ord-1', amount: 210, fee: null, provider_payment_id: 'inv-1' });
   });
 
   it('невдале списання → failure', () => {

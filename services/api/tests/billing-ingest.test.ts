@@ -26,7 +26,7 @@ describe('ingestProviderEvent', () => {
     const repo = new InMemoryRepo();
     const { household_id } = await repo.createUserWithHousehold('h@x.test', 'H');
     await repo.saveSubscription(sub(household_id, 'ord-1'));
-    const r = await ingestProviderEvent(repo, { kind: 'success', order_id: 'ord-1', amount: 210, provider_payment_id: 'p1' }, NOW, log);
+    const r = await ingestProviderEvent(repo, { kind: 'success', order_id: 'ord-1', amount: 210, fee: null, provider_payment_id: 'p1' }, NOW, log);
     expect(r).toEqual({ target: 'household', state: 'active' });
     expect(await repo.listPayments(household_id)).toHaveLength(1);
   });
@@ -64,7 +64,7 @@ describe('ingestProviderEvent', () => {
     const order_id = randomUUID();
     await repo.insertIntent(intent(order_id, { state: 'subscribed' }));
     log.warn.mockClear();
-    const r = await ingestProviderEvent(repo, { kind: 'success', order_id, amount: 210, provider_payment_id: 'p9' }, NOW, log);
+    const r = await ingestProviderEvent(repo, { kind: 'success', order_id, amount: 210, fee: null, provider_payment_id: 'p9' }, NOW, log);
     expect(r).toEqual({ target: 'none', reason: 'no_household_for_money' });
     expect(log.warn).toHaveBeenCalledOnce();
     expect(await repo.getIntent(order_id)).toMatchObject({ state: 'subscribed' });
@@ -125,7 +125,7 @@ describe('ingestProviderEvent · повтори й запізнілі події
     return { repo, household_id };
   };
   const success = (provider_payment_id: string) =>
-    ({ kind: 'success' as const, order_id: 'ord-r', amount: 290, provider_payment_id });
+    ({ kind: 'success' as const, order_id: 'ord-r', amount: 290, fee: null, provider_payment_id });
 
   it('той самий invoiceId удруге не зсуває дату списання', async () => {
     const { repo, household_id } = await paid();
@@ -167,6 +167,48 @@ describe('ingestProviderEvent · повтори й запізнілі події
     const { repo, household_id } = await paid();
     await ingestProviderEvent(repo, { kind: 'subscribed', order_id: 'ord-r', card_mask: '7777', card_token: 'tok-новий' }, NOW, log);
     expect(await repo.getSubscription(household_id)).toMatchObject({ card_token: 'tok-новий', card_mask: '7777' });
+  });
+});
+
+// Комісія приходить пізніше за сам платіж: крон пише рядок одразу після
+// синхронного списання, а fee mono називає лише у вебхуку — і той вебхук за
+// ідемпотентністю нового рядка вже не створить.
+describe('ingestProviderEvent · комісія доживає до бази', () => {
+  it('вебхук дописує fee рядку, який поклав крон', async () => {
+    const repo = new InMemoryRepo();
+    const { user_id, household_id } = await repo.createUserWithHousehold('fee-late@x.test', 'F');
+    await repo.saveSubscription({
+      household_id, state: 'trial', plan: 'home', trial_used_at: null,
+      trial_ends_at: '2026-10-15T00:00:00.000Z', next_charge_at: '2026-10-15T00:00:00.000Z',
+      access_until: null, provider_order_id: 'ord-f', card_mask: '42', card_token: 'tok-f',
+      paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null,
+      updated_at: NOW.toISOString(),
+    });
+
+    // 1. Крон: списав, комісії ще не знає.
+    await ingestProviderEvent(repo, { kind: 'success', order_id: 'ord-f', amount: 290, fee: null, provider_payment_id: 'inv-f' }, NOW, log);
+    expect((await repo.listPayments(household_id))[0]).toMatchObject({ amount: 290, fee: null });
+
+    // 2. Вебхук про те саме списання: новий рядок не створює, але fee приносить.
+    await ingestProviderEvent(repo, { kind: 'success', order_id: 'ord-f', amount: 290, fee: 3.77, provider_payment_id: 'inv-f' }, NOW, log);
+    const rows = await repo.listPayments(household_id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ fee: 3.77 });
+  });
+
+  it('повтор без комісії вже відому не стирає', async () => {
+    const repo = new InMemoryRepo();
+    const { user_id, household_id } = await repo.createUserWithHousehold('fee-keep@x.test', 'F');
+    await repo.saveSubscription({
+      household_id, state: 'trial', plan: 'home', trial_used_at: null,
+      trial_ends_at: '2026-10-15T00:00:00.000Z', next_charge_at: '2026-10-15T00:00:00.000Z',
+      access_until: null, provider_order_id: 'ord-k', card_mask: '42', card_token: 'tok-k',
+      paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null,
+      updated_at: NOW.toISOString(),
+    });
+    await ingestProviderEvent(repo, { kind: 'success', order_id: 'ord-k', amount: 290, fee: 3.77, provider_payment_id: 'inv-k' }, NOW, log);
+    await ingestProviderEvent(repo, { kind: 'success', order_id: 'ord-k', amount: 290, fee: null, provider_payment_id: 'inv-k' }, NOW, log);
+    expect((await repo.listPayments(household_id))[0]).toMatchObject({ fee: 3.77 });
   });
 });
 

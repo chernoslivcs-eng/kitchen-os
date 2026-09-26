@@ -1663,7 +1663,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         const day = new Date('2026-10-15T03:30:00.000Z');
         expect(await ctx.repo.hasPaymentToday(household_id, day)).toBe(false);
         await ctx.repo.insertPayment({
-          household_id, amount: 290, currency: 'UAH', status: 'failure', provider_payment_id: 'inv-f',
+          household_id, amount: 290, fee: null, currency: 'UAH', status: 'failure', provider_payment_id: 'inv-f',
           paid_by_user_id: null, receipt_url: null, created_at: '2026-10-15T03:30:05.000Z',
         });
         // Саме невдалий: він і є слід «сьогодні вже пробували».
@@ -1671,9 +1671,32 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         expect(await ctx.repo.hasPaymentToday(household_id, new Date('2026-10-16T03:30:00.000Z'))).toBe(false);
       });
 
+      // Комісію провайдер називає раз і потім не відновити, тож окремо стежимо,
+      // що вона доїжджає до бази й дописується в уже наявний рядок.
+      it('fee зберігається; setPaymentFee дописує його рядку без комісії', async () => {
+        const { household_id } = await ctx.repo.createUserWithHousehold('fee@x.test', 'F');
+        const base = {
+          household_id, amount: 290, currency: 'UAH' as const, status: 'success' as const,
+          paid_by_user_id: null, receipt_url: null, created_at: '2026-10-15T00:00:00.000Z',
+        };
+        await ctx.repo.insertPayment({ ...base, fee: 3.77, provider_payment_id: 'pay-fee-1' });
+        await ctx.repo.insertPayment({ ...base, fee: null, provider_payment_id: 'pay-fee-2' });
+        const byId = new Map((await ctx.repo.listPayments(household_id)).map((p) => [p.provider_payment_id, p.fee]));
+        expect(byId.get('pay-fee-1')).toBe(3.77);
+        expect(byId.get('pay-fee-2')).toBeNull();
+
+        // Так дописує вебхук те, що поклав крон.
+        await ctx.repo.setPaymentFee('pay-fee-2', 2.73);
+        // А вже відому комісію не перезаписує.
+        await ctx.repo.setPaymentFee('pay-fee-1', 99);
+        const after = new Map((await ctx.repo.listPayments(household_id)).map((p) => [p.provider_payment_id, p.fee]));
+        expect(after.get('pay-fee-2')).toBe(2.73);
+        expect(after.get('pay-fee-1')).toBe(3.77);
+      });
+
       it('insertPayment ідемпотентний по provider_payment_id', async () => {
         const { household_id } = await ctx.repo.createUserWithHousehold('s2@x.test', 'S');
-        const p = { household_id, amount: 210, currency: 'UAH' as const, status: 'success' as const, provider_payment_id: 'pay-1', paid_by_user_id: null, receipt_url: null, created_at: '2026-10-15T00:00:00.000Z' };
+        const p = { household_id, amount: 210, fee: null, currency: 'UAH' as const, status: 'success' as const, provider_payment_id: 'pay-1', paid_by_user_id: null, receipt_url: null, created_at: '2026-10-15T00:00:00.000Z' };
         expect(await ctx.repo.insertPayment(p)).toBe(true);
         expect(await ctx.repo.insertPayment(p)).toBe(false);
         expect(await ctx.repo.listPayments(household_id)).toHaveLength(1);

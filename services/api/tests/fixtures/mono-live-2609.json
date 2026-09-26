@@ -1,0 +1,55 @@
+{
+ "verificationStatus": {
+  "invoiceId": "2609269iFQNoirnYUA5s",
+  "status": "success",
+  "amount": 0,
+  "ccy": 980,
+  "finalAmount": 0,
+  "createdDate": "2026-09-26T07:00:43Z",
+  "modifiedDate": "2026-09-26T07:07:49Z",
+  "reference": "32240a47-5090-465d-a5e4-040c69ea51b1",
+  "destination": "Kitchen OS · Для дому",
+  "walletData": {
+   "walletId": "32240a47-5090-465d-a5e4-040c69ea51b1",
+   "cardToken": "260926DqFYNPTM1V1oWE",
+   "status": "created",
+   "maskedPan": "42424242******42",
+   "paymentSystem": "visa"
+  }
+ },
+ "chargeProcessing": {
+  "invoiceId": "260926EJ92sdX5EEVgLJ",
+  "status": "processing",
+  "amount": 29000,
+  "ccy": 980,
+  "finalAmount": 0,
+  "createdDate": "2026-09-26T07:20:35Z",
+  "modifiedDate": "2026-09-26T07:20:35Z",
+  "reference": "32240a47-5090-465d-a5e4-040c69ea51b1",
+  "destination": "Kitchen OS · підписка"
+ },
+ "chargeSuccess": {
+  "invoiceId": "260926EJ92sdX5EEVgLJ",
+  "status": "success",
+  "payMethod": "wallet",
+  "amount": 29000,
+  "ccy": 980,
+  "finalAmount": 29000,
+  "createdDate": "2026-09-26T07:20:35Z",
+  "modifiedDate": "2026-09-26T07:20:35Z",
+  "reference": "32240a47-5090-465d-a5e4-040c69ea51b1",
+  "destination": "Kitchen OS · підписка",
+  "paymentInfo": {
+   "rrn": "075435728503",
+   "approvalCode": "487656",
+   "tranId": "425822421810",
+   "terminal": "MI000000",
+   "bank": "Test bank",
+   "paymentSystem": "visa",
+   "country": "804",
+   "fee": 377,
+   "paymentMethod": "wallet",
+   "maskedPan": "42424242******42"
+  }
+ }
+}
