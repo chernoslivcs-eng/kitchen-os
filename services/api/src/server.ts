@@ -17,6 +17,7 @@ import { meRoute } from './routes/me.js';
 import { subscriptionRoute } from './routes/subscription.js';
 import { pickBillingProvider } from './billing/pick-provider.js';
 import { billingRoutes } from './routes/billing.js';
+import { monoWebhookRoute } from './routes/mono-webhook.js';
 import type { BillingProvider } from './billing/provider.js';
 import { pantryRoute } from './routes/pantry.js';
 import { recipesRoutes } from './routes/recipes.js';
@@ -63,7 +64,7 @@ import { retailRoutes, type RetailOpts } from './routes/retail.js';
 const SENTRY_FLUSH_MS = 1000;
 
 export interface BuildAppOpts {
-  /** Провайдер оплат; типово фейк — стенд і тести не ходять у LiqPay. */
+  /** Провайдер оплат; типово фейк — стенд і тести в мережу не ходять. */
   billing?: BillingProvider;
   /** Тести: власний логер Fastify (рівень + потік). */
   logger?: FastifyServerOptions['logger'];
@@ -73,6 +74,8 @@ export interface BuildAppOpts {
     chat?: RateLimitCfg;
     shopping?: RateLimitCfg;
   };
+  /** Тести й стенд: відкритий ключ mono замість походу в api.monobank.ua. */
+  monoPubKey?: () => Promise<string>;
   google?: GoogleAuthOpts;
   telegramAuth?: TelegramAuthOpts;
   retail?: RetailOpts;
@@ -185,6 +188,7 @@ export function buildApp(
   const billing = opts.billing ?? pickBillingProvider(appUrl);
   subscriptionRoute(app, repo, billing, appUrl);
   billingRoutes(app, repo, billing, appUrl);
+  monoWebhookRoute(app, repo, { pubKey: opts.monoPubKey });
   pantryRoute(app, repo);
   shoppingRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
   eventsRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });

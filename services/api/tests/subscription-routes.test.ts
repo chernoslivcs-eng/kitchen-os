@@ -31,7 +31,7 @@ describe('/v1/subscription', () => {
     const household_id = (await repo.firstHouseholdOf(A.user_id))!;
     await repo.saveSubscription({
       household_id, state: 'lapsed', plan: null, trial_used_at: null, trial_ends_at: null,
-      next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null,
+      next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null, card_token: null,
       paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null, updated_at: new Date().toISOString(),
     });
     return { ...A, household_id };
@@ -55,28 +55,27 @@ describe('/v1/subscription', () => {
     expect((billing.calls[0]!.args as { amount: number }).amount).toBe(290);
   });
 
-  // Спек біллінгу §9.1: одна дата на два місця — у нас і в провайдера.
-  it('checkout кладе trial_ends_at у підписку й те саме число віддає провайдеру', async () => {
+  // Спек біллінгу §9.1 у версії mono: дата живе ТІЛЬКИ в нас. Провайдер її
+  // не знає й знати не може — списання робить наш крон, а не він.
+  it('checkout кладе trial_ends_at у підписку; провайдеру дати не віддаємо', async () => {
     const A = await lapsed('c3@example.com');
     const t0 = Date.now();
     await app.inject({ method: 'POST', url: '/v1/subscription/checkout', headers: { cookie: A.cookie }, payload: { plan: 'self' } });
     const saved = await repo.getSubscription(A.household_id);
-    const sent = (billing.calls[0]!.args as { date_start: string }).date_start;
-    expect(saved?.trial_ends_at).toBe(sent);
-    const days = (new Date(sent).getTime() - t0) / 86_400_000;
+    const days = (new Date(saved!.trial_ends_at!).getTime() - t0) / 86_400_000;
     expect(days).toBeGreaterThan(13.9);
     expect(days).toBeLessThan(14.1);
+    expect(billing.calls[0]!.args).not.toHaveProperty('date_start');
   });
 
-  it('пробний уже використаний → date_start «зараз», дати пробного нема', async () => {
+  it('пробний уже використаний → дати пробного нема; картку все одно беремо', async () => {
     const A = await lapsed('c2@example.com');
     const sub = (await repo.getSubscription(A.household_id))!;
     await repo.saveSubscription({ ...sub, trial_used_at: '2026-01-01T00:00:00.000Z' });
-    const t0 = Date.now();
     await app.inject({ method: 'POST', url: '/v1/subscription/checkout', headers: { cookie: A.cookie }, payload: { plan: 'self' } });
     expect((await repo.getSubscription(A.household_id))?.trial_ends_at).toBeNull();
-    const sent = new Date((billing.calls[0]!.args as { date_start: string }).date_start).getTime();
-    expect(Math.abs(sent - t0)).toBeLessThan(5000);
+    // Гаманець — дім: наступного разу провайдер упізнає ту саму картку.
+    expect((billing.calls[0]!.args as { wallet_id: string }).wallet_id).toBe(A.household_id);
   });
 
   it('вже активний → 409, у провайдера нічого не питали', async () => {
@@ -88,15 +87,17 @@ describe('/v1/subscription', () => {
     expect(billing.calls).toHaveLength(0);
   });
 
-  it('cancel у active → unsubscribe у провайдера, стан cancelled, доступ до дати списання', async () => {
+  it('cancel у active → токен видалено у провайдера, стан cancelled, доступ до дати списання', async () => {
     const A = await lapsed('x@example.com');
     const sub = (await repo.getSubscription(A.household_id))!;
-    await repo.saveSubscription({ ...sub, state: 'active', plan: 'self', provider_order_id: 'o9', next_charge_at: '2026-11-01T00:00:00.000Z' });
+    await repo.saveSubscription({ ...sub, state: 'active', plan: 'self', provider_order_id: 'o9', card_token: 'tok-9', next_charge_at: '2026-11-01T00:00:00.000Z' });
     const r = await app.inject({ method: 'POST', url: '/v1/subscription/cancel', headers: { cookie: A.cookie }, payload: {} });
     expect(r.statusCode).toBe(200);
-    expect(billing.calls.map((c) => c.op)).toContain('unsubscribe');
+    // Саме токен, а не order_id: звʼязок між ними є лише в нашій базі.
+    expect(billing.calls).toContainEqual({ op: 'delete-token', args: 'tok-9' });
     const after = await repo.getSubscription(A.household_id);
-    expect(after).toMatchObject({ state: 'cancelled', access_until: '2026-11-01T00:00:00.000Z', card_mask: null });
+    // Токен стерто й у себе — інакше крон спробував би списати ним ще раз.
+    expect(after).toMatchObject({ state: 'cancelled', access_until: '2026-11-01T00:00:00.000Z', card_mask: null, card_token: null });
   });
 
   it('тариф: підвищення одразу без дати, пониження — з датою наступного списання', async () => {

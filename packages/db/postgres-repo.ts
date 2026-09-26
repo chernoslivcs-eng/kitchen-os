@@ -19,7 +19,7 @@ import type {
   HouseholdProduct, ProductTriple,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule, OccasionSubscriptionRow,
   ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
-  TelegramAccountRow, TelegramLinkTokenRow, TelegramWebTokenRow, MergeStats,
+  TelegramAccountRow, TelegramLinkTokenRow, TelegramWebTokenRow, MergeStats, IntentPatch,
 } from '@kitchen/domain';
 import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
@@ -119,12 +119,26 @@ function subRow(r: Row): HouseholdSubscription {
     access_until: iso(r.access_until),
     provider_order_id: (r.provider_order_id as string | null) ?? null,
     card_mask: (r.card_mask as string | null) ?? null,
+    card_token: (r.card_token as string | null) ?? null,
     paid_by_user_id: (r.paid_by_user_id as string | null) ?? null,
     deletion_warned_at: iso(r.deletion_warned_at),
     trial_mail_sent_at: iso(r.trial_mail_sent_at),
     updated_at: new Date(r.updated_at as string).toISOString(),
   };
 }
+
+/**
+ * Поля наміру, які вміє оновлювати updateIntent. Список потрібен у рантаймі —
+ * тип у рантаймі не існує. Тому нижче стоїть перевірка, що список не відстав
+ * від типу: додане в IntentPatch поле, забуте тут, НЕ ЗБЕРЕТЬСЯ.
+ *
+ * Саме на цьому вже попались із card_token: тип розширили, список — ні, і
+ * токен мовчки не доїжджав до бази (in-memory працював, Postgres — ні).
+ */
+const INTENT_PATCH_FIELDS = ['state', 'card_mask', 'card_token', 'household_id', 'bound_at'] as const;
+type MissingIntentField = Exclude<keyof IntentPatch, (typeof INTENT_PATCH_FIELDS)[number]>;
+type AssertNever<T extends never> = T;
+export type __IntentPatchCovered = AssertNever<MissingIntentField>;
 
 // Намір оплати (міграція 0047).
 function intentRow(r: Row): PaymentIntent {
@@ -134,6 +148,7 @@ function intentRow(r: Row): PaymentIntent {
     state: r.state as PaymentIntent['state'],
     trial_ends_at: iso(r.trial_ends_at),
     card_mask: (r.card_mask as string | null) ?? null,
+    card_token: (r.card_token as string | null) ?? null,
     household_id: (r.household_id as string | null) ?? null,
     ip: (r.ip as string | null) ?? null,
     created_at: new Date(r.created_at as string).toISOString(),
@@ -1759,9 +1774,9 @@ export class PostgresRepo implements Repo {
   // ── Намір оплати (спек біллінгу §4, міграція 0047) ──
   async insertIntent(i: PaymentIntent): Promise<void> {
     await this.pool.query(
-      `INSERT INTO payment_intent (order_id, plan, state, trial_ends_at, card_mask, household_id, ip, created_at, expires_at, bound_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [i.order_id, i.plan, i.state, i.trial_ends_at, i.card_mask, i.household_id, i.ip, i.created_at, i.expires_at, i.bound_at],
+      `INSERT INTO payment_intent (order_id, plan, state, trial_ends_at, card_mask, card_token, household_id, ip, created_at, expires_at, bound_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [i.order_id, i.plan, i.state, i.trial_ends_at, i.card_mask, i.card_token, i.household_id, i.ip, i.created_at, i.expires_at, i.bound_at],
     );
   }
 
@@ -1770,18 +1785,37 @@ export class PostgresRepo implements Repo {
     return rows[0] ? intentRow(rows[0]) : null;
   }
 
-  async updateIntent(order_id: string, patch: Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'household_id' | 'bound_at'>>): Promise<void> {
+  async updateIntent(order_id: string, patch: IntentPatch): Promise<void> {
     // COALESCE не годиться: household_id і card_mask можна ставити в null
     // навмисно. Тому збираємо лише передані поля.
     const sets: string[] = [];
     const vals: unknown[] = [order_id];
-    for (const k of ['state', 'card_mask', 'household_id', 'bound_at'] as const) {
+    for (const k of INTENT_PATCH_FIELDS) {
       if (!(k in patch)) continue;
       vals.push(patch[k]);
       sets.push(`${k} = $${vals.length}`);
     }
     if (!sets.length) return;
     await this.pool.query(`UPDATE payment_intent SET ${sets.join(', ')} WHERE order_id = $1`, vals);
+  }
+
+  async listSubscriptionsDue(now: Date): Promise<HouseholdSubscription[]> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM household_subscription
+        WHERE state IN ('trial','active','past_due') AND card_token IS NOT NULL
+          AND next_charge_at IS NOT NULL AND next_charge_at <= $1
+        ORDER BY next_charge_at`,
+      [now.toISOString()],
+    );
+    return rows.map(subRow);
+  }
+
+  async hasPaymentToday(household_id: string, day: Date): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      `SELECT 1 FROM payment WHERE household_id = $1 AND created_at::date = $2::date LIMIT 1`,
+      [household_id, day.toISOString()],
+    );
+    return rows.length > 0;
   }
 
   async listIntentsExpiring(before: Date): Promise<PaymentIntent[]> {
@@ -1800,16 +1834,16 @@ export class PostgresRepo implements Repo {
 
   async saveSubscription(s: HouseholdSubscription): Promise<void> {
     await this.pool.query(
-      `INSERT INTO household_subscription (household_id, state, plan, trial_used_at, trial_ends_at, next_charge_at, access_until, provider_order_id, card_mask, paid_by_user_id, deletion_warned_at, trial_mail_sent_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      `INSERT INTO household_subscription (household_id, state, plan, trial_used_at, trial_ends_at, next_charge_at, access_until, provider_order_id, card_mask, card_token, paid_by_user_id, deletion_warned_at, trial_mail_sent_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        ON CONFLICT (household_id) DO UPDATE SET state=EXCLUDED.state, plan=EXCLUDED.plan,
          trial_used_at=EXCLUDED.trial_used_at, trial_ends_at=EXCLUDED.trial_ends_at,
          next_charge_at=EXCLUDED.next_charge_at, access_until=EXCLUDED.access_until,
          provider_order_id=EXCLUDED.provider_order_id, card_mask=EXCLUDED.card_mask,
-         paid_by_user_id=EXCLUDED.paid_by_user_id, deletion_warned_at=EXCLUDED.deletion_warned_at,
+         card_token=EXCLUDED.card_token, paid_by_user_id=EXCLUDED.paid_by_user_id, deletion_warned_at=EXCLUDED.deletion_warned_at,
          trial_mail_sent_at=EXCLUDED.trial_mail_sent_at, updated_at=EXCLUDED.updated_at`,
       [s.household_id, s.state, s.plan, s.trial_used_at, s.trial_ends_at, s.next_charge_at, s.access_until,
-        s.provider_order_id, s.card_mask, s.paid_by_user_id, s.deletion_warned_at, s.trial_mail_sent_at, s.updated_at],
+        s.provider_order_id, s.card_mask, s.card_token, s.paid_by_user_id, s.deletion_warned_at, s.trial_mail_sent_at, s.updated_at],
     );
   }
 

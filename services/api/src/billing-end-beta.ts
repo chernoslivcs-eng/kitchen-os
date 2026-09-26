@@ -66,6 +66,8 @@ export async function applyEndBeta(deps: EndBetaDeps): Promise<EndBetaSummary> {
       // Тариф не вигадуємо: людина обере його сама на екрані «Підписка».
       plan: null,
       trial_used_at: prev?.trial_used_at ?? null,
+      // Бета скінчилась — картки в нас і не було; списувати нічим і нізащо.
+      card_token: null,
       trial_ends_at: null,
       next_charge_at: null,
       access_until: a.access_until,

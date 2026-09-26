@@ -221,16 +221,19 @@ if (subState) {
   const base: HouseholdSubscription = {
     household_id, state: subState, plan: 'home', trial_used_at: null, trial_ends_at: null,
     next_charge_at: null, access_until: null, provider_order_id: 'stand-order', card_mask: '4242',
-    paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null, updated_at: iso(0),
+    // Токен фейковий: провайдер на стенді теж фейковий, у мережу ніхто не йде.
+    card_token: 'stand-token', paid_by_user_id: user_id, deletion_warned_at: null,
+    trial_mail_sent_at: null, updated_at: iso(0),
   };
   const byState: Record<SubscriptionState, Partial<HouseholdSubscription>> = {
     // Бета: платіжних даних ще нема взагалі, інакше екран показує чужу картку.
-    beta: { plan: null, provider_order_id: null, card_mask: null, paid_by_user_id: null },
+    beta: { plan: null, provider_order_id: null, card_mask: null, card_token: null, paid_by_user_id: null },
     trial: { trial_used_at: iso(-11), trial_ends_at: iso(3), next_charge_at: iso(3) },
     active: { trial_used_at: iso(-45), next_charge_at: iso(20) },
     cancelled: { trial_used_at: iso(-60), access_until: iso(10) },
     past_due: { trial_used_at: iso(-60), next_charge_at: iso(-2) },
-    lapsed: { trial_used_at: iso(-90), access_until: iso(-8) },
+    // Підписки вже немає — і картки теж: скасування стирає токен.
+    lapsed: { trial_used_at: iso(-90), access_until: iso(-8), card_token: null, card_mask: null },
   };
   await repo.saveSubscription({ ...base, ...byState[subState] });
 }

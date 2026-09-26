@@ -17,6 +17,13 @@ import type { OccasionRow } from './occasion-data.js';
 import type { OccasionSubscriptionRow } from './periods.js';
 import type { HouseholdSubscription, PaymentIntent, PaymentRow, SubscriptionState } from './subscription.js';
 
+/**
+ * Що можна міняти в намірі після створення. Окремим іменем, бо Postgres
+ * перелічує ці поля ще й списком у SQL — і має спосіб не зібратись, якщо
+ * список відстане від типу (див. postgres-repo.ts, updateIntent).
+ */
+export type IntentPatch = Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'card_token' | 'household_id' | 'bound_at'>>;
+
 export interface UserRow {
   id: string;
   name: string;
@@ -324,9 +331,19 @@ export interface Repo {
   // ── Намір оплати (спек біллінгу §4, міграція 0047) ──
   insertIntent(i: PaymentIntent): Promise<void>;
   getIntent(order_id: string): Promise<PaymentIntent | null>;
-  updateIntent(order_id: string, patch: Partial<Pick<PaymentIntent, 'state' | 'card_mask' | 'household_id' | 'bound_at'>>): Promise<void>;
+  updateIntent(order_id: string, patch: IntentPatch): Promise<void>;
   /** Наміри, яким час вийшов і які ще можуть щось означати: `pending` і `subscribed`. */
   listIntentsExpiring(before: Date): Promise<PaymentIntent[]>;
+  /**
+   * Кому крон має списати сьогодні: стан платний, дата настала, токен є.
+   * Без токена списувати нічим — такий дім у чергу не потрапляє взагалі.
+   */
+  listSubscriptionsDue(now: Date): Promise<HouseholdSubscription[]>;
+  /**
+   * Чи є за цю добу (UTC) хоч один платіж дому — успішний або ні. Захист від
+   * подвійного списання, якщо крон сьогодні вже бігав або його запустили руками.
+   */
+  hasPaymentToday(household_id: string, day: Date): Promise<boolean>;
   createUserOnly(email: string, name: string): Promise<string>;
   firstHouseholdOf(user_id: string): Promise<string | null>;
   getHousehold(id: string): Promise<HouseholdRow | null>;

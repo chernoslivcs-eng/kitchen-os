@@ -30,7 +30,7 @@ describe('GET /v1/me · підписка', () => {
     const household_id = await repo.firstHouseholdOf(A.user_id);
     await repo.saveSubscription({
       household_id: household_id!, state: 'lapsed', plan: 'self', trial_used_at: null, trial_ends_at: null,
-      next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null, paid_by_user_id: null,
+      next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null, card_token: null, paid_by_user_id: null,
       deletion_warned_at: null, trial_mail_sent_at: null, updated_at: new Date().toISOString(),
     });
     const body = (await app.inject({ method: 'GET', url: '/v1/me', headers: { cookie: A.cookie } })).json();

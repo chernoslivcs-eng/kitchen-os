@@ -16,7 +16,7 @@ async function two() {
   const b = await repo.createUserWithHousehold('b@x.test', 'B');   // явний beta
   await repo.saveSubscription({
     household_id: b.household_id, state: 'beta', plan: null, trial_used_at: null, trial_ends_at: null,
-    next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null, paid_by_user_id: null,
+    next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null, card_token: null, paid_by_user_id: null,
     deletion_warned_at: null, trial_mail_sent_at: null, updated_at: NOW.toISOString(),
   });
   return { repo, a, b };

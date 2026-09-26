@@ -1,7 +1,7 @@
 // Екран «Підписка» (спек 2026-09-25 §4): єдине місце платіжних дій. Бачать і
 // можуть діяти ВСІ члени дому — підписка належить дому, не людині.
 //
-// Провайдер сховано за інтерфейсом; справжній LiqPay і його вебхук — окремий
+// Провайдер сховано за інтерфейсом; справжній адаптер і його вебхук — окремий
 // план біллінгу, який викликатиме той самий `applyProviderEvent`.
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
@@ -57,13 +57,14 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
       household_id, state: sub?.state ?? 'lapsed', plan,
       trial_used_at: sub?.trial_used_at ?? null, trial_ends_at,
       next_charge_at: sub?.next_charge_at ?? null, access_until: sub?.access_until ?? null,
-      provider_order_id: order_id, card_mask: sub?.card_mask ?? null, paid_by_user_id: user_id,
+      provider_order_id: order_id, card_mask: sub?.card_mask ?? null, card_token: sub?.card_token ?? null, paid_by_user_id: user_id,
       deletion_warned_at: null, trial_mail_sent_at: sub?.trial_mail_sent_at ?? null,
       updated_at: now.toISOString(),
     });
     const url = await billing.checkoutUrl({
       order_id, household_id, plan, amount: PLAN_PRICE_UAH[plan],
-      date_start: trial_ends_at ?? now.toISOString(),
+      // Картка ляже в гаманець дому: наступного разу провайдер упізнає його.
+      wallet_id: household_id,
       result_url: `${appUrl}/profile/subscription?order=${order_id}`,
     });
     return { url };
@@ -75,7 +76,11 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
     if (!sub?.provider_order_id || !['trial', 'active', 'past_due'].includes(sub.state)) {
       return reply.code(409).send({ error: 'nothing_to_cancel' });
     }
-    await billing.unsubscribe(sub.provider_order_id);
+    // Картку прибираємо у провайдера, і лише потім у себе: якщо mono не
+    // відповів, краще лишити підписку живою (людина спробує ще раз), ніж
+    // забути токен у себе й лишити картку збереженою назавжди.
+    if (sub.card_token) await billing.deleteToken(sub.card_token);
+    // applyProviderEvent на unsubscribed сам ставить card_token у null.
     await repo.saveSubscription(applyProviderEvent(sub, { kind: 'unsubscribed', order_id: sub.provider_order_id }, new Date()).sub);
     return { subscription: await view(household_id) };
   });
@@ -88,14 +93,15 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
     if (!sub?.provider_order_id || !['trial', 'active'].includes(sub.state) || sub.plan === plan) {
       return reply.code(409).send({ error: 'cannot_change' });
     }
-    await billing.updateAmount(sub.provider_order_id, PLAN_PRICE_UAH[plan]);
+    // Провайдеру нову суму казати нікуди й не треба: списує крон, і суму він
+    // бере з тарифу в цей самий момент. Тариф у базі — і є вся зміна.
     await repo.saveSubscription({ ...sub, plan, updated_at: new Date().toISOString() });
     // Підвищення діє одразу; пониження — з наступного списання, і саме цю
     // дату екран показує людині.
     return { subscription: await view(household_id), effective_at: plan === 'home' ? null : sub.next_charge_at };
   });
 
-  // Тільки для стенда й тестів: справжній вебхук LiqPay (підпис, мапінг
+  // Тільки для стенда й тестів: справжній вебхук провайдера (підпис, мапінг
   // статусів) живе окремо — інша модель довіри. Спільне в них лише те, що
   // відбувається ПІСЛЯ довіри: ingestProviderEvent.
   //

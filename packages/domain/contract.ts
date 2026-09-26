@@ -1554,7 +1554,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
     describe('payment_intent', () => {
       const intentOf = (order_id: string, over: Partial<PaymentIntent> = {}): PaymentIntent => ({
         order_id, plan: 'home', state: 'pending', trial_ends_at: '2026-10-15T00:00:00.000Z',
-        card_mask: null, household_id: null, ip: '1.2.3.4',
+        card_mask: null, card_token: null, household_id: null, ip: '1.2.3.4',
         created_at: '2026-10-01T00:00:00.000Z', expires_at: '2026-10-08T00:00:00.000Z', bound_at: null, ...over,
       });
 
@@ -1569,6 +1569,14 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
 
       it('getIntent невідомого order — null', async () => {
         expect(await ctx.repo.getIntent(randomUUID())).toBeNull();
+      });
+
+      it('card_token наміру зберігається і оновлюється через updateIntent', async () => {
+        const id = randomUUID();
+        await ctx.repo.insertIntent(intentOf(id));
+        expect((await ctx.repo.getIntent(id))?.card_token).toBeNull();
+        await ctx.repo.updateIntent(id, { state: 'subscribed', card_mask: '4242', card_token: 'tok-9' });
+        expect(await ctx.repo.getIntent(id)).toMatchObject({ state: 'subscribed', card_mask: '4242', card_token: 'tok-9' });
       });
 
       it('listIntentsExpiring бере лише прострочені pending і subscribed', async () => {
@@ -1591,7 +1599,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         household_id, state: 'trial', plan: 'self',
         trial_used_at: '2026-10-01T00:00:00.000Z', trial_ends_at: '2026-10-15T00:00:00.000Z',
         next_charge_at: '2026-10-15T00:00:00.000Z', access_until: null,
-        provider_order_id: 'ord-1', card_mask: '4242', paid_by_user_id: null,
+        provider_order_id: 'ord-1', card_mask: '4242', card_token: 'tok-1', paid_by_user_id: null,
         deletion_warned_at: null, trial_mail_sent_at: null, updated_at: '2026-10-01T00:00:00.000Z',
       });
 
@@ -1605,12 +1613,62 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         expect((await ctx.repo.listSubscriptionsByState(['lapsed'])).map((x) => x.household_id)).toContain(household_id);
       });
 
+      // mono: токен — єдине, чим крон може списати. Якщо мапер Postgres його
+      // загубить (а колонки додаються саме там, де легко забути), дім тихо
+      // перестане платити й через тиждень піде в lapsed. Тому окремо.
+      it('card_token переживає save/get і стирається в null', async () => {
+        const { household_id } = await ctx.repo.createUserWithHousehold('s1t@x.test', 'S');
+        // Свій order_id: у базі він унікальний, а 'ord-1' із subOf уже зайнятий сусіднім тестом.
+        const ord = randomUUID();
+        await ctx.repo.saveSubscription({ ...subOf(household_id), provider_order_id: ord });
+        expect((await ctx.repo.getSubscription(household_id))?.card_token).toBe('tok-1');
+        await ctx.repo.saveSubscription({ ...subOf(household_id), provider_order_id: ord, card_token: null });
+        expect((await ctx.repo.getSubscription(household_id))?.card_token).toBeNull();
+      });
+
       it('saveSubscription — upsert, а не другий рядок', async () => {
         const { household_id } = await ctx.repo.createUserWithHousehold('s1b@x.test', 'S');
         await ctx.repo.saveSubscription({ ...subOf(household_id), provider_order_id: 'ord-1b' });
         await ctx.repo.saveSubscription({ ...subOf(household_id), provider_order_id: 'ord-1b', state: 'active', trial_mail_sent_at: '2026-10-12T00:00:00.000Z' });
         const got = await ctx.repo.getSubscription(household_id);
         expect(got).toMatchObject({ state: 'active', trial_mail_sent_at: '2026-10-12T00:00:00.000Z' });
+      });
+
+      // Черга на списання (план mono, задача 4). Дві помилки тут коштують
+      // грошей: узяти дім без токена — виняток у кроні; узяти двічі за добу —
+      // подвійне списання з людини.
+      it('listSubscriptionsDue бере лише платні стани з токеном і насталою датою', async () => {
+        // provider_order_id унікальний у базі — кожному дому свій.
+        const mk = async (email: string, over: Partial<HouseholdSubscription>) => {
+          const { household_id } = await ctx.repo.createUserWithHousehold(email, 'D');
+          await ctx.repo.saveSubscription({
+            ...subOf(household_id), provider_order_id: randomUUID(),
+            next_charge_at: '2026-10-15T00:00:00.000Z', state: 'active', ...over,
+          });
+          return household_id;
+        };
+        const yes = await mk('due1@x.test', {});
+        const noToken = await mk('due2@x.test', { card_token: null });
+        const notYet = await mk('due3@x.test', { next_charge_at: '2026-12-01T00:00:00.000Z' });
+        const cancelled = await mk('due4@x.test', { state: 'cancelled' });
+        const got = (await ctx.repo.listSubscriptionsDue(new Date('2026-10-16T03:30:00.000Z'))).map((s) => s.household_id);
+        expect(got).toContain(yes);
+        expect(got).not.toContain(noToken);
+        expect(got).not.toContain(notYet);
+        expect(got).not.toContain(cancelled);
+      });
+
+      it('hasPaymentToday бачить і невдалий платіж, і лише за потрібну добу', async () => {
+        const { household_id } = await ctx.repo.createUserWithHousehold('pay-today@x.test', 'P');
+        const day = new Date('2026-10-15T03:30:00.000Z');
+        expect(await ctx.repo.hasPaymentToday(household_id, day)).toBe(false);
+        await ctx.repo.insertPayment({
+          household_id, amount: 290, currency: 'UAH', status: 'failure', provider_payment_id: 'inv-f',
+          paid_by_user_id: null, receipt_url: null, created_at: '2026-10-15T03:30:05.000Z',
+        });
+        // Саме невдалий: він і є слід «сьогодні вже пробували».
+        expect(await ctx.repo.hasPaymentToday(household_id, day)).toBe(true);
+        expect(await ctx.repo.hasPaymentToday(household_id, new Date('2026-10-16T03:30:00.000Z'))).toBe(false);
       });
 
       it('insertPayment ідемпотентний по provider_payment_id', async () => {

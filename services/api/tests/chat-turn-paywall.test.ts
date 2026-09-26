@@ -18,7 +18,7 @@ const { PAYWALL } = await import('@kitchen/domain/paywall');
 
 const sub = (household_id: string, state: string) => ({
   household_id, state, plan: 'self', trial_used_at: null, trial_ends_at: null,
-  next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null,
+  next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null, card_token: null,
   paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null,
   updated_at: new Date().toISOString(),
 }) as never;
