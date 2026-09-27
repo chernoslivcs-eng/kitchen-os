@@ -15,6 +15,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Repo } from '@kitchen/domain';
 import { signInWithVerifiedEmail, SESSION_TTL_MS } from '@kitchen/domain';
 import { COOKIE_NAME } from './auth.js';
+import { captureIncident } from '../sentry.js';
 
 export interface GoogleProfile {
   email: string;
@@ -29,6 +30,20 @@ export interface GoogleAuthOpts {
 }
 
 const STATE_COOKIE = 'kos_oauth_state';
+/**
+ * Скільки живе state-кука. 15 хв, не 10: у Google між нашим редиректом і
+ * поверненням людина встигає вибрати акаунт, увійти в нього або завести
+ * новий — на десять хвилин це не завжди вкладається, і тоді колбек
+ * приходить без куки, тобто виглядає як підробка.
+ */
+const STATE_TTL_SEC = 900;
+/**
+ * Куди вести людину замість тексту помилки. Маршруту `/signin` у вебі НЕМАЄ
+ * (App.tsx: там спрацьовує NotFoundPage), тож ведемо на лендінг до форми
+ * входу — тим самим шляхом, що й гілка «акаунта не знайдено».
+ */
+const SIGNIN_ANCHOR = '#l3-signin';
+const SIGNIN_URL = `/${SIGNIN_ANCHOR}`;
 // AUTH-BRIEF-0915: «Реєстрація / Вхід» — той самий OAuth-флоу, лише режим
 // пронести крізь редирект на Google і назад. Окрема кука (не в state,
 // щоб не чіпати CSRF-порівняння 1:1) із тим самим TTL, що state.
@@ -94,10 +109,10 @@ export function googleAuthRoutes(app: FastifyInstance, repo: Repo, opts?: Google
       secure: isSecure(),
       sameSite: 'lax',
       path: '/',
-      maxAge: 600, // стейт живе 10 хв — консент довше не триває
+      maxAge: STATE_TTL_SEC,
     });
     if (req.query.mode === 'login') {
-      reply.setCookie(MODE_COOKIE, 'login', { httpOnly: true, secure: isSecure(), sameSite: 'lax', path: '/', maxAge: 600 });
+      reply.setCookie(MODE_COOKIE, 'login', { httpOnly: true, secure: isSecure(), sameSite: 'lax', path: '/', maxAge: STATE_TTL_SEC });
     }
     const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     url.searchParams.set('client_id', opts.clientId);
@@ -116,9 +131,25 @@ export function googleAuthRoutes(app: FastifyInstance, repo: Repo, opts?: Google
       reply.clearCookie(STATE_COOKIE, { path: '/' });
       reply.clearCookie(MODE_COOKIE, { path: '/' });
       // Юзер натиснув «скасувати» на консенті — повертаємо на вхід без драми.
-      if (req.query.error) return reply.redirect('/signin');
+      if (req.query.error) return reply.redirect(SIGNIN_URL);
       if (!req.query.code || !req.query.state || !expected || req.query.state !== expected) {
-        return reply.code(400).send({ error: 'state mismatch' });
+        // Людині — форма входу з рядком, а не `{"error":"state mismatch"}`:
+        // вона не зробила нічого поганого, і текст помилки їй ні про що.
+        //
+        // У Sentry — ознаки, а не значення: сам state порівнювати постфактум
+        // нема з чим, а в логах він був би зайвим секретом. `had_cookie`
+        // відрізняє «кука не доїхала» (наш випадок 27.09: старий хост
+        // vercel.app тримав куку в себе) від «кука є, але чужа» — це різні
+        // діагнози з різним лікуванням.
+        captureIncident('guard', 'oauth-state-mismatch', {
+          had_cookie: Boolean(expected),
+          matched: Boolean(expected) && req.query.state === expected,
+          has_code: Boolean(req.query.code),
+          host: req.headers.host ?? null,
+          // Без query: у referer Google лишає свої параметри.
+          referer: (req.headers.referer ?? '').split('?')[0] || null,
+        });
+        return reply.redirect(`/?err=oauth_state${SIGNIN_ANCHOR}`);
       }
       const profile = await exchange(req.query.code, redirectUri());
       if (!profile.email_verified) {

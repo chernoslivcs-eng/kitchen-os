@@ -35,6 +35,19 @@
       "schedule": "30 3 * * *"
     }
   ],
+  "redirects": [
+    {
+      "source": "/((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "kitchen-os-coral.vercel.app"
+        }
+      ],
+      "destination": "https://kitchen-os.app/$1",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/v1/:path*",
