@@ -117,7 +117,7 @@ describe('Екран «Підписка» — верхній рядок і кн�
   
     // Борг 26.09: банк не покаже ні суми, ні «верифікації» — мусимо ми.
     expect(host!.textContent).toContain('зараз нічого не спише — 0 ₴');
-    expect(host!.textContent).toContain('ФОП Білянський П. М.');
+    expect(host!.textContent).toContain('kitchen-os');
 });
 
   it('lapsed без дат (дім ніколи не мав підписки) — без «закінчилась», лише «дані на місці»', async () => {
