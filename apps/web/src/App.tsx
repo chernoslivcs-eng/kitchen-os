@@ -37,6 +37,7 @@ const LinkConsumedPage = lazyPage(() => import('./pages/LinkGone/LinkGone').then
 // legal/*.md невеликі разом).
 const LegalDocPage = lazyPage(() => import('./pages/Legal/LegalDocPage').then((m) => ({ default: m.LegalDocPage })));
 import { useAuth } from './store/auth';
+import { captureIntentFromSearch } from './lib/billing-intent';
 import { GlobalCookAlarm } from './lib/cook-watch';
 
 const Shell = lazyPage(() => import('./Shell').then((m) => ({ default: m.Shell })));
@@ -74,10 +75,20 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function RedirectIfSignedIn({ children }: { children: React.ReactNode }) {
+export function RedirectIfSignedIn({ children }: { children: React.ReactNode }) {
   const status = useAuth((s) => s.status);
   const loc = useLocation();
   if (status === 'signed_in') {
+    // Канарка 28.09: намір з адреси треба забрати ТУТ, до редиректу. `?intent=`
+    // читає SignInForm — а він живе всередині Landing, який для залогіненого
+    // не монтується взагалі: ми йдемо звідси прямо на /app. Через це власник,
+    // який оплатив і повернувся вже залогіненим, не отримав привʼязки, і намір
+    // лишився висіти; довелось виходити й заходити за тим самим посиланням.
+    //
+    // Запис у localStorage під час рендера — свідомо: він ідемпотентний
+    // (те саме значення), а винести його в ефект тут нікуди — компонент
+    // повертає <Navigate> і другого рендера не буде.
+    captureIntentFromSearch(loc.search);
     // Якщо гість прийшов з розшареного лінка й тепер залогінений — повертаємо на нього.
     // ?next мусить бути внутрішнім шляхом, щоб не міг стати open-redirect на зовнішній хост.
     const params = new URLSearchParams(loc.search);
