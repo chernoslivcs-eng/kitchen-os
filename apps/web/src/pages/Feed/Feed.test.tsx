@@ -24,6 +24,7 @@ import { ArtifactPanel } from '../../components/ArtifactPanel/ArtifactPanel';
 import { useAuth } from '../../store/auth';
 import { greeting } from '../../lib/greeting';
 import { HELP_TOPICS } from '@kitchen/domain/help-topics';
+import type { ShoppingItem } from '../../api';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -35,12 +36,17 @@ let batches: { id: string; label: string; state: string; expires_at: string | nu
 let library: { recipes: unknown[]; runs: unknown[] };
 // Р148: історія сьогоднішньої сесії — щоб перевірити мітку каналу на ході.
 let todayMessages: unknown[];
+// M13-C1: статус мережі й список покупок — типово ті самі значення, що були
+// тут захардкоджені раніше (тести №2–№10 нічого про Сільпо не знають).
+let retailStatusResp: 'unavailable' | 'none' | 'active' | 'expired' | 'disconnected';
+let shoppingItemsResp: ShoppingItem[];
+let buildCartErrorCode: string | null;
 
 let root: Root | undefined;
 let host: HTMLDivElement | undefined;
 
-const json = (o: unknown) =>
-  new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } });
+const json = (o: unknown, status = 200) =>
+  new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
 
 function installFetch() {
   chatCalls = [];
@@ -63,25 +69,30 @@ function installFetch() {
       });
     }
     if (url === '/v1/pantry') return json({ count: batches.length, batches, products: [] });
-    if (url === '/v1/shopping') return json({ count: 0, items: [] });
+    if (url === '/v1/shopping') return json({ count: shoppingItemsResp.length, items: shoppingItemsResp });
     if (url === '/v1/cards/pending') return json({ cards: [] });
     if (url === '/v1/recipes') return json({ recipes: library.recipes });
     if (url === '/v1/cook-runs') return json({ runs: library.runs });
-    if (url === '/v1/retail') return json({ silpo: { status: 'none' } });
+    if (url === '/v1/retail') return json({ silpo: { status: retailStatusResp } });
+    if (url === '/v1/retail/silpo/build-cart') {
+      return buildCartErrorCode
+        ? json({ error: buildCartErrorCode }, 409)
+        : json({ card: { type: 'cart', provider: 'silpo', rows: [], total: 0, found: 0, of: 0 }, card_id: 'cart-1' });
+    }
     if (url === '/v1/session/today') return json({ session: { id: 's1', created_at: '2026-09-06T06:00:00Z' }, messages: todayMessages });
     if (url === '/v1/attachments') return json({ id: 'att-new', url: '/v1/attachments/att-new/bytes', kind: 'image', bytes: 10, content_type: 'image/jpeg' });
     return json({});
   }));
 }
 
-async function mount() {
+async function mount(initialPath = '/') {
   host = document.createElement('div');
   document.body.appendChild(host);
   root = createRoot(host);
   await act(async () => {
     // Панель у продукті живе в каркасі поруч зі Стрічкою; правило «новий
     // артефакт наперед» — стик між ними, тому монтуються обидві.
-    root!.render(<MemoryRouter><Feed /><ArtifactPanel /></MemoryRouter>);
+    root!.render(<MemoryRouter initialEntries={[initialPath]}><Feed /><ArtifactPanel /></MemoryRouter>);
   });
 }
 
@@ -108,6 +119,9 @@ beforeEach(() => {
   batches = [];
   library = { recipes: [], runs: [] };
   todayMessages = [];
+  retailStatusResp = 'none';
+  shoppingItemsResp = [];
+  buildCartErrorCode = null;
   useAuth.setState({ me: null });
   installFetch();
   vi.useRealTimers();
@@ -662,5 +676,52 @@ describe('репліка без каретки', () => {
     await act(async () => { waiting[0]!.resolve({ reply: 'Привіт. Що готуємо?' }); await new Promise((r) => setTimeout(r, 0)); });
     expect(host!.querySelector('[class*="reply-phrases"]')).toBeTruthy();
     expect(host!.querySelector('[class*="stream-caret"]')).toBeNull();
+  });
+});
+
+// M13-C1 (бета-тестер): кнопка «Зібрати кошик у Сільпо» в панелі «Список»
+// ловила сирий тост not_connected без підключеної мережі. Тепер кнопка сама
+// ховається без активної мережі (ShoppingListCard.test.tsx — окремо, на
+// самій картці); тут — та частина, яку без цілої Стрічки не перевірити:
+// повернення з OAuth (?retail=connected) саме відкриває панель, і навіть
+// коли сервер таки повертає not_connected (мережа встигла протухнути між
+// завантаженням статусу і кліком), тост лишається людяним.
+const shopItem = (id: string): ShoppingItem => ({
+  id, household_id: 'h1', label: 'молоко', reason: null, value: null, unit: null, zone: null,
+  checked: false, added_by: null, source: 'user', created_at: '2026-09-27T09:00:00Z',
+});
+
+describe('M13-C1 · підключення Сільпо з панелі «Список»', () => {
+  it('повернення з ?retail=connected відкриває панель «Список» саму, без ручного кліку', async () => {
+    retailStatusResp = 'active';
+    shoppingItemsResp = [shopItem('i1')];
+    await mount('/app?retail=connected');
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    const btn = [...host!.querySelectorAll('button')].find((b) => b.textContent === 'Зібрати кошик у Сільпо →');
+    expect(btn).toBeTruthy();
+  });
+
+  it('not_connected із build-cart (мережа протухла між статусом і кліком) — тост людяний, не сирий код', async () => {
+    retailStatusResp = 'active';
+    shoppingItemsResp = [shopItem('i1')];
+    buildCartErrorCode = 'not_connected';
+    await mount('/app?retail=connected');
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    const btn = [...host!.querySelectorAll('button')].find((b) => b.textContent === 'Зібрати кошик у Сільпо →')!;
+    await act(async () => { btn.click(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(host!.querySelector('[data-toast]')?.textContent).toContain('Сільпо не підключено — Профіль → Мережі.');
+    expect(host!.querySelector('[data-toast]')?.textContent).not.toContain('not_connected');
+  });
+
+  it('без підключення (none) — панель показує лінк «Підключити Сільпо →», не кнопку кошика', async () => {
+    retailStatusResp = 'none';
+    shoppingItemsResp = [shopItem('i1')];
+    await mount('/app?retail=connected');
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    const a = host!.querySelector<HTMLAnchorElement>('[data-connect]');
+    expect(a).toBeTruthy();
+    expect(a!.textContent).toBe('Підключити Сільпо →');
+    expect(a!.getAttribute('href')).toBe('/v1/retail/silpo/connect?next=%2Fapp');
+    expect([...host!.querySelectorAll('button')].find((b) => b.textContent === 'Зібрати кошик у Сільпо →')).toBeFalsy();
   });
 });
