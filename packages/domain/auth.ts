@@ -331,18 +331,44 @@ export async function logoutSession(repo: Repo, raw_cookie: string): Promise<voi
 // листа + активної сесії того, хто відкрив лінк (незалежно від пристрою —
 // сесія читається в момент verify, не в момент request).
 export type AttachEmailOutcome =
-  | { ok: true }
+  /**
+   * `raw_cookie` — не null лише коли лінк відкрили БЕЗ сесії: тоді ми
+   * відкриваємо сесію тому, хто замовив атач. Інакше редирект на /profile
+   * привів би людину на лендінг одразу після того, як вона довела володіння
+   * поштою (хотфікс 28.09).
+   */
+  | { ok: true; user_id: string; raw_cookie: string | null }
   /** Злиття (15.09): пошта вже має акаунт — володіння доведено листом, чужий акаунт записано на challenge як підстава для merge. */
   | { ok: false; reason: 'email_taken'; conflict_user_id: string }
+  /** У цьому браузері відкрита сесія ІНШОГО акаунта — мовчки привʼязувати не можна. */
+  | { ok: false; reason: 'other_session' }
   | { ok: false; reason: 'not_found' | 'expired' | 'consumed' | 'no_session' };
 
-export async function verifyEmailAttach(repo: Repo, raw_token: string, current_user_id: string | null): Promise<AttachEmailOutcome> {
+export async function verifyEmailAttach(
+  repo: Repo,
+  raw_token: string,
+  current_user_id: string | null,
+  ip?: string | null,
+  user_agent?: string | null,
+): Promise<AttachEmailOutcome> {
   const token_hash = sha256(raw_token);
   const challenge = await repo.getChallengeByHash(token_hash);
   if (!challenge) return { ok: false, reason: 'not_found' };
   if (challenge.consumed_at) return { ok: false, reason: 'consumed' };
   if (new Date(challenge.expires_at).getTime() < Date.now()) return { ok: false, reason: 'expired' };
-  if (!current_user_id) return { ok: false, reason: 'no_session' };
+
+  // Хотфікс 28.09. Хто замовив атач — записано на самому challenge, у момент
+  // замовлення, коли людина точно була автентифікована. Кука браузера, де
+  // відкрили лінк, більше не джерело правди: людина читає пошту де завгодно,
+  // і будь-який розрив сесії давав `no_session` на цілком законному лінку.
+  const owner = challenge.user_id;
+  // Challenge, замовлені до цієї зміни, власника не мають — для них лишається
+  // старий шлях (і стара відмова), поки вони не протухнуть за 15 хвилин.
+  if (!owner) return { ok: false, reason: 'no_session' };
+  // Сесія в куці тепер лише для звірки: якщо в цьому браузері сидить ІНШИЙ
+  // акаунт, мовчки привʼязувати пошту нікуди не можна — ні до нього, ні до
+  // замовника за його спиною.
+  if (current_user_id && current_user_id !== owner) return { ok: false, reason: 'other_session' };
 
   await repo.consumeChallenge(challenge.id);
 
@@ -351,12 +377,18 @@ export async function verifyEmailAttach(repo: Repo, raw_token: string, current_u
   // сюди ніколи не потрапляє (він не проходить через verifyEmailAttach).
   if (!challenge.email) return { ok: false, reason: 'not_found' };
   const existing = await repo.findUserByEmail(challenge.email);
-  if (existing && existing.id !== current_user_id) {
-    await repo.attachChallengeUser(challenge.id, current_user_id);
+  if (existing && existing.id !== owner) {
+    // Власник уже стоїть на challenge з моменту замовлення — лишається
+    // записати, з ким саме конфлікт (профіль запропонує «Обʼєднати»).
     await repo.setChallengeConflict(challenge.id, existing.id);
     return { ok: false, reason: 'email_taken', conflict_user_id: existing.id };
   }
-  if (!existing) await repo.updateUserEmail(current_user_id, challenge.email);
-  return { ok: true };
+  if (!existing) await repo.updateUserEmail(owner, challenge.email);
+  // Сесії в цьому браузері немає — відкриваємо її замовнику: він щойно довів
+  // володіння поштою, і саме йому зараз показувати /profile.
+  const raw_cookie = current_user_id
+    ? null
+    : (await openSession(repo, owner, ip, user_agent)).raw_cookie;
+  return { ok: true, user_id: owner, raw_cookie };
 }
 

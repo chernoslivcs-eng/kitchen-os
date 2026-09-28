@@ -71,7 +71,11 @@ describe('додати пошту до акаунта без неї', () => {
     expect(conflict.json()).toMatchObject({ kind: 'email', from_user_id: owner.user_id, sole_member: true });
   });
 
-  it('лінк відкритий без активної сесії (attach=1, без куки) — 401, пошта не змінюється', async () => {
+  // Хотфікс 28.09: цей тест закріплював те, що й було вадою — «без куки 401».
+  // Саме через це людина з Telegram-акаунтом, яка відкрила лист у іншому
+  // браузері, отримала {"error":"no_session"} на цілком законному лінку.
+  // Тепер лінк працює: замовника памʼятає сам challenge.
+  it('лінк відкритий без активної сесії — пошта таки привʼязується до замовника', async () => {
     const me = await signIn(app, mailer, 'has-session@example.com');
     await repo.updateUserEmail(me.user_id, '');
     await app.inject({
@@ -81,9 +85,27 @@ describe('додати пошту до акаунта без неї', () => {
     const last = mailer.last()!;
     const url = new URL(last.link);
     const verify = await app.inject({ method: 'GET', url: `${url.pathname}${url.search}` });
-    expect(verify.statusCode).toBe(401);
+    expect(verify.statusCode).toBe(200);
     const user = await repo.getUser(me.user_id);
-    expect(user?.email).toBe('');
+    expect(user?.email).toBe('no-cookie@example.com');
+  });
+
+  // А ось challenge БЕЗ замовника (такі лишились у польоті на момент
+  // деплою, і такі приходять із чужих рук) працювати не мусить.
+  it('challenge без замовника — 401, як і було', async () => {
+    const me = await signIn(app, mailer, 'legacy@example.com');
+    await repo.updateUserEmail(me.user_id, '');
+    await app.inject({
+      method: 'POST', url: '/v1/auth/email/attach/request',
+      headers: { cookie: me.cookie }, payload: { email: 'legacy-mail@example.com' },
+    });
+    const url = new URL(mailer.last()!.link);
+    // Стираємо замовника — так виглядають challenge, створені до хотфіксу.
+    const hash = [...(repo as unknown as { challenges: Map<string, { id: string; token_hash: string }> }).challenges.values()].at(-1)!;
+    await repo.attachChallengeUser(hash.id, null as unknown as string);
+    const verify = await app.inject({ method: 'GET', url: `${url.pathname}${url.search}` });
+    expect(verify.statusCode).toBe(401);
+    expect((await repo.getUser(me.user_id))?.email).toBe('');
   });
 
   it('вже своя пошта (той самий юзер) — ідемпотентно ok, без помилки email_taken', async () => {
@@ -107,4 +129,69 @@ describe('додати пошту до акаунта без неї', () => {
     });
     expect(res.statusCode).toBe(400);
   });
+
+  describe('лінк відкрито без сесії або чужою сесією', () => {
+    const orderAttach = async (cookie: string, email: string) => {
+      const r = await app.inject({
+        method: 'POST', url: '/v1/auth/email/attach/request',
+        headers: { cookie }, payload: { email },
+      });
+      expect(r.statusCode).toBe(202);
+      const url = new URL(mailer.last()!.link);
+      return `${url.pathname}${url.search}`;
+    };
+
+    it('замовив A, відкрив без куки → пошта в A, і сесію A нам ставлять', async () => {
+      const a = await signIn(app, mailer, 'a-owner@example.com');
+      await repo.updateUserEmail(a.user_id, '');
+      const link = await orderAttach(a.cookie, 'fresh@example.com');
+
+      // Без cookie — рівно те, що сталось у власника: інший браузер.
+      const res = await app.inject({ method: 'GET', url: link });
+      expect(res.statusCode).toBe(200);
+      expect((await repo.getUser(a.user_id))?.email).toBe('fresh@example.com');
+
+      // Інакше редирект на /profile відкрив би лендінг: сесії в цьому браузері
+      // немає, а людина щойно довела, що це вона.
+      const setCookie = res.headers['set-cookie'];
+      expect(String(Array.isArray(setCookie) ? setCookie[0] : setCookie)).toContain('kos=');
+    });
+
+    it('відкрив під кукою ІНШОГО акаунта → 409, нічого не привʼязано', async () => {
+      const a = await signIn(app, mailer, 'a2-owner@example.com');
+      await repo.updateUserEmail(a.user_id, '');
+      const b = await signIn(app, mailer, 'b2-other@example.com');
+      const link = await orderAttach(a.cookie, 'fresh2@example.com');
+
+      const res = await app.inject({ method: 'GET', url: link, headers: { cookie: b.cookie } });
+      expect(res.statusCode).toBe(409);
+      expect(res.json()).toMatchObject({ error: 'other_session' });
+      // Ні A, ні B пошти не отримали: мовчки привʼязувати до B не можна, а
+      // привʼязувати до A за спиною людини, яка сидить під B, — тим паче.
+      expect((await repo.getUser(a.user_id))?.email).toBe('');
+      expect((await repo.getUser(b.user_id))?.email).toBe('b2-other@example.com');
+    });
+
+    it('браузеру жодного JSON: невідомий токен веде на сторінку, а не в {"error"}', async () => {
+      const res = await app.inject({
+        method: 'GET', url: '/v1/auth/verify?token=нема-такого&attach=1',
+        headers: { accept: 'text/html' },
+      });
+      expect(res.statusCode).toBe(302);
+      expect(res.headers.location).toBe('/link/expired');
+      expect(res.body).not.toContain('error');
+    });
+
+    it('браузеру жодного JSON: чужа сесія теж веде на сторінку', async () => {
+      const a = await signIn(app, mailer, 'a3-owner@example.com');
+      await repo.updateUserEmail(a.user_id, '');
+      const b = await signIn(app, mailer, 'b3-other@example.com');
+      const link = await orderAttach(a.cookie, 'fresh3@example.com');
+      const res = await app.inject({ method: 'GET', url: link, headers: { cookie: b.cookie, accept: 'text/html' } });
+      expect(res.statusCode).toBe(302);
+      expect(res.headers.location).toBe('/link/expired');
+    });
+  });
+
+
 });
