@@ -208,7 +208,7 @@ export const COOK_UNSAVED_STRIP: ErrorCopy = {
  */
 export const RETAIL_ERROR_TEXT: Record<string, string> = {
   not_connected: 'Сільпо не підключено — Профіль → Мережі.',
-  retail_auth: 'Сесія Сільпо протухла — увійди знову в Профіль → Мережі.',
+  retail_auth: 'Вхід у Сільпо завершився — увійди знову: Профіль → Мережі.',
   empty_list: 'Список порожній — нема що збирати.',
   cart_committed: 'Кошик уже оформлено.',
 };
