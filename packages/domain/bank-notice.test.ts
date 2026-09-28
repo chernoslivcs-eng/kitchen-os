@@ -25,6 +25,14 @@ describe('bankNotice', () => {
     expect(n.text).not.toContain('жовтня');
   });
 
+  // Канарка 28.09: mono віддає merchantName "kitchen-os", і сторінка оплати
+  // пише «Оплата для kitchen-os». Раніше тут стояло «ФОП Білянський П. М.» —
+  // назва, якої людина на тій сторінці не бачить.
+  it('називає рівно того отримувача, що й сторінка банку', () => {
+    expect(MERCHANT_LEGAL_NAME).toBe('kitchen-os');
+    expect(bankNotice(290, true, NOW).text).toContain('отримувач — «kitchen-os», це ми');
+  });
+
   it('не обіцяє безпеки й не каже «верифікація» — цих слів людина не мусить розбирати', () => {
     for (const trial of [true, false]) {
       const t = bankNotice(290, trial, NOW).text.toLowerCase();
