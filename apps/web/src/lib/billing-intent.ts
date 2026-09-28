@@ -9,6 +9,18 @@ export function setIntent(order_id: string): void {
   try { localStorage.setItem(KEY, order_id); } catch { /* приватний режим */ }
 }
 
+/**
+ * Забрати намір з адреси й запамʼятати. Потрібно там, де `SignInForm` не
+ * змонтується: залогінений користувач, що повернувся з банку на
+ * `/?intent=<order_id>`, їде прямо на /app, і прочитати параметр більше нема
+ * кому (канарка 28.09).
+ */
+export function captureIntentFromSearch(search: string): string | null {
+  const id = new URLSearchParams(search).get('intent');
+  if (id) setIntent(id);
+  return id;
+}
+
 export function getIntent(): string | null {
   try { return localStorage.getItem(KEY); } catch { return null; }
 }
