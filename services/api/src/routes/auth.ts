@@ -93,11 +93,15 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
       // Злиття (15.09): зайняту пошту НЕ відсікаємо тут — лист іде, і саме
       // відкритий лінк доводить володіння; verify запише конфлікт, а профіль
       // запропонує обʼєднати акаунти (GET /v1/account/conflict).
-      const { raw_token } = await requestChallenge(repo, {
+      const { challenge, raw_token } = await requestChallenge(repo, {
         email,
         ip: req.ip,
         user_agent: req.headers['user-agent'] ?? null,
       });
+      // Хотфікс 28.09: замовника пишемо на challenge ОДРАЗУ. Інакше verify
+      // знав користувача лише з куки того браузера, де відкрили лінк, — а
+      // пошту читають де завгодно, і законний лінк падав у `no_session`.
+      await repo.attachChallengeUser(challenge.id, ctx.user_id);
       const link = `${baseUrl()}/v1/auth/verify?token=${encodeURIComponent(raw_token)}&attach=1`;
       await mailer.sendMagicLink({ to: email, link, expires_in_min: CHALLENGE_TTL_MS / 60_000 });
       return reply.code(202).send({ ok: true });
@@ -110,22 +114,36 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
     if (req.query.attach === '1') {
       const cookieRaw = (req.cookies as Record<string, string | undefined>)[COOKIE_NAME];
       const ctx = await resolveSession(repo, cookieRaw ?? null);
-      const out = await verifyEmailAttach(repo, raw, ctx?.user_id ?? null);
+      const out = await verifyEmailAttach(repo, raw, ctx?.user_id ?? null, req.ip, req.headers['user-agent'] ?? null);
+      const wantsHtmlPage = /text\/html/i.test(String(req.headers.accept ?? ''));
       if (!out.ok) {
         const code = out.reason === 'expired' || out.reason === 'consumed' ? 410
-          : out.reason === 'email_taken' ? 409
+          : out.reason === 'email_taken' || out.reason === 'other_session' ? 409
           : out.reason === 'no_session' ? 401
           : 404;
-        const wantsHtmlPage = /text\/html/i.test(String(req.headers.accept ?? ''));
-        if (wantsHtmlPage && (out.reason === 'expired' || out.reason === 'consumed')) {
-          return reply.redirect(`/link/${out.reason}`);
+        if (wantsHtmlPage) {
+          // Злиття (15.09): пошта чужа, але володіння доведено — у профіль, там рядок «Обʼєднати?».
+          if (out.reason === 'email_taken') return reply.redirect('/profile');
+          // Хотфікс 28.09: решта причин — сторінка, не JSON. По лінку з листа
+          // приходить БРАУЗЕР, і `{"error":"other_session"}` в обличчя — це
+          // рівно те, що людина побачила на проді. Окремої сторінки під кожну
+          // причину не заводимо: для людини всі вони — «цей лінк не спрацював».
+          return reply.redirect(`/link/${out.reason === 'consumed' ? 'consumed' : 'expired'}`);
         }
-        // Злиття (15.09): пошта чужа, але володіння доведено — у профіль, там рядок «Обʼєднати?».
-        if (wantsHtmlPage && out.reason === 'email_taken') return reply.redirect('/profile');
         return reply.code(code).send(out.reason === 'email_taken' ? { error: out.reason, conflict_user_id: out.conflict_user_id } : { error: out.reason });
       }
-      const wantsHtml = /text\/html/i.test(String(req.headers.accept ?? ''));
-      if (wantsHtml) return reply.redirect('/profile');
+      // Лінк відкрили без сесії — заводимо її замовнику, інакше редирект на
+      // /profile привів би його на лендінг одразу після успіху.
+      if (out.raw_cookie) {
+        reply.setCookie(COOKIE_NAME, out.raw_cookie, {
+          httpOnly: true,
+          secure: isSecure(),
+          sameSite: 'lax',
+          path: '/',
+          maxAge: SESSION_TTL_MS / 1000,
+        });
+      }
+      if (wantsHtmlPage) return reply.redirect('/profile');
       return reply.send({ ok: true });
     }
     const out = await verifyChallenge(repo, raw, req.ip, req.headers['user-agent'] ?? null);
