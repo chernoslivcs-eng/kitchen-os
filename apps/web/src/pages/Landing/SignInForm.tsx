@@ -117,6 +117,21 @@ function consumeGoogleNoAccountError(): boolean {
   return true;
 }
 
+// Хотфікс 27.09: колбек Google без state-куки веде на /?err=oauth_state#l3-signin.
+// Читаємо раз (SignInForm стоїть у hero й у фіналі) — той самий патерн, що
+// вище; якір веде саме в hero-інстанс, а він монтується першим.
+let oauthStateConsumed = false;
+function consumeOauthStateError(): boolean {
+  if (oauthStateConsumed) return false;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('err') !== 'oauth_state') return false;
+  oauthStateConsumed = true;
+  params.delete('err');
+  const qs = params.toString();
+  window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash);
+  return true;
+}
+
 // Постановка 2026-09-25 (біллінг LiqPay) §5: result_url після checkout —
 // /?intent=<order_id>#l3-signin. Читаємо раз за монтування конкретного
 // інстансу (SignInForm стоїть і в hero, і в фіналі — обидва мають показати
@@ -155,6 +170,7 @@ export function SignInForm({ id, className }: Props) {
   const [tgError, setTgError] = useState<string | null>(null);
   const [tgNoAccount, setTgNoAccount] = useState(false);
   const [googleNoAccount, setGoogleNoAccount] = useState(false);
+  const [oauthFailed] = useState(consumeOauthStateError);
   const pollTimer = useRef<number | null>(null);
   const location = useLocation();
   const compact = useCompact();
@@ -244,6 +260,7 @@ export function SignInForm({ id, className }: Props) {
       </div>
 
       {hasIntent && <span className={styles.note}>{SIGNIN.intentReady}</span>}
+      {oauthFailed && <span className={styles.note} role="alert">{SIGNIN.oauthRetry}</span>}
 
       {googleOn && (
         <button type="button" className={styles.google} onClick={() => { window.location.href = api.auth.googleUrl(mode); }}>

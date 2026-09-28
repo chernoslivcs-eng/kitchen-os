@@ -58,14 +58,40 @@ describe('google oauth', () => {
     expect(stateCookieOf(res)).toBe(state);
   });
 
-  it('callback без збігу state → 400, сесія не створюється', async () => {
-    const res = await app.inject({
-      method: 'GET',
-      url: '/v1/auth/google/callback?code=abc&state=evil',
-      cookies: { kos_oauth_state: 'good' },
-    });
-    expect(res.statusCode).toBe(400);
+  // Хотфікс 27.09: на проді людина побачила сирий {"error":"state mismatch"}.
+  // Причина — колбек прийшов без куки (старий хост vercel.app досі віддає
+  // застосунок, і кука лишалась на ньому). Сам мismatch лікуємо не тут, але
+  // показувати людині JSON не можна за жодної причини.
+  const CB = '/v1/auth/google/callback?code=abc&state=evil';
+
+  it('куки немає зовсім → редирект на вхід, а не JSON', async () => {
+    const res = await app.inject({ method: 'GET', url: CB });
+    expect(res.statusCode).toBe(302);
+    expect(res.headers.location).toBe('/?err=oauth_state#l3-signin');
+    expect(res.body).not.toContain('state mismatch');
     expect(res.headers['set-cookie'] ?? '').not.toContain('kos=');
+  });
+
+  it('кука є, але інша → той самий редирект, сесія не створюється', async () => {
+    const res = await app.inject({ method: 'GET', url: CB, cookies: { kos_oauth_state: 'good' } });
+    expect(res.statusCode).toBe(302);
+    expect(res.headers.location).toBe('/?err=oauth_state#l3-signin');
+    expect(res.headers['set-cookie'] ?? '').not.toContain('kos=');
+  });
+
+  it('людина скасувала консент → на вхід, а не на неіснуючий /signin', async () => {
+    // /signin у вебі НЕМАЄ (App.tsx), там NotFoundPage — тобто ця гілка вела
+    // людину на «сторінку не знайдено» ще до сьогоднішнього хотфіксу.
+    const res = await app.inject({ method: 'GET', url: '/v1/auth/google/callback?error=access_denied' });
+    expect(res.statusCode).toBe(302);
+    expect(res.headers.location).toBe('/#l3-signin');
+  });
+
+  it('стейт-кука живе 15 хв: вибір акаунта в Google за 10 не завжди вкладається', async () => {
+    const start = await app.inject({ method: 'GET', url: '/v1/auth/google' });
+    const sc = start.headers['set-cookie'];
+    const row = (Array.isArray(sc) ? sc : [sc]).find((c) => String(c).startsWith('kos_oauth_state='));
+    expect(String(row)).toContain('Max-Age=900');
   });
 
   it('щасливий шлях: callback створює юзера з домом і ставить kos-куку', async () => {
