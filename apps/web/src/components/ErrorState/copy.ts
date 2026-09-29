@@ -198,3 +198,18 @@ export const COOK_UNSAVED_STRIP: ErrorCopy = {
   cta: 'Повторити',
 };
 
+/**
+ * M13-C1: сирі коди build-cart у тості (RetailCartAttempt.error, services/api/
+ * routes/retail.ts) читались як зламаний застосунок. Кнопка панелі «Список»
+ * тепер сама ховається, коли Сільпо не підключено (лінк-підключення замість
+ * дії), тож ці коди звідти майже не приходять — але захист лишається на
+ * випадок, коли статус устиг протухнути між завантаженням і кліком.
+ * not_connected — дослівно з RetailCartCard (cards.tsx), той самий текст.
+ */
+export const RETAIL_ERROR_TEXT: Record<string, string> = {
+  not_connected: 'Сільпо не підключено — Профіль → Мережі.',
+  retail_auth: 'Вхід у Сільпо завершився — увійди знову: Профіль → Мережі.',
+  empty_list: 'Список порожній — нема що збирати.',
+  cart_committed: 'Кошик уже оформлено.',
+};
+

@@ -19,7 +19,7 @@ import { applyMode } from '@kitchen/domain/card-modes';
 import { HELP_TOPICS, type HelpTopicId } from '@kitchen/domain/help-topics';
 import { api, ApiError, type ProfileFieldV2, type AttachmentUploaded, type ChatResponse, type HouseholdProduct, type PantryBatch, type ShoppingItem } from '../../api';
 import { loadPantry } from '../../store/pantryList';
-import { Card, ShoppingListCard, RecipeStreamCard, traceState, appliedToast, LivePositions, type LivePosition} from './cards';
+import { Card, ShoppingListCard, RecipeStreamCard, traceState, appliedToast, LivePositions, type LivePosition, type RetailStatus } from './cards';
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff, survivingBatches, goneLabels } from './artifacts';
 import { BatchCard } from '../Pantry/BatchCard';
 import { formatQty } from '../../lib/units';
@@ -39,7 +39,7 @@ import { ChatHead } from '../../components/ChatHead/ChatHead';
 import { HomeNowPanel } from '../../components/HomeNow/HomeNow';
 import { stepLabelsFrom } from '../../lib/recipe';
 import { type Turn, type TurnAttachment, hhmm, newId, messageToTurn } from './turns';
-import { REPLY_FAILED, PANTRY_FAILED } from '../../components/ErrorState/copy';
+import { REPLY_FAILED, PANTRY_FAILED, RETAIL_ERROR_TEXT } from '../../components/ErrorState/copy';
 import styles from './Feed.module.css';
 
 import { usePanelStore, ARTIFACT_SHEET_MAX } from '../../store/panel';
@@ -156,6 +156,10 @@ export function Feed() {
   // M13 (канвас М6): чи можна пропонувати «зібрати кошик» — мережа активна.
   // cartNudgeShown — раз за сесію стрічки, не на кожен доданий інгредієнт.
   const [retailActive, setRetailActive] = useState(false);
+  // M13-C1: повний статус — панель «Список» сама показує лінк підключення
+  // замість кнопки, коли мережа не активна (ProfileV2/Shopping.tsx — той
+  // самий union).
+  const [retailStatus, setRetailStatus] = useState<RetailStatus>('loading');
   const cartNudgeShown = useRef(false);
   // Лічильник списку — у ref, не в стейті: після await refreshCounts() React
   // ще не перерендерив, а maybeNudgeCart уже читає актуальне число.
@@ -494,7 +498,11 @@ export function Feed() {
       // рядок нічого не робив. Тепер кошик виводить наперед саме правило
       // «новий артефакт із ходу», спільне для всіх типів.
     } catch (err) {
-      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+      // M13-C1: кнопка сама ховається без активної мережі, тож not_connected
+      // звідси майже не прийде — але якщо статус устиг протухнути між
+      // завантаженням і кліком, тост усе одно не має показувати сирий код.
+      const code = (err as Error).message;
+      setToast({ id: Date.now(), kind: 'err', text: RETAIL_ERROR_TEXT[code] ?? code });
     } finally { setBuildingCart(false); }
   }
 
@@ -587,7 +595,19 @@ export function Feed() {
   useEffect(() => { void refreshCounts(); }, []);
   // M13: чи підключена мережа — гейтить репліку «зібрати кошик?» нижче.
   useEffect(() => {
-    void api.retail.status().then((r) => setRetailActive(r.silpo.status === 'active')).catch(() => {});
+    void api.retail.status()
+      .then((r) => { setRetailActive(r.silpo.status === 'active'); setRetailStatus(r.silpo.status); })
+      .catch(() => setRetailStatus('unavailable'));
+  }, []);
+  // M13-C1: OAuth-круг з кнопки «Підключити Сільпо» в панелі «Список»
+  // повертається на next=/app?retail=connected (routes/retail.ts, callback).
+  // Панель — стан у сторі (не URL), тож після повного перезавантаження
+  // сторінки сама вона себе не відкриє — відкриваємо руками, той самий
+  // artifact-ключ, що й ghostTab/лічильник кошика нижче.
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('retail') !== 'connected') return;
+    openArtifact('list');
+    window.history.replaceState({}, '', location.pathname);
   }, []);
 
   // UX9-15: застарілі лічильники другого вікна — перечитуємо на фокусі.
@@ -1209,6 +1229,7 @@ export function Feed() {
                 onAdd={addListItem}
                 onBuildCart={() => void buildCartFromList()}
                 buildingCart={buildingCart}
+                retailStatus={retailStatus}
               />
             ) : a.turn && (
               <Card
@@ -1240,7 +1261,7 @@ export function Feed() {
       },
       // 12.09 (§11): «Чекають на тебе · N» переїхав чіпом у шапку чату (ChatHead); блоку під панеллю нема.
     });
-  }, [artifactKeys, turns, shoppingItems, listOpen, housePending, shoppingLabels, savedRecipeIds, batchLabels, stepLabels, livePositions, liveBatches, liveProducts, buildingCart, sessionStartedAt, sessionId]);
+  }, [artifactKeys, turns, shoppingItems, listOpen, housePending, shoppingLabels, savedRecipeIds, batchLabels, stepLabels, livePositions, liveBatches, liveProducts, buildingCart, retailStatus, sessionStartedAt, sessionId]);
   useEffect(() => () => panel.clear(), []);
 
   // 6b-5: стан дому для шапки й панелі «Дім зараз» (Screens «Чат · збірка»,

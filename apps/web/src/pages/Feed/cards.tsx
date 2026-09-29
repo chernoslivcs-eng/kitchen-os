@@ -19,6 +19,12 @@ import { OnboardingCard } from './OnboardingCard';
 import { CARD_BUTTON_LABEL, applyMode } from '@kitchen/domain/card-modes';
 import { formatDuration } from '@kitchen/domain/duration';
 import { Button } from '../../components/Button/Button';
+// M13-C1: кнопка-лінк «Підключити Сільпо» — той самий рід, що Button, але
+// має бути справжнім <a href> (навігація на OAuth-редирект, не fetch), тож
+// Button (лише <button>) не підходить. Пряме імпортування .module.css, не
+// реекспорт стилів через Button.tsx: css-orphans.mjs доводить клас живим
+// лише по файлу, що САМ імпортує .module.css (урок PlanCard, PR #225).
+import btnStyles from '../../components/Button/Button.module.css';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
 import { formatQty, formatUnit } from '../../lib/units';
@@ -685,8 +691,10 @@ export function ShoppingCard({ card, applied, applying, dismissed, undone, undoA
 // переживає сесію. Тому він читає живий список, а не card.items, і в нього
 // немає «застосувати» — це не рішення, а сховище. Чекбокс тут означає
 // «куплено», а не «взяти в роботу», як у чеку.
+export type RetailStatus = 'loading' | 'unavailable' | 'none' | 'active' | 'expired' | 'disconnected';
+
 export function ShoppingListCard({
-  items, sessionStartedAt, onToggle, onRemoveBought, onAdd, onBuildCart, buildingCart,
+  items, sessionStartedAt, onToggle, onRemoveBought, onAdd, onBuildCart, buildingCart, retailStatus,
 }: {
   items: ListItem[];
   sessionStartedAt: string | null;
@@ -695,6 +703,13 @@ export function ShoppingListCard({
   onAdd: (label: string) => void;
   onBuildCart?: () => void;
   buildingCart?: boolean;
+  /**
+   * M13-C1: раніше кнопка «Зібрати кошик» стояла завжди, і клік без
+   * підключеної мережі показував сирий тост not_connected. Тепер сама
+   * кнопка знає стан (як ProfileV2/Shopping.tsx) і підміняється лінком
+   * підключення — дію завжди можна виконати, а не лише побачити помилку.
+   */
+  retailStatus?: RetailStatus;
 }) {
   const [draft, setDraft] = useState('');
   const g = groupShopping(items, sessionStartedAt);
@@ -739,12 +754,26 @@ export function ShoppingListCard({
       </form>
       <div className={styles['card-foot']}>
         <span className={styles['strip-state']}>{g.toBuy} у список покупок</span>
-        {onBuildCart && (
+        {retailStatus === 'active' && onBuildCart && (
           /* Шавлієва ТОНОВАНА, не чорнильна: це перехід до збирання кошика,
              а не чекаут. Чорнильна в системі означає остаточну дію. */
           <Button size="strip" variant="soft" onClick={onBuildCart} loading={buildingCart} disabled={!g.toBuy}>
             Зібрати кошик у Сільпо →
           </Button>
+        )}
+        {/* M13-C1: не підключено/протухло — той самий рід кнопки, але <a
+            href>, бо connect — не fetch, а навігація на OAuth-редирект
+            (api.ts коментар до api.retail). next=/app: колбек повертає сюди
+            з ?retail=connected, Стрічка ловить і сама відкриває цю панель. */}
+        {(retailStatus === 'none' || retailStatus === 'expired' || retailStatus === 'disconnected') && g.toBuy > 0 && (
+          <a
+            className={`${btnStyles.btn} ${btnStyles.soft} ${btnStyles.strip}`}
+            data-tap
+            data-connect
+            href={`/v1/retail/silpo/connect?next=${encodeURIComponent('/app')}`}
+          >
+            {retailStatus === 'none' ? 'Підключити Сільпо →' : 'Увійти в Сільпо знову →'}
+          </a>
         )}
       </div>
     </div>
