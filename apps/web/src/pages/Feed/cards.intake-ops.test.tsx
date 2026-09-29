@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
-// Рядки intake-картки поза чеком: знак операції і хвіст «ще N … закінчилось».
+// Рядки intake-картки поза чеком: знак операції.
 //
-// Два баги з проду. (1) signFor повертав для correct/rename рядок
-// 'live.byHand', і рендер друкував його текстом: «live.byHand Спагеті ›
-// 300 г» — задумано було знак «рукою» зі словника. (2) Хвіст знав лише
-// дві форми: «ще 2 позицій» замість «ще 2 позиції».
+// Баг з проду: signFor повертав для correct/rename рядок 'live.byHand', і
+// рендер друкував його текстом: «live.byHand Спагеті › 300 г» — задумано
+// було знак «рукою» зі словника.
+//
+// Хвіст «ще N … закінчилось» (був тут) власник 28.09 скасував — зʼїдене
+// тепер рядок, не число; тести — cards.intake-gone.test.tsx (обидва
+// рендери, з чеком і без).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -30,7 +33,6 @@ async function mount(card: ChatCard, live: Map<string, LivePosition> | null = nu
 }
 // vitest не обробляє CSS-модулі: клас приходить як `_op-sign_<хеш>`.
 const signs = () => [...host!.querySelectorAll<HTMLElement>('[class*="op-sign"]')];
-const tail = () => host!.querySelector('[class*="op-gone-tail"]')?.textContent?.trim();
 
 describe('знак операції в рядку intake', () => {
   it('correct і rename — знак «рукою», а не назва знака текстом', async () => {
@@ -54,23 +56,5 @@ describe('знак операції в рядку intake', () => {
     ] } as unknown as ChatCard);
     expect(signs().map((s) => s.textContent)).toEqual(['+', '−', '◔']);
     expect(host!.querySelector('[class*="op-sign"] [data-icon]')).toBeNull();
-  });
-});
-
-describe('хвіст «ще N з цього запису вже закінчилось»', () => {
-  // Шість додавань з фото полиці; з живої комори зникають перші `gone`.
-  const ops = Array.from({ length: 6 }, (_, i) => ({ op: 'add', label: `Позиція ${i + 1}`, value: 1, unit: 'pcs', batch_id: `b${i}` }));
-  const liveWithout = (gone: number) => new Map<string, LivePosition>(
-    ops.slice(gone).map((o) => [o.batch_id, { label: o.label, value: 1, unit: 'pcs' }]),
-  );
-
-  it.each([
-    [1, 'ще 1 позиція з цього запису вже закінчилась'],
-    [2, 'ще 2 позиції з цього запису вже закінчились'],
-    [4, 'ще 4 позиції з цього запису вже закінчились'],
-    [5, 'ще 5 позицій з цього запису вже закінчилось'],
-  ])('%i закінчилось → «%s»', async (gone, text) => {
-    await mount({ type: 'intake_diff', ops } as unknown as ChatCard, liveWithout(gone));
-    expect(tail()).toBe(text);
   });
 });

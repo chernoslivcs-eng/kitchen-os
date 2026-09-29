@@ -207,6 +207,10 @@
   font-size: 13px;
   color: var(--muted);
 }
+/* Власник 28.09: зʼїдене з картки запису — не хвіст-лічильник, а той самий
+   рядок, muted, зі знаком «−» на місці «+» (без закреслення). */
+.op-gone .op-sign { color: var(--muted); }
+.op-gone .op-label { color: var(--muted); }
 
 .card-actions { display: flex; gap: 10px; margin-top: 4px; }
 .card-actions > :first-child { flex: 1; }
@@ -1168,6 +1172,16 @@ a.att-chip:hover { border-color: var(--sage); }
 .rrow-tap { cursor: pointer; }
 .rrow-quiet { color: var(--muted); font-weight: 400; }
 .rrow-gap { width: 16px; flex: none; }
+/* Власник 28.09: зʼїдене в чеку — рядок на місці чекбокса (rbox, 20px)
+   отримує знак «−» замість галочки; rrow-quiet вище вже приглушує решту. */
+.rrow-sign {
+  flex: none;
+  width: 20px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 14px;
+}
 .rrow-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .rrow-title { min-width: 0; }
 .rrow-sub { font-size: 12px; font-weight: 400; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1298,11 +1312,10 @@ a.att-chip:hover { border-color: var(--sage); }
    зникає разом із класом, щойно панель відкрили. */
 
 
-/* Тихий хвіст під списком позицій: скільки з них уже зʼїли. Чекова книжка
-   показує лише те, що лишилось, але порожній чек виглядав би зламаним —
-   тому число називаємо, а рядки не малюємо. */
-.rgroup-tail,
-.op-gone-tail {
+/* Тихий хвіст під списком позицій групи (тепер лише для тексту, який сама
+   ReceiptGroup ще може передати — не для зʼїденого: власник 28.09 замінив
+   хвіст-лічильник на самі рядки, muted+«−», op-gone/rrow-sign нижче). */
+.rgroup-tail {
   padding: 6px 12px 2px;
   font-family: var(--font-mono);
   font-size: 11px;

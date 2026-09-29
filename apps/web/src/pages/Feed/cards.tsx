@@ -482,7 +482,24 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
               ? () => setOff((prev) => (prev.size === ops.length ? new Set() : new Set(ops.map((_, i) => i))))
               : undefined}
             actionLabel={off.size === ops.length ? 'повернути всі' : 'зняти всі'}
-            rows={ops.map((op, i) => op.gone ? null : (
+            rows={ops.map((op, i) => op.gone ? (
+              // Власник 28.09: зʼїдене — не хвіст «ще N закінчилось», а той
+              // самий рядок, що й додане, зі знаком «−» на місці чекбокса
+              // (нічого togglати — уже сталось поза цією карткою) і
+              // приглушеним кольором (rrow-quiet, той самий, що «Не для
+              // комори»). Кількість — та, що була додана: gone-op не
+              // переписаний живою позицією (ops.map вище), знімок лишився.
+              <div key={i} className={`${styles.rrow} ${styles['rrow-quiet']}`}>
+                <span className={styles['rrow-sign']}>{signFor('deplete')}</span>
+                <span className={styles['rrow-name']}>
+                  <span className={styles['rrow-title']}>{op.label ?? '—'}</span>
+                  {passportOf(op) && <span className={styles['rrow-sub']}>{passportOf(op)}</span>}
+                </span>
+                {opQty(op) && (
+                  <span className={styles['rrow-qty']}>{opQty(op)}</span>
+                )}
+              </div>
+            ) : (
               <div key={i} className={`${styles.rrow} ${off.has(i) ? styles['rrow-off'] : ''} ${actionable && ops.length > 1 ? styles['rrow-tap'] : ''}`}
                 onClick={actionable && ops.length > 1 ? () => toggle(i) : undefined}>
                 {actionable && ops.length > 1 ? (
@@ -514,9 +531,6 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                 )}
               </div>
             ))}
-            tail={goneCount > 0
-              ? `ще ${goneCount} з цього чека вже закінчилось`
-              : undefined}
           />
 
           {nonfoodRows.length > 0 && <NonfoodGroup rows={nonfoodRows} onNonfoodToList={onNonfoodToList} />}
@@ -547,7 +561,19 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
       )}
       {!anyReceipt && (
         <div className={styles.ops}>
-          {ops.map((op, i) => op.gone ? null : (
+          {ops.map((op, i) => op.gone ? (
+            // Власник 28.09: той самий рядок, що й додане, зі знаком «−»
+            // (signFor('deplete')) і приглушеним кольором — не хвіст-лічильник.
+            // rename/zone/сумнів тут не показуємо: рядок каже, що зникло, а
+            // не як воно сюди потрапило — ці подробиці вже не при ділі.
+            <div key={i} className={`${styles.op} ${styles['op-gone']}`}>
+              <span className={styles['op-sign']}>{signFor('deplete')}</span>
+              <span className={styles['op-label']}>{op.label ?? '—'}</span>
+              {opQty(op) && (
+                <span className={styles['op-qty']}>{opQty(op)}</span>
+              )}
+            </div>
+          ) : (
             <div
               key={i}
               className={styles.op}
@@ -580,13 +606,6 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
               )}
             </div>
           ))}
-          {goneCount > 0 && (
-            // Порожній чек виглядав би зламаним, тому кажемо прямо, скільки
-            // позицій уже зʼїли. Це не список — числа досить.
-            <div className={styles['op-gone-tail']}>
-              ще {goneCount} {plural(goneCount, ['позиція', 'позиції', 'позицій'])} з цього запису вже {plural(goneCount, ['закінчилась', 'закінчились', 'закінчилось'])}
-            </div>
-          )}
         </div>
       )}
       {intakeFoot}
