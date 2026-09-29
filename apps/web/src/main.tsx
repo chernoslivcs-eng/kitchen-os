@@ -7,9 +7,12 @@ import { App } from './App';
 import { initTheme } from './theme';
 import { initSentry } from './lib/sentry';
 import { installKeyboardOffset } from './lib/keyboard-offset';
+import { installPreloadErrorHandler } from './lib/preload-error';
 
 initTheme();
 installKeyboardOffset();
+// Стара вкладка після деплою просить чанк, якого вже немає — див. lib/preload-error.
+installPreloadErrorHandler();
 
 // Реєструємо service worker лише в проді — у dev-режимі Vite HMR ламатиметься.
 // ?v=<BUILD_ID> — кожен білд отримує нову URL реєстрації → нова SW → нова
