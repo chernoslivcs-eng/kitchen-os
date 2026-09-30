@@ -15,6 +15,7 @@ import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
 import { useIncidentStore } from '../../store/incident';
 import { saveCookSession, loadCookSession, clearCookSession, stashUnsavedRun } from '../../lib/cook-session';
+import { CookAudioSession, ringAlarm } from '../../lib/cook-sound';
 import { useCookStore } from '../../store/cook';
 import { renderStepContent, stepIngredients, resolveIngName, stepLabelsFrom, type BatchLabels } from '../../lib/recipe';
 import styles from './Cook.module.css';
@@ -85,6 +86,13 @@ export function CookOverlay() {
   const setTheme = (t: ThemeChoice) => { setThemeOverride(t); setThemeState(t); };
   const [muted, setMuted] = useState(false);
   const mutedRef = useRef(false); mutedRef.current = muted;
+  // Спек 30.09 §5: один AudioContext на сесію готування — лінивий, на перший
+  // реальний жест (старт таймера), а не на монтування попапа. Кнопка звуку
+  // лишається двостановою (макет трьох станів — окремий PR): isMuted тут —
+  // той самий mutedRef, що й раніше гейтив beep/softTick.
+  const audioRef = useRef<CookAudioSession | null>(null);
+  const audio = () => (audioRef.current ??= new CookAudioSession(() => mutedRef.current));
+  useEffect(() => () => audioRef.current?.close(), []);
   const [sheetOpen, setSheetOpen] = useState(false);
   useEffect(() => { setSheetOpen(false); }, [stepIdx]);
   // №35: змах униз закриває шторку кроків — той самий механізм, що в Sheet.
@@ -111,7 +119,6 @@ export function CookOverlay() {
   // кроку, з якого йдемо, лишається в timersRef: біг — іде далі за дедлайном.
   function goToStep(n: number) {
     if (n === stepIdx || n < 0 || n >= (recipe?.st.length ?? 0)) return;
-    stopAlarm();
     if (step?.s) timersRef.current[stepIdx] = { deadline: running ? deadlineRef.current : null, left: secondsLeft };
     setStepIdx(n);
   }
@@ -173,8 +180,10 @@ export function CookOverlay() {
     setRunning(false);
   }, [stepIdx, step?.s]);
 
-  // №10: таймери кроків, з яких пішли, тікають у маршруті раз на секунду; нуль
-  // — один сигнал (повторний вартовий — лише в поточного кроку).
+  // №10: таймери кроків, з яких пішли, тікають у маршруті раз на секунду;
+  // нуль — один сигнал (спек 30.09 §2.2: аларм один раз, без повтору —
+  // повторний вартовий лишається лише в поточного кроку, і той теж без
+  // повтору тепер, див. ефект нижче).
   useEffect(() => {
     const id = window.setInterval(() => {
       const now = Date.now();
@@ -182,7 +191,10 @@ export function CookOverlay() {
       for (const [k, t] of Object.entries(timersRef.current)) {
         if (t.deadline == null) continue;
         any = true;
-        if (t.deadline <= now) { timersRef.current[Number(k)] = { deadline: null, left: 0 }; beep(); }
+        if (t.deadline <= now) {
+          timersRef.current[Number(k)] = { deadline: null, left: 0 };
+          ringAlarm(audio(), recipe?.st[Number(k)]?.t ?? 'Крок', { onlyWhenHidden: true });
+        }
       }
       if (any) setTick((v) => v + 1);
     }, 1000);
@@ -206,9 +218,14 @@ export function CookOverlay() {
       if (tickRef.current != null) window.clearInterval(tickRef.current);
       tickRef.current = null;
       deadlineRef.current = null;
+      audio().stopTicking();
       return;
     }
     deadlineRef.current = Date.now() + secondsLeft * 1000;
+    // Спек 30.09 §5: тікання планується наперед за ctx.currentTime від
+    // цього самого дедлайну — не від 250мс-інтервалу нижче (той лишається
+    // тільки для ЦИФР на екрані).
+    audio().startTicking(deadlineRef.current);
     tickRef.current = window.setInterval(() => {
       const d = deadlineRef.current;
       if (d == null) return;
@@ -216,6 +233,7 @@ export function CookOverlay() {
     }, 250);
     return () => {
       if (tickRef.current != null) window.clearInterval(tickRef.current);
+      audio().stopTicking();
     };
     // secondsLeft свідомо не в залежностях: дедлайн фіксується на старті,
     // а «+1 хв» коригує його напряму.
@@ -287,86 +305,16 @@ export function CookOverlay() {
     };
   }, []);
 
-  // Пул-7 №1: звуковий супровід відліку — ДУЖЕ легкий (юзер: «дуууже
-  // легкі»): тік щосекунди ледь чутний, 5-кратні трохи помітніші, межа
-  // хвилини — м'який подвійний. Тільки поки таймер біжить і попап відкритий.
-  const softTick = (kind: 'sec' | 'five' | 'minute') => {
-    if (mutedRef.current) return;
-    try {
-      type AC = typeof AudioContext;
-      const Ctx: AC | undefined = window.AudioContext
-        ?? (window as { webkitAudioContext?: AC }).webkitAudioContext;
-      if (!Ctx) return;
-      const ctx = new Ctx();
-      const blip = (at: number, freq: number, gain: number, dur: number) => {
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        osc.type = 'sine'; osc.frequency.value = freq;
-        g.gain.setValueAtTime(0.0001, ctx.currentTime + at);
-        g.gain.exponentialRampToValueAtTime(gain, ctx.currentTime + at + 0.005);
-        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + dur);
-        osc.connect(g).connect(ctx.destination);
-        osc.start(ctx.currentTime + at); osc.stop(ctx.currentTime + at + dur + 0.02);
-      };
-      if (kind === 'sec') blip(0, 2100, 0.012, 0.03);
-      else if (kind === 'five') blip(0, 1400, 0.025, 0.05);
-      else { blip(0, 1000, 0.04, 0.06); blip(0.09, 1400, 0.04, 0.06); }
-      window.setTimeout(() => void ctx.close(), 400);
-    } catch { /* без звуку */ }
-  };
-  const prevSecRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (!running || secondsLeft <= 0) { prevSecRef.current = secondsLeft; return; }
-    if (prevSecRef.current !== null && secondsLeft !== prevSecRef.current) {
-      if (secondsLeft % 60 === 0) softTick('minute');
-      else if (secondsLeft % 5 === 0) softTick('five');
-      else softTick('sec');
-    }
-    prevSecRef.current = secondsLeft;
-  }, [secondsLeft, running]);
-
-  // DA2-08: таймер, який мовчить, — це таймер, якого немає. Кіт: сигнал
-  // повторюється кожні 30с, поки людина не підтвердить (будь-яка дія кроку).
-  const alarmRef = useRef<number | null>(null);
-  const beep = () => {
-    // volume-2 у шапці: вимкнено — без звуку, вібро й нотифікація лишаються.
-    if (!mutedRef.current) try {
-      type AC = typeof AudioContext;
-      const Ctx: AC | undefined = window.AudioContext
-        ?? (window as { webkitAudioContext?: AC }).webkitAudioContext;
-      if (!Ctx) return;
-      const ctx = new Ctx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine'; osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(); osc.stop(ctx.currentTime + 0.65);
-      osc.onended = () => void ctx.close();
-    } catch { /* без звуку — лишається вібро */ }
-    try { navigator.vibrate?.([200, 100, 200]); } catch { /* desktop */ }
-    // Моушн-2 №7: вкладка згорнута — системна нотифікація, звук сам не доб'ється.
-    try {
-      if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification('Kitchen OS · таймер', {
-          body: `${step?.t ?? 'Крок'} — час вийшов`,
-          tag: 'kitchen-os-timer',
-        });
-      }
-    } catch { /* нотифікації не критичні */ }
-  };
-  const stopAlarm = () => {
-    if (alarmRef.current != null) { window.clearInterval(alarmRef.current); alarmRef.current = null; }
-  };
+  // Спек 30.09 §2.1/§4: тіки й аларм тепер із cook-sound.ts (набір «Заводний
+  // таймер», темп 120, сценарій «Тихий пульс») — тікання планується наперед
+  // за дедлайном у ефекті вище (audio().startTicking), тут лишається лише
+  // сигнал завершення. DA2-08 скасовано власником 30.09: повтору кожні 30с
+  // більше нема, аларм дзвонить один раз (§1: «що саме добігло, каже екран,
+  // а не повтор сигналу»).
   useEffect(() => {
     if (secondsLeft === 0 && step?.s && !finishedRef.current) {
-      beep();
-      alarmRef.current = window.setInterval(beep, 30_000);
-      return stopAlarm;
+      ringAlarm(audio(), step?.t ?? 'Крок', { onlyWhenHidden: true });
     }
-    stopAlarm();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- сигнал лише на перехід до нуля
   }, [secondsLeft === 0]);
 
@@ -421,7 +369,6 @@ export function CookOverlay() {
   async function finish(after: 'feed' | 'share' = 'feed') {
     if (finishing || finishedRef.current) return;
     track('cook_finished', { steps: recipe?.st.length ?? 0 });
-    stopAlarm();
     setFinishing(true);
     finishedRef.current = true;
     clearCookSession();
@@ -468,13 +415,14 @@ export function CookOverlay() {
   }
 
   // ── Вигляд (feat/cook-share-v3) — за Prototype «COOK MODE» (1440) і Cook and
-  // Share «Cook · 768» / «Cook · 390». Логіка вище не мінялась: кроки, таймер,
-  // дедлайн, beep, wake lock, finish() — як були. Три розкладки за вʼюпортом
+  // Share «Cook · 768» / «Cook · 390». Кроки, дедлайн, wake lock, finish() —
+  // як були (спек 30.09: звук і сигнал переписані, вигляд кнопки звуку й
+  // таймера — ні). Три розкладки за вʼюпортом
   // (Cook — повноекранний попап, контейнер = вʼюпорт): ≥1024 маршрут колонкою
   // зліва; 768–1023 маршрут чіпами над фокусом; <768 фокус на весь екран,
   // сегменти вгорі, пілюля «N з M · крок» → шторка кроків. Тема — наявна тема
   // застосунку (sun/moon); «Cook Mode памʼятає свою тему окремо» — Р72.
-  // Звук — volume-2 вмикає/вимикає наявний beep (нових звуків нема).
+  // Звук — volume-2 вмикає/вимикає набір «Заводний таймер» (cook-sound.ts).
   const shortOf = (st: { t: string }) => st.t.replace(/\.$/, '');
   const stepText = renderStepContent(step?.c ?? '', recipe.ing, stepLabels);
   // Хотфікс мобільного 19.09: розмір тексту кроку й компактність таймера на
@@ -489,7 +437,6 @@ export function CookOverlay() {
   const isLast = stepIdx === total - 1;
 
   const timerToggle = () => {
-    stopAlarm();
     // Моушн-2 №7: дозвіл на нотифікації питаємо в момент юзер-жесту старту
     // таймера; відмова = просто без них.
     try {
@@ -501,6 +448,10 @@ export function CookOverlay() {
   const plusMinute = () => {
     if (deadlineRef.current != null) {
       deadlineRef.current += 60_000;
+      // Спек 30.09 §5: дедлайн зрушився — заплановані тіки перераховуємо на
+      // новий, а не чекаємо наступного [running]-циклу (він не спрацює,
+      // running і так true).
+      audio().startTicking(deadlineRef.current);
       // Пул-7 №1: сесія несе дедлайн — банери/вартовий мусять побачити +хвилину одразу.
       saveCookSession({ recipe, stepIdx, secondsLeft: secondsLeft + 60, deadline: deadlineRef.current, recipeId: state.recipeId, returnSessionId: state.returnSessionId, done: [...done], timers: timersRef.current });
     }
