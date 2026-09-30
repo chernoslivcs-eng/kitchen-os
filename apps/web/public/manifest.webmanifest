@@ -1,7 +1,7 @@
 {
   "name": "Kitchen OS",
   "short_name": "Kitchen",
-  "description": "Готуй з того, що вже є.",
+  "description": "У кожного своя кухня.",
   "start_url": "/app",
   "scope": "/",
   "display": "standalone",
