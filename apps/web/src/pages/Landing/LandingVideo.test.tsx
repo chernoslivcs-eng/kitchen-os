@@ -7,6 +7,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { createRef } from 'react';
 import { useLandingVideo, VideoBubble, VideoBlock, VideoPlayerOverlay } from './LandingVideo';
+import { VIDEO_FULL } from './video-assets';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -74,7 +75,7 @@ describe('плеєр — відкриття й закриття', () => {
     await mount();
     const bubble = document.querySelector('[aria-label="Відкрити відео про Kitchen OS"]') as HTMLElement;
     await act(async () => { bubble.click(); });
-    expect(document.querySelector('video[src="/video/showreel-full.mp4"]')).toBeTruthy();
+    expect(document.querySelector(`video[src="${VIDEO_FULL}"]`)).toBeTruthy();
   });
 
   it('Esc закриває плеєр', async () => {
@@ -112,7 +113,7 @@ describe('плеєр — відкриття й закриття', () => {
     await mount();
     const block = document.querySelector('[aria-label="Відкрити відео про Kitchen OS"]') as HTMLElement;
     await act(async () => { block.click(); });
-    expect(document.querySelector('video[src="/video/showreel-full.mp4"]')).toBeTruthy();
+    expect(document.querySelector(`video[src="${VIDEO_FULL}"]`)).toBeTruthy();
   });
 });
 
