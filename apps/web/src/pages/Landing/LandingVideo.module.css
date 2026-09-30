@@ -1,0 +1,69 @@
+/* Ролик на лендінгу — LANDING-VIDEO-BRIEF-0930. */
+
+/* 1. Бульбашка (≥1024) — фіксована, правий нижній кут, над сторінкою. */
+.bubbleWrap {
+  position: fixed; right: 24px; bottom: 24px; z-index: 15;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  transition: opacity 240ms var(--e), transform 240ms var(--e);
+}
+.bubbleWrap[data-hide] { opacity: 0; transform: translateY(12px); pointer-events: none; }
+.bubbleCaption { font-size: 12.5px; font-weight: 500; color: var(--muted); background: var(--card); padding: 4px 10px; border-radius: var(--r-pill); box-shadow: var(--sh-a), var(--sh-b); }
+.bubble {
+  position: relative; width: 240px; aspect-ratio: 16 / 9; border-radius: var(--r-xl);
+  overflow: hidden; box-shadow: var(--sh-a), var(--sh-b); cursor: pointer;
+  transition: transform 220ms var(--e), box-shadow 220ms var(--e);
+}
+.bubble:hover, .bubble:focus-visible { transform: translateY(-4px); box-shadow: var(--sh2); }
+.bubbleMedia { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bubbleWatch {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(.92);
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: var(--r-pill);
+  background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 600;
+  opacity: 0; transition: opacity 200ms var(--e), transform 200ms var(--e); pointer-events: none;
+}
+.bubble:hover .bubbleWatch, .bubble:focus-visible .bubbleWatch { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.bubbleClose {
+  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; background: color-mix(in srgb, var(--ink) 55%, transparent); color: var(--bg);
+  opacity: .8; transition: opacity 160ms var(--e);
+}
+.bubbleClose:hover { opacity: 1; }
+
+/* 2. Блок у «Як це працює» (<1024) — у потоці, на всю ширину контенту. */
+.block {
+  position: relative; width: 100%; border-radius: var(--r-xl); overflow: hidden; cursor: pointer;
+  box-shadow: var(--sh-a), var(--sh-b); margin-bottom: 8px;
+}
+.blockCover { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
+.blockDuration {
+  position: absolute; right: 12px; top: 12px; font-size: 12px; font-weight: 600; color: var(--bg);
+  background: color-mix(in srgb, var(--ink) 55%, transparent); padding: 3px 9px; border-radius: var(--r-pill);
+}
+.blockWatch {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: var(--r-pill);
+  background: var(--ink); color: var(--bg); font-size: 15px; font-weight: 600;
+}
+
+/* 3. Плеєр поверх сторінки — один на обидві ширини. */
+.playerBackdrop {
+  position: fixed; inset: 0; z-index: 40; background: var(--backdrop);
+  display: flex; align-items: center; justify-content: center; padding: 48px;
+}
+.playerPanel { position: relative; width: 100%; max-width: 1120px; }
+.playerVideo { width: 100%; aspect-ratio: 16 / 9; border-radius: var(--r-lg); display: block; background: #000; }
+.playerClose {
+  position: absolute; right: 0; top: -52px; width: 44px; height: 44px; border-radius: 50%;
+  display: grid; place-items: center; color: var(--bg); background: color-mix(in srgb, var(--ink) 40%, transparent);
+}
+
+@media (max-width: 1023px) {
+  .playerBackdrop { padding: 0; align-items: stretch; }
+  .playerPanel { max-width: none; display: flex; align-items: center; }
+  .playerVideo { border-radius: 0; aspect-ratio: auto; max-height: 100svh; }
+  .playerClose { top: 12px; right: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubbleWrap, .bubble, .bubbleWatch, .bubbleClose { transition: none; }
+}
