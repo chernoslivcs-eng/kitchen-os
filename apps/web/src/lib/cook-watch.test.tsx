@@ -101,3 +101,87 @@ describe('§2.3 — вартовий поза Cook Mode', () => {
     expect(vibrate).not.toHaveBeenCalled();
   });
 });
+
+// Макет 30.09 (COOK-TIMERS-BRIEF-0930, §2.3): плашка поверх застосунку.
+const STEPPED: Recipe = {
+  t: 'Спагеттіні з мідіями', sv: 2, tm: 25, ch: '', d: '', rk: '',
+  ing: [],
+  st: [
+    { t: 'Зварити пасту', c: '.', s: 25 },
+    { t: 'Тушкувати соус', c: '.', s: 40 },
+  ],
+} as Recipe;
+
+describe('§2.3 · плашка поверх застосунку', () => {
+  const toasts = () => Array.from(host!.querySelectorAll<HTMLElement>('[data-toast]'));
+
+  it('поточний крок добіг поза кукінг-модом — плашка «{рецепт} · {крок} · час вийшов», рецепт приглушений', async () => {
+    saveCookSession({ recipe: STEPPED, stepIdx: 0, secondsLeft: 0, deadline: Date.now() - 500 });
+    await mount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    const t = toasts();
+    expect(t).toHaveLength(1);
+    // Перегляд ГОЛОВНИЙ ЧАТ round 2, п.3: роздільник — окремий flex-item, не
+    // пробіл у тексті (проміжок — CSS gap); textContent тому без пробілів.
+    expect(t[0]!.textContent).toBe('Спагеттіні з мідіями·Зварити пасту·час вийшов');
+    expect(t[0]!.getAttribute('data-toast-tone')).toBe('sage');
+    const muted = t[0]!.querySelector<HTMLElement>('[class*="muted"]');
+    expect(muted?.textContent).toBe('Спагеттіні з мідіями');
+  });
+
+  it('фоновий таймер поза кукінг-модом — теж плашка', async () => {
+    saveCookSession({
+      recipe: STEPPED, stepIdx: 0, secondsLeft: 25, deadline: null,
+      timers: { 1: { deadline: Date.now() - 300, left: 0 } },
+    });
+    await mount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    const t = toasts();
+    expect(t).toHaveLength(1);
+    expect(t[0]!.textContent).toBe('Спагеттіні з мідіями·Тушкувати соус·час вийшов');
+  });
+
+  it('хрестик закриває плашку', async () => {
+    saveCookSession({ recipe: STEPPED, stepIdx: 0, secondsLeft: 0, deadline: Date.now() - 500 });
+    await mount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    expect(toasts()).toHaveLength(1);
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-toast-close]')!.click(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+    expect(toasts()).toHaveLength(0);
+  });
+
+  it('зникає сама за 4с', async () => {
+    saveCookSession({ recipe: STEPPED, stepIdx: 0, secondsLeft: 0, deadline: Date.now() - 500 });
+    await mount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    expect(toasts()).toHaveLength(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(4_500); });
+    expect(toasts()).toHaveLength(0);
+  });
+
+  it('тап відкриває кукінг-мод на тому кроці', async () => {
+    saveCookSession({
+      recipe: STEPPED, stepIdx: 0, secondsLeft: 25, deadline: null,
+      timers: { 1: { deadline: Date.now() - 300, left: 0 } },
+    });
+    await mount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    expect(toasts()).toHaveLength(1);
+    await act(async () => { toasts()[0]!.click(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); }); // фейд тапу
+    const args = useCookStore.getState().args;
+    expect(args?.recipe.t).toBe('Спагеттіні з мідіями');
+    expect(args?.startAt).toBe(1); // фоновий крок 2 (index 1) — саме той, що добіг
+  });
+
+  it('два добігли одночасно — дві плашки стосом', async () => {
+    saveCookSession({
+      recipe: STEPPED, stepIdx: 0, secondsLeft: 0, deadline: Date.now() - 500,
+      timers: { 1: { deadline: Date.now() - 300, left: 0 } },
+    });
+    await mount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    expect(toasts()).toHaveLength(2);
+  });
+});

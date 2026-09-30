@@ -44,6 +44,9 @@ import { ArrowRight, Equal, EyeOff, ListPlus, Lock, Lightbulb, Mail, Trash2, Ell
 import { PackageOpen, History, List, Shuffle, ChevronLeft, CircleHelp, CreditCard } from 'lucide-react';
 // Sent · Invite (Auth.dc.html) — теж окремим рядком.
 import { Send, MailCheck, UserRoundX, Image } from 'lucide-react';
+// Кукінг-мод, макет 30.09 (COOK-TIMERS-BRIEF-0930): кнопка звуку — третій
+// стан «лише сигнал»/«тиша» замість двостанового Volume2-мута.
+import { Bell, VolumeX } from 'lucide-react';
 
 export type Family = 'system' | 'zones' | 'products' | 'cooking' | 'live';
 
@@ -106,6 +109,9 @@ export const ICONS = {
   // Смуга «вхід · час оновитись» (Errors E2) — log-in, як у бандлі.
   'sys.login':     { glyph: LogIn,             label: 'Увійти',        family: 'system' },
   'sys.sound':     { glyph: Volume2,           label: 'Звук',          family: 'system' },
+  // Кукінг-мод §4.5 (макет 30.09): кнопка звуку — три стани по колу.
+  'sys.sound-signal': { glyph: Bell,           label: 'Лише сигнал',   family: 'system' },
+  'sys.sound-off': { glyph: VolumeX,           label: 'Без звуку',     family: 'system' },
   'sys.profile':   { glyph: User,              label: 'Профіль',       family: 'system' },
   'sys.menu':      { glyph: Menu,              label: 'Меню',          family: 'system' },
   'sys.back':      { glyph: ArrowLeft,         label: 'Назад',         family: 'system' },

@@ -42,7 +42,7 @@
 }
 
 /* ── Шапка ─────────────────────────────────────────────────────────────── */
-.head { display: flex; align-items: center; gap: 12px; flex: none; }
+.head { display: flex; align-items: center; gap: 12px; flex: none; position: relative; }
 /* Р6 (spec 18.09): danger-токен палітри, як в інших danger-кнопках (Pantry
    .card-remove, Feed .att-remove) — не новий колір. */
 .exit {
@@ -58,6 +58,57 @@
   display: flex; align-items: center; justify-content: center; gap: 8px;
   font-family: var(--font-body); font-size: 15px; font-weight: 600; color: var(--ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* Перегляд ГОЛОВНИЙ ЧАТ (плашка ≥768): заголовок по центру шапки — та сама
+     позиція, де центрується плашка (не колонка фокуса). Гасне на час показу
+     плашки (Cook.tsx ставить data-toast-active), інакше плашка ріже його
+     з середини за будь-якої довжини назви. */
+  transition: opacity var(--dur-fast) linear;
+}
+.head-title[data-toast-active] { opacity: 0; }
+
+/* ── Плашка фонового таймера (макет 30.09, COOK-TIMERS-BRIEF-0930) ───────
+   Дитина .head (не .screen!) — так позиція й розмір автоматично збігаються
+   з реальною шапкою на КОЖНІЙ ширині (враховує .segments над шапкою на
+   <768 без жодних чисел вручну: .head сам стоїть під ними в потоці).
+   Перегляд ГОЛОВНИЙ ЧАТ round 2, п.1: вертикальне центрування — по РЯДУ
+   КНОПОК (тому самому align-items:center, яким .head уже центрує реальні
+   кнопки), не по повному боксу .head. .head-padding асиметричний на <768
+   (12px згори, 0 знизу) — центр повного бокса .head і центр ряду кнопок
+   тоді РІЗНІ точки (виміряно: розбіжність 6px, звідси й «шапка визирає
+   зверху» на 390). .toast-layer сам стає елементом того самого flex-рядка
+   (top/bottom не задані — auto) з align-self:center: браузер рахує його
+   (нульової висоти, як і .toast-col/.toast-slot нижче — усі діти absolute)
+   опорну точку ТОЧНО там самим механізмом, що й реальні кнопки, — без
+   жодного числа вручну, на будь-якій ширині. .toast-slot і далі центрує
+   САМЕ СЕБЕ через translateY(-50% від власної висоти) — тепер справді
+   власної: Toast.module.css .chin більше не absolute (той самий перегляд,
+   діагностика — картка в потоці, тому висота .toast-slot вже не 0). */
+.toast-layer {
+  position: absolute;
+  left: 0; right: 0;
+  top: auto; bottom: auto;
+  align-self: center;
+  z-index: 80;
+  pointer-events: none;
+}
+.toast-col {
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  /* ≥768 і ≥1024 — той самий toastMax макета (W(), успадковано в COOK·768). */
+  max-width: 520px;
+}
+/* Стос: новіша плашка — «нульове» зміщення (найвищий z), старіша зʼїжджає
+   на 56 px тим самим рухом (моушн-пас макета) — Cook.tsx додає це зміщення
+   ДО -50% у тому самому inline transform. */
+.toast-slot {
+  position: absolute; top: 0; left: 0; right: 0;
+  pointer-events: auto;
+  transition: transform var(--dur-base) cubic-bezier(.2, .8, .2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-slot { transition: none; }
 }
 /* 12.09 (A7): тема — один тогл sun-moon у круглій кнопці .round; сегмент sun/moon знято. */
 .round {
@@ -66,8 +117,6 @@
   background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--muted);
   display: grid; place-items: center; cursor: pointer;
 }
-.round-off { color: var(--dim); }
-.round-off > [data-icon] { opacity: .5; }
 .step-pill { display: none; }
 .segments { display: none; }
 
@@ -307,6 +356,13 @@
   .seg-done { background: var(--sage); }
   .seg-cur { background: var(--ink); }
   .head { height: auto; padding: 12px 16px 0; gap: 8px; }
+  /* Перегляд ГОЛОВНИЙ ЧАТ round 2, п.2: 12px бічних полів (як у макеті й у
+     попередній версії) — тут окреме, свідоме число для плашки, НЕ те саме,
+     що власний 16px l/r-паддінг .head вище (той — для кнопок ряду; плашка
+     на цій ширині йде від краю до краю .head за задумом, це поле — лише
+     її власний відступ). ≥768 — 0 (плашка й далі йде на всю ширину .head,
+     без полів, той самий вигляд, що вже прийнятий). */
+  .toast-layer { left: 12px; right: 12px; }
   .exit { width: 38px; height: 38px; padding: 0; justify-content: center; border-radius: 50%; }
   .exit-text { display: none; }
   .head-title, .head-theme { display: none; }

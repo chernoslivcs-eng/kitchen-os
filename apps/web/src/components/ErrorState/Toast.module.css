@@ -43,6 +43,59 @@
   color: var(--ink);
   text-wrap: pretty;
 }
+/* Макет 30.09: «{рецепт} · {крок} · час вийшов» поза кукінг-модом — назва рецепта приглушена. */
+.muted { color: var(--muted); font-weight: inherit; }
+/* Макет 30.09 (виміряно в бандлі): назва кроку в плашці таймера — 600, решта тексту 400. */
+.lead { font-weight: 600; }
+/* Перегляд ГОЛОВНИЙ ЧАТ round 2, п.3: роздільник — власний flex-item, не
+   пробіл усередині сусіднього тексту (кожна дитина flex сама згортає свої
+   крайні пробіли — «· час вийшов» приліплювалось до слова). */
+.dotSep { flex: none; color: var(--muted); }
+/* Макет 30.09: «· час вийшов» ніколи не обрізається — трикрапкою скорочується
+   лише назва кроку (lead) і, на ≥768, назва рецепта (muted, п.4 перегляду).
+   Один рядок, лише для chin: інші тости лишаються на своєму «перенос дії під
+   текст», якщо самого тексту забагато (§ вище) — .trail/.lead поза chin
+   нічого не змінюють (звичайний inline-текст). */
+.toast.chin .text {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.toast.chin .trail { flex: none; }
+/* Перегляд ГОЛОВНИЙ ЧАТ round 2, п.4 (рішення ГОЛОВНИЙ ЧАТ): на ≥768 рецепт
+   стискається ПЕРШИМ — набагато більший flex-shrink, ніж у назви кроку, тож
+   практично весь «зайвий» простір забирає він, доки сам не впреться в
+   min-width:0 (трикрапка), і лише тоді почне обрізатись крок. basis:auto
+   (не 0%) для обох — це саме ЗБІГ ВІД ВЛАСНОЇ ШИРИНИ, як і задумано (з 0%
+   у muted перша спроба відривала його від власного тексту й «стискала» до
+   0 незалежно від того, скільки місця насправді бракує — flex-basis:0%
+   ігнорує зміст при рахунку частки дефіциту, tan flex-shrink множиться на
+   майже нуль). */
+.toast.chin .muted {
+  flex: 0 1000 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.toast.chin .lead {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Перегляд ГОЛОВНИЙ ЧАТ round 2, п.4 (рішення ГОЛОВНИЙ ЧАТ): на <768 поза
+   кукінг-модом назву рецепта не показуємо взагалі — «{крок} · час вийшов»,
+   як усередині кукінг-моду. Ховає й muted, і його сепаратор (обидва мають
+   .mutedPart) — усередині кукінг-моду mutedPrefix не передають узагалі, тож
+   цей правило на COOK-кадри не впливає. */
+@media (max-width: 767px) {
+  .toast.chin .mutedPart { display: none; }
+}
 /* Дія — слово, не кнопка з рамкою: у тоста одна дія, і вона очевидна. */
 .action {
   flex: none;
@@ -58,6 +111,20 @@
   cursor: pointer;
   white-space: nowrap;
 }
+/* Макет 30.09 (плашка фонового таймера): хрестик, зона дотику 44 — від'ємні
+   поля тягнуть коло до країв 12/14/12/16-падінгу тоста, сам знак лишається
+   16 px по центру зони. */
+.close {
+  flex: none;
+  width: 44px; height: 44px;
+  margin: -12px -14px -12px 0;
+  border: 0; border-radius: 50%;
+  background: none; color: var(--muted);
+  display: grid; place-items: center;
+  cursor: pointer;
+}
+.close:hover { background: var(--bg); }
+.tappable { cursor: pointer; }
 /* Вихід (№11): назад тим самим шляхом, 160 мс. */
 .leaving { animation: toast-out var(--dur-fast, 160ms) var(--ease-exit, ease) forwards; }
 @keyframes toast-out {
@@ -85,3 +152,57 @@
 @media (prefers-reduced-motion: reduce) {
   .toast, .leaving { animation: none; }
 }
+
+/* ── Макет 30.09 (COOK-TIMERS-BRIEF-0930): плашка фонового таймера ───────
+   placement="chin" — «чубчик» поверх шапки кукінг-моду/чату. Контейнер
+   (.toast-slot у викликача) — сам absolute щодо предка, якого готує
+   викликач; тут лише сама картка й рух — моушн-пас макета, окремий від E3
+   (240 мс і сплюснена крива входу).
+   Перегляд ГОЛОВНИЙ ЧАТ round 2, п.1 (діагностика): картка НЕ absolute — у
+   звичайному потоці всередині .toast-slot. Причина: .toast-slot центрує
+   себе через translateY(-50% + зміщення стосу) — відсоток transform
+   рахується від ВЛАСНОЇ висоти .toast-slot, а якщо єдина дитина сама
+   absolute, та висота схлопується в 0 (виміряно живим getBoundingClientRect:
+   .toast-slot/.toast-col — h:0), і -50% від нуля лишає картку не
+   центрованою, а притиснутою ВЕРХОМ до опорної точки — звідси й «шапка
+   визирає зверху» на 390 (там опорна точка — центр .head, не ряду кнопок;
+   ряд кнопок нижче через 12px верхнього паддінгу без нижнього). У потоці
+   висота .toast-slot дорівнює РЕАЛЬНІЙ висоті картки — відсоток рахується
+   правильно, як коментар біля .toast-slot (Cook.module.css) завжди й мав на
+   увазі. */
+.toast.chin {
+  position: relative;
+  /* Base .toast — position:fixed по центру вʼюпорту (left:50% +
+     translateX(-50%), той самий @media top:64px+… нижче) — усе це для
+     default-розміщення, chin його не потребує (звичайний потік усередині
+     .toast-slot): без явного скидання ці три властивості й далі каскадують
+     на .chin (position:relative їх так само читає), зсуваючи картку вбік. */
+  top: 0;
+  left: auto;
+  transform: none;
+  width: auto;
+  max-width: none;
+  z-index: 80;
+  animation: toast-chin-in var(--dur-base) cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes toast-chin-in {
+  from { opacity: 0; transform: translateY(-16px) scale(.98); }
+  to   { opacity: 1; transform: none; }
+}
+/* Моушн-пас: зникнення (авто-таймер, змах) — 240 мс ease-in, той самий шлях назад угору. */
+.toast.leaving-chin { animation: toast-chin-out var(--dur-base) var(--ease-exit, ease-in) forwards; }
+@keyframes toast-chin-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(-16px) scale(.98); }
+}
+/* Моушн-пас: хрестик і тап по тілу — лише прозорість, 120 мс, без зсуву. */
+.toast.leaving-fade { animation: toast-fade-out var(--dur-fast) linear forwards; }
+@keyframes toast-fade-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  /* «Без зсуву й масштабу» (макет) — на відміну від .toast/.leaving вище
+     (animation: none повністю), chin лишає прозорість: інакше зникнення
+     4-секундної плашки не читається взагалі. */
+  .toast.chin { animation: toast-chin-in-reduced var(--dur-base) linear; }
+  .toast.leaving-chin { animation: toast-fade-out var(--dur-base) linear forwards; }
+}
+@keyframes toast-chin-in-reduced { from { opacity: 0; } to { opacity: 1; } }

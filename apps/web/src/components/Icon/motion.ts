@@ -66,6 +66,9 @@ export const MOTION: Record<Extract<IconName, `sys.${string}` | `landing.${strin
   'sys.less': null, 'sys.go': null, 'sys.hide': null, 'sys.toList': null, 'sys.hint': null,
   'sys.mail': null, 'sys.trash': null, 'sys.more': null, 'sys.notes': null, 'sys.help': null, 'sys.card': null,
   'sys.copy': null,
+  // Кукінг-мод §4.5 (макет 30.09): нові стани кнопки звуку — поза масивом
+  // бандла, статичні (правило файлу: нема ключа — не вигадуємо).
+  'sys.sound-signal': null, 'sys.sound-off': null,
   // Лендінг (етап 9): знаки системної сімʼї з блоку «landing» в icons.ts —
   // у масиві бандла їх немає, тому статичні.
   'landing.opened': null, 'landing.leftover': null, 'landing.recent': null, 'landing.variety': null, 'landing.toPanel': null,

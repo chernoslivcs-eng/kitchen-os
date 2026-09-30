@@ -63,3 +63,139 @@ describe('№11 · тост', () => {
     expect(css.slice(0, css.indexOf('@media (max-width: 768px)'))).toMatch(/bottom: 100px/);
   });
 });
+
+// Макет 30.09 (COOK-TIMERS-BRIEF-0930): плашка фонового таймера — той самий
+// тост, з доданими closable/onTap/placement="chin".
+describe('макет 30.09 · closable/onTap/chin', () => {
+  // Виміряно в бандлі (Kitchen OS - Cook Timers.dc.html): назва кроку — 600,
+  // назва рецепта (mutedPrefix) і «· час вийшов» (text) — 400.
+  it('lead — жирний, mutedPrefix і text — звичайні; порядок mutedPrefix → lead → text', async () => {
+    await mount(<Toast text="час вийшов" lead="Зварити пасту" mutedPrefix="Спагеттіні з мідіями" tone="sage" />);
+    const textEl = host!.querySelector<HTMLElement>('[class*="text"]')!;
+    // Перегляд ГОЛОВНИЙ ЧАТ round 2, п.3: роздільник — окремий flex-item
+    // (.dotSep), не пробіл у тексті — видимий проміжок дає CSS gap, не
+    // текстовий вузол, тож textContent без пробілів навколо «·».
+    expect(textEl.textContent).toBe('Спагеттіні з мідіями·Зварити пасту·час вийшов');
+    const lead = textEl.querySelector('b')!;
+    expect(lead.textContent).toBe('Зварити пасту');
+    const muted = textEl.querySelector<HTMLElement>('[class*="muted"]')!;
+    expect(muted.textContent).toBe('Спагеттіні з мідіями');
+  });
+
+  it('chin: «· час вийшов» (trail) ніколи не обрізається — трикрапка лише на lead і muted (CSS)', () => {
+    const css = readFileSync(resolve(fileURLToPath(import.meta.url), '..', 'Toast.module.css'), 'utf8');
+    expect(css).toMatch(/\.toast\.chin \.lead\s*\{[^}]*text-overflow:\s*ellipsis/s);
+    expect(css).toMatch(/\.toast\.chin \.muted\s*\{[^}]*text-overflow:\s*ellipsis/s);
+    expect(css).toMatch(/\.toast\.chin \.trail\s*\{\s*flex:\s*none;\s*\}/);
+    expect(css).not.toMatch(/\.trail\s*\{[^}]*text-overflow/s); // .trail сам не обрізається
+  });
+
+  // Перегляд ГОЛОВНИЙ ЧАТ round 2, п.3: «· час вийшов» приліплювалось до
+  // сусіднього слова — пробіл на краю flex-елемента схлопується (кожна
+  // дитина flex сама згортає свій крайній пробіл). Фікс — роздільник власним
+  // flex-item (.dotSep), проміжок — CSS gap, не текстовий пробіл; закріплено
+  // тестом на розмітку (структура) і на CSS (gap), а не лише на textContent.
+  it('роздільники — окремі .dotSep-елементи (не пробіл у тексті), проміжок — CSS gap', async () => {
+    await mount(<Toast text="час вийшов" lead="Крок 3 · 70 с" mutedPrefix="Перевірка звуку таймера" tone="sage" placement="chin" />);
+    const textEl = host!.querySelector<HTMLElement>('[class*="text"]')!;
+    const parts = Array.from(textEl.children);
+    // Порядок: muted, dotSep, lead(b), dotSep, trail — п'ять окремих вузлів.
+    expect(parts).toHaveLength(5);
+    expect(parts[0]!.textContent).toBe('Перевірка звуку таймера');
+    expect(parts[1]!.textContent).toBe('·');
+    expect(parts[1]!.getAttribute('aria-hidden')).toBe('true');
+    expect(parts[2]!.tagName).toBe('B');
+    expect(parts[2]!.textContent).toBe('Крок 3 · 70 с'); // текст lead може сам містити «·» — не плутати з роздільником
+    expect(parts[3]!.textContent).toBe('·');
+    expect(parts[3]!.getAttribute('aria-hidden')).toBe('true');
+    expect(parts[4]!.textContent).toBe('час вийшов');
+    const css = readFileSync(resolve(fileURLToPath(import.meta.url), '..', 'Toast.module.css'), 'utf8');
+    expect(css).toMatch(/\.toast\.chin \.text\s*\{[^}]*gap:\s*5px/s);
+  });
+
+  it('closable: клік по хрестику закриває, дію не чіпаючи', async () => {
+    const gone = vi.fn();
+    const run = vi.fn();
+    await mount(<Toast text="Зварити пасту · час вийшов" onDismiss={gone} closable action={{ label: 'Дія', run }} />);
+    const close = host!.querySelector<HTMLButtonElement>('[data-toast-close]')!;
+    await act(async () => { close.click(); });
+    expect(run).not.toHaveBeenCalled(); // хрестик — не дія
+    await act(async () => { vi.advanceTimersByTime(130); }); // хрестик — 120 мс, не 160
+    expect(gone).toHaveBeenCalledTimes(1);
+  });
+
+  it('onTap: клік по тілу викликає onTap і закриває; клік по хрестику onTap НЕ викликає', async () => {
+    const gone = vi.fn();
+    const tap = vi.fn();
+    await mount(<Toast text="Зварити пасту · час вийшов" onDismiss={gone} closable onTap={tap} />);
+    const close = host!.querySelector<HTMLButtonElement>('[data-toast-close]')!;
+    await act(async () => { close.click(); });
+    expect(tap).not.toHaveBeenCalled(); // хрестик — не тап по тілу
+    expect(gone).not.toHaveBeenCalled(); // ще не минуло 120мс фейду хрестика
+  });
+
+  it('onTap на тілі — фейд 120мс, потім onTap і onDismiss', async () => {
+    const gone = vi.fn();
+    const tap = vi.fn();
+    await mount(<Toast text="Зварити пасту · час вийшов" onDismiss={gone} onTap={tap} />);
+    const el = host!.querySelector<HTMLElement>('[data-toast]')!;
+    await act(async () => { el.click(); });
+    expect(tap).not.toHaveBeenCalled();
+    await act(async () => { vi.advanceTimersByTime(130); });
+    expect(tap).toHaveBeenCalledTimes(1);
+    expect(gone).toHaveBeenCalledTimes(1);
+  });
+
+  it('placement="chin": авто-зникнення через 4с — вихід 240мс (не 160)', async () => {
+    const gone = vi.fn();
+    await mount(<Toast text="Крок · час вийшов" onDismiss={gone} placement="chin" />);
+    await act(async () => { vi.advanceTimersByTime(4_000); });
+    await act(async () => { vi.advanceTimersByTime(160); }); // база (default) вже пройшла б, chin — ще ні
+    expect(gone).not.toHaveBeenCalled();
+    await act(async () => { vi.advanceTimersByTime(90); }); // разом 250мс — chin (240) уже пройшов
+    expect(gone).toHaveBeenCalledTimes(1);
+  });
+
+  it('placement="chin", ≥1024: під курсором пауза, після відходу — ще 2с (не залишок 4с)', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('min-width: 1024'), media: q, addEventListener() {}, removeEventListener() {} }));
+    const gone = vi.fn();
+    await mount(<Toast text="Крок · час вийшов" onDismiss={gone} placement="chin" />);
+    const el = host!.querySelector<HTMLElement>('[data-toast]')!;
+    await act(async () => { vi.advanceTimersByTime(3_000); }); // майже до кінця оригінальних 4с
+    // React делегує onMouseEnter/Leave через нативні mouseover/mouseout
+    // (mouseenter/mouseleave самі не спливають) — relatedTarget=null імітує
+    // вхід/вихід ззовні дерева.
+    await act(async () => { el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: null })); });
+    await act(async () => { vi.advanceTimersByTime(10_000); }); // під курсором — довго, все одно тиша
+    expect(gone).not.toHaveBeenCalled();
+    await act(async () => { el.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: null })); });
+    await act(async () => { vi.advanceTimersByTime(1_900); });
+    expect(gone).not.toHaveBeenCalled(); // ще не 2с
+    await act(async () => { vi.advanceTimersByTime(400); }); // 2с грації + 240мс виходу chin
+    expect(gone).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
+  it('placement="chin" без window.matchMedia узагалі (jsdom-профіль без стабу) — наведення не падає', async () => {
+    const gone = vi.fn();
+    await mount(<Toast text="Крок · час вийшов" onDismiss={gone} placement="chin" />);
+    const el = host!.querySelector<HTMLElement>('[data-toast]')!;
+    // window.matchMedia лишається undefined (не стабили) — .matches на
+    // undefined кидав би, якби optional chaining не покривав обидва хопи.
+    await act(async () => { el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: null })); });
+    await act(async () => { el.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: null })); });
+    await act(async () => { vi.advanceTimersByTime(4_250); });
+    expect(gone).toHaveBeenCalledTimes(1);
+  });
+
+  it('placement="chin", <1024: наведення НЕ ставить на паузу — звичайні 4с', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} }));
+    const gone = vi.fn();
+    await mount(<Toast text="Крок · час вийшов" onDismiss={gone} placement="chin" />);
+    const el = host!.querySelector<HTMLElement>('[data-toast]')!;
+    await act(async () => { el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: null })); });
+    await act(async () => { vi.advanceTimersByTime(4_250); });
+    expect(gone).toHaveBeenCalledTimes(1); // ≥1024-пауза не діє — звичайний авто-дисміс
+    vi.unstubAllGlobals();
+  });
+});
