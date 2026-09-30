@@ -212,6 +212,16 @@ export class CookAudioSession {
   // лежить у графі, долунює нечутно, замість ще майже секунди цокати
   // старим планом. Аларм — повз шину, напряму в master: його вимикає
   // окрема перевірка `muted` перед стартом, не гейт.
+  //
+  // Перегляд 30.09, раунд 2 (issue D): шина ОДНОРАЗОВА — нова щоразу на
+  // startTicking, не одна на все життя контексту. Причина: gain→0 глушить
+  // лише ГУЧНІСТЬ, ноти, вже заплановані на СТАРОМУ плані (`.start()` не
+  // відкликати), фізично лишаються в графі; якщо той самий вузол потім
+  // знову відкрити (наступний startTicking, «+1 хв»/зміна кроку швидше за
+  // секунду), вони оживають ПОВЕРХ щойно запланованих нот на ту саму мить —
+  // подвоєна гучність до кінця секунди. stopTicking тепер шину ще й
+  // `disconnect()` — стара шина вже НІКОЛИ не досягне master, хай що
+  // станеться з нею далі.
   private tickGate: GainNode | null = null;
   private timer: number | null = null;
   private deadline: number | null = null;
@@ -239,9 +249,9 @@ export class CookAudioSession {
       this.master = this.ctx.createGain();
       this.master.gain.value = MASTER_GAIN;
       this.master.connect(this.ctx.destination);
-      this.tickGate = this.ctx.createGain();
-      this.tickGate.gain.value = 0;
-      this.tickGate.connect(this.master);
+      // issue D: tickGate тут БІЛЬШЕ не створюється — master живе на весь
+      // контекст (спільний для тіків і аларму), а шина тіків одноразова,
+      // її ставить кожен startTicking окремо (див. коментар на полі).
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
     return this.ctx;
@@ -284,12 +294,16 @@ export class CookAudioSession {
    */
   startTicking(deadlineMs: number): void {
     this.stopTicking();
-    if (!this.ensure()) return;
+    if (!this.ensure() || !this.master) return;
+    // issue D: нова шина щоразу — stopTicking() щойно вище відʼєднав
+    // (не лише приглушив) попередню, тож її ноти, хай що з ними станеться
+    // далі, до master уже не дійдуть. Нова шина нот старого плану не має
+    // взагалі — подвоєння немає структурно, не завдяки гучності.
+    this.tickGate = this.ctx!.createGain();
+    this.tickGate.connect(this.master);
     this.deadline = deadlineMs;
     this.alarmScheduled = false; // issue B: нове тікання — аларм цього дедлайну ще не грав.
-    // issue A: примусово, не через syncGate/порівняння — «на старті завжди»,
-    // незалежно від того, яким this.gateOpen міг лишитись після stopTicking
-    // щойно перед цим у ТОМУ Ж коміті React.
+    // issue A: примусово, не через syncGate/порівняння — «на старті завжди».
     this.applyGate(!this.muted);
     this.scheduleNext();
   }
@@ -371,14 +385,26 @@ export class CookAudioSession {
     alarm(ctx, this.master, ctx.currentTime + 0.04);
   }
 
-  /** §5: пауза, зміна кроку, закриття кукінг-моду — шину глушимо ОДРАЗУ;
-   *  заплановане в графі долунює нечутно, не «ще майже секунду». */
+  /**
+   * §5: пауза, зміна кроку, закриття кукінг-моду — шину глушимо ОДРАЗУ.
+   * issue D: і ще й відʼєднуємо (`disconnect`), не лише приглушуємо —
+   * inline-мут (gain→0) сам по собі не рятує від подвоєння, якщо ту саму
+   * шину потім знову відкриє наступний startTicking: ноти старого плану,
+   * досі в графі, оживуть поверх нових. Відʼєднана шина не оживе НІКОЛИ,
+   * хай що станеться з нею далі — наступний startTicking ставить свіжу.
+   */
   stopTicking(): void {
     if (this.timer != null) { window.clearTimeout(this.timer); this.timer = null; }
     this.deadline = null;
     this.lastScheduledLeft = null;
     this.alarmScheduled = false;
-    this.applyGate(false);
+    if (this.ctx && this.tickGate) {
+      this.tickGate.gain.cancelScheduledValues(this.ctx.currentTime);
+      this.tickGate.gain.setValueAtTime(0, this.ctx.currentTime);
+      this.tickGate.disconnect();
+    }
+    this.tickGate = null;
+    this.gateOpen = null;
   }
 
   /** §4.4/§2.1/§2.2/§2.3: аларм один раз — той самий звук для кроку, фону й закритого кукінг-моду. */

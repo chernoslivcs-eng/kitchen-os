@@ -84,43 +84,74 @@ class FakeParam {
   exponentialRampToValueAtTime(v: number) { this.pending = { at: Date.now(), v }; this.writes.push(v); return this; }
   cancelScheduledValues() { return this; }
 }
-// Кожен вузол «зʼєднується» сам із собою — реальна маршрутизація тут не при
-// ділі (жоден тест не слухає звук), важливо лише, щоб ланцюжок
-// `a.connect(b).connect(c)` довільної довжини ніколи не впав.
-function node<T extends object>(extra: T): T & { connect: () => T & { connect: () => unknown } } {
-  const n = extra as T & { connect: () => T & { connect: () => unknown } };
-  n.connect = () => n;
+// Перегляд 30.09, раунд 2 (issue D): connect()/disconnect() тепер справжні —
+// connect(target) повертає TARGET (як у Web Audio, інакше ланцюжок
+// `a.connect(b).connect(c)` мовчки викликав .connect лише на `a`, а `b`
+// узагалі не бачив другого хопу), а disconnect() рве ребро незворотно.
+// Потрібно саме для issue D: перевірити, що нота, замкнута на СТАРУ (уже
+// відʼєднану) шину, ніколи не «доходить» до master, хай що станеться далі.
+interface FakeNode {
+  connect(target: FakeNode): FakeNode;
+  disconnect(): void;
+  disconnected: boolean;
+  target: FakeNode | null;
+}
+function makeNode<T extends object>(extra: T): T & FakeNode {
+  const n = extra as T & FakeNode;
+  n.disconnected = false;
+  n.target = null;
+  n.connect = (target: FakeNode) => { n.target = target; return target; };
+  n.disconnect = () => { n.disconnected = true; };
   return n;
 }
-interface NoteCall { at: number; committedAt: number }
+/** issue D: чи справді доходить сигнал від `source` до `dest`, ідучи по
+ *  ланцюжку .target — розірваний (disconnected) вузол будь-де по дорозі
+ *  ламає весь ланцюжок, навіть якщо .target у нього формально лишився. */
+function reaches(source: FakeNode, dest: FakeNode): boolean {
+  let cur: FakeNode | null = source;
+  while (cur) {
+    if (cur.disconnected) return false;
+    if (cur === dest) return true;
+    cur = cur.target;
+  }
+  return false;
+}
+interface NoteCall { at: number; committedAt: number; source: FakeNode }
 function makeCtx(
   counts: { osc: number; buf: number; filt: number; gain: number },
   notes: NoteCall[] = [],
   gains: FakeParam[] = [],
   origin: number = Date.now(),
+  // issue D: вузли gain-нод (не самі AudioParam) — потрібні для reaches(),
+  // щоб перевірити ЗВʼЯЗНІСТЬ графа (connect/disconnect), а не лише значення.
+  gainNodes: FakeNode[] = [],
 ) {
   const ctx = {
     get currentTime() { return (Date.now() - origin) / 1000; },
     sampleRate: 44100,
     state: 'running' as AudioContextState,
-    destination: {},
+    destination: makeNode({}),
     createOscillator() {
       counts.osc++;
-      return node({ frequency: new FakeParam(), start: (t: number) => notes.push({ at: t, committedAt: ctx.currentTime }), stop: () => {} });
+      const n = makeNode({ frequency: new FakeParam(), start: (t: number) => notes.push({ at: t, committedAt: ctx.currentTime, source: n }), stop: () => {} });
+      return n;
     },
     createGain() {
       counts.gain++;
       const g = new FakeParam();
       gains.push(g);
-      return node({ gain: g });
+      const n = makeNode({ gain: g });
+      gainNodes.push(n);
+      return n;
     },
     createBufferSource() {
       counts.buf++;
-      return node({ buffer: null as unknown, start: (t: number) => notes.push({ at: t, committedAt: ctx.currentTime }) });
+      const n = makeNode({ buffer: null as unknown, start: (t: number) => notes.push({ at: t, committedAt: ctx.currentTime, source: n }) });
+      return n;
     },
     createBiquadFilter() {
       counts.filt++;
-      return node({ type: '', frequency: new FakeParam(), Q: new FakeParam() });
+      return makeNode({ type: '', frequency: new FakeParam(), Q: new FakeParam() });
     },
     createBuffer(_ch: number, len: number) {
       return { getChannelData: () => new Float32Array(len) };
@@ -260,6 +291,7 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
   let counts: { osc: number; buf: number; filt: number; gain: number };
   let notes: NoteCall[];
   let gains: FakeParam[];
+  let gainNodes: FakeNode[];
   let ctxInstances: number;
 
   beforeEach(() => {
@@ -267,10 +299,11 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
     counts = { osc: 0, buf: 0, filt: 0, gain: 0 };
     notes = [];
     gains = [];
+    gainNodes = [];
     ctxInstances = 0;
     const origin = Date.now();
     vi.stubGlobal('AudioContext', class {
-      constructor() { ctxInstances++; return makeCtx(counts, notes, gains, origin) as unknown as AudioContext; }
+      constructor() { ctxInstances++; return makeCtx(counts, notes, gains, origin, gainNodes) as unknown as AudioContext; }
     });
   });
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); closeCookAudioSession(); });
@@ -353,14 +386,18 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
   it('issue A: stop→start в одному такті («+1 хв», зміна кроку) — шина відкрита одразу, не залипає на 0', () => {
     const s = new CookAudioSession();
     s.startTicking(Date.now() + 3000);
-    const tickGate = gains[1]!;
-    expect(tickGate.writes.at(-1)).toBe(1);
+    expect(gains[1]!.writes.at(-1)).toBe(1);
     // Без жодного просування часу між stop і start — саме так, як їх
     // викликає Cook.tsx у ефекті зміни кроку/«+1 хв», і саме це давало
     // AudioParam.value ще старе (=1) значення на момент застарілого читання.
+    // issue D: startTicking ставить СВІЖУ шину (новий createGain) — індекс
+    // ловимо ДО виклику (між ним і попереднім scheduleNext устигли
+    // народитись ноти-конверти власних gain-вузлів, тож .at(-1) тут не
+    // тримає тікгейта).
     s.stopTicking();
+    const idx = gains.length;
     s.startTicking(Date.now() + 4000);
-    expect(tickGate.writes.at(-1)).toBe(1);
+    expect(gains[idx]!.writes.at(-1)).toBe(1);
   });
 
   it('playAlarm — той самий алярм, що DSP (26 клаців), повз шину тіків', () => {
@@ -471,6 +508,71 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
     // була 1000мс тому; зараз — 300мс усередину неї. Перші дві ноти (0 і
     // 0,25=250мс) уже минули; лишаються чотири: 0.375, 0.5, 0.75, 0.875.
     expect(notes.length - before).toBe(2 * 4); // 4 тіки × (клац+тон)
+  });
+
+  // Перегляд 30.09, раунд 3 (issue D): шина тіків раніше жила на весь
+  // контекст (одна на всю сесію) — stopTicking лише глушив gain→0, не
+  // рвав звʼязок. Ноти старого плану, які ще лежали в графі (Web Audio не
+  // вміє відкликати вже заплановану), оживали ПОВЕРХ нових, щойно наступний
+  // startTicking знову відкривав ТОЙ САМИЙ вузол — подвоєна гучність до
+  // кінця секунди. Фікс: кожен startTicking ставить свіжий GainNode;
+  // stopTicking відʼєднує (не лише глушить) старий — його ноти вже
+  // НІКОЛИ не дійдуть до master, хай що станеться з ними далі.
+  describe('issue D: шина одноразова — старий план не оживає при stop→start', () => {
+    it('«+1 хв» (stop→start у тому самому такті) — старі ноти НЕ доходять до master, нові доходять', () => {
+      const s = new CookAudioSession();
+      const deadline = Date.now() + 3000;
+      s.startTicking(deadline); // перший (частковий) такт left=3 — синхронно, на СТАРІЙ шині
+      const oldNotes = notes.slice();
+      expect(oldNotes.length).toBeGreaterThan(0);
+      const master = gainNodes[0]!; // ensure() створює master першим
+      for (const n of oldNotes) expect(reaches(n.source, master)).toBe(true); // поки шина жива — доходять
+
+      // «+1 хв»: дедлайн +60с, межі ті самі мс — так це виглядає в Cook.tsx
+      // (stopTicking→startTicking в одному ефекті, без жодного
+      // просування часу між ними).
+      s.startTicking(deadline + 60_000);
+      // Стару шину вже відʼєднано (усередині stopTicking) — її ноти НІКОЛИ
+      // не дійдуть, хай що станеться далі.
+      for (const n of oldNotes) expect(reaches(n.source, master)).toBe(false);
+      // Нові ноти (на свіжій шині) — доходять, кожна рівно один раз.
+      const newNotes = notes.slice(oldNotes.length);
+      expect(newNotes.length).toBeGreaterThan(0);
+      for (const n of newNotes) expect(reaches(n.source, master)).toBe(true);
+    });
+
+    it('пауза → «Старт» у тій самій секунді — жодна нота старої шини до master не доходить', () => {
+      const s = new CookAudioSession();
+      const deadline = Date.now() + 3000;
+      s.startTicking(deadline);
+      const oldNotes = notes.slice();
+      expect(oldNotes.length).toBeGreaterThan(0);
+      s.stopTicking(); // пауза
+      s.startTicking(deadline); // «Старт» — той самий дедлайн, та сама секунда
+      const master = gainNodes[0]!;
+      for (const n of oldNotes) expect(reaches(n.source, master)).toBe(false);
+    });
+
+    it('setMuted керує лише ПОТОЧНОЮ шиною — на стару (відʼєднану) запис уже не впливає на чутність', () => {
+      const s = new CookAudioSession();
+      s.startTicking(Date.now() + 3000);
+      const oldGain = gains[1]!; // перша (тепер стара) шина
+      // issue D: індекс нової шини ловимо ДО другого startTicking — між
+      // викликами scheduleNext устиг створити купу власних gain-вузлів
+      // (конверти нот), тож .at(-1) тут не тримає тікгейта.
+      const idx = gains.length;
+      s.startTicking(Date.now() + 3000); // друге startTicking — нова шина, стара відʼєднана
+      const newGain = gains[idx]!;
+      s.setMuted(true);
+      s.setMuted(false);
+      // Поточна (нова) шина реагує на mute нормально — останній запис відкриває.
+      expect(newGain.writes.at(-1)).toBe(1);
+      // Стара шина взагалі не отримує нових записів від setMuted — вона вже
+      // не this.tickGate, а applyGate/syncGate працюють лише з поточною.
+      const oldWritesBefore = oldGain.writes.length;
+      s.setMuted(true);
+      expect(oldGain.writes.length).toBe(oldWritesBefore);
+    });
   });
 
   describe('issue #3: getCookAudioSession/closeCookAudioSession — одна сесія на готування', () => {
