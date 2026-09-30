@@ -15,7 +15,7 @@ import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
 import { useIncidentStore } from '../../store/incident';
 import { saveCookSession, loadCookSession, clearCookSession, stashUnsavedRun } from '../../lib/cook-session';
-import { CookAudioSession, ringAlarm } from '../../lib/cook-sound';
+import { getCookAudioSession, closeCookAudioSession, ringAlarm } from '../../lib/cook-sound';
 import { useCookStore } from '../../store/cook';
 import { renderStepContent, stepIngredients, resolveIngName, stepLabelsFrom, type BatchLabels } from '../../lib/recipe';
 import styles from './Cook.module.css';
@@ -86,13 +86,13 @@ export function CookOverlay() {
   const setTheme = (t: ThemeChoice) => { setThemeOverride(t); setThemeState(t); };
   const [muted, setMuted] = useState(false);
   const mutedRef = useRef(false); mutedRef.current = muted;
-  // Спек 30.09 §5: один AudioContext на сесію готування — лінивий, на перший
-  // реальний жест (старт таймера), а не на монтування попапа. Кнопка звуку
-  // лишається двостановою (макет трьох станів — окремий PR): isMuted тут —
-  // той самий mutedRef, що й раніше гейтив beep/softTick.
-  const audioRef = useRef<CookAudioSession | null>(null);
-  const audio = () => (audioRef.current ??= new CookAudioSession(() => mutedRef.current));
-  useEffect(() => () => audioRef.current?.close(), []);
+  // Перегляд 30.09 (issue #3): ОДНА сесія на все готування, спільна з
+  // GlobalCookAlarm (cook-watch.tsx) — не своя на попап. Контекст, який
+  // жест «Старт» таймера вже розбудив, лишається придатним дзвонити й тоді,
+  // коли попап закрито; закриття попапа саме по собі контекст НЕ чіпає
+  // (лише stopTicking нижче) — see finish()/скасування сесії далі.
+  const audio = getCookAudioSession;
+  useEffect(() => { getCookAudioSession().setMuted(muted); }, [muted]);
   const [sheetOpen, setSheetOpen] = useState(false);
   useEffect(() => { setSheetOpen(false); }, [stepIdx]);
   // №35: змах униз закриває шторку кроків — той самий механізм, що в Sheet.
@@ -226,10 +226,29 @@ export function CookOverlay() {
     // цього самого дедлайну — не від 250мс-інтервалу нижче (той лишається
     // тільки для ЦИФР на екрані).
     audio().startTicking(deadlineRef.current);
+    // Перегляд 30.09 (issue #4): аларм дзвонить ТУТ, у самому інтервалі
+    // живого відліку — не окремим ефектом, що спостерігає secondsLeft.
+    // Причина: той окремий ефект не міг надійно відрізнити «живий нуль»
+    // від «нуля, поставленого напряму» (навігація на вже готовий крок,
+    // відновлення сесії з минулим дедлайном) — React лишає stepIdx і
+    // secondsLeft короткий час неузгодженими між рендерами (новий крок,
+    // ще старе число), і ефект, зведений щоб ловити це, ловив і хибні
+    // спрацювання теж. rangRef — локальний прапорець САМЕ ЦЬОГО запуску
+    // інтервалу (не рефка компонента): що б не сталось із secondsLeft поза
+    // ним (навігація, відновлення), він на це просто не підписаний.
+    const rangRef = { current: false };
     tickRef.current = window.setInterval(() => {
       const d = deadlineRef.current;
       if (d == null) return;
-      setSecondsLeft(Math.max(0, Math.ceil((d - Date.now()) / 1000)));
+      const left = Math.max(0, Math.ceil((d - Date.now()) / 1000));
+      setSecondsLeft(left);
+      if (left === 0) {
+        setRunning(false);
+        if (!rangRef.current && step?.s && !finishedRef.current) {
+          rangRef.current = true;
+          ringAlarm(audio(), step?.t ?? 'Крок', { onlyWhenHidden: true });
+        }
+      }
     }, 250);
     return () => {
       if (tickRef.current != null) window.clearInterval(tickRef.current);
@@ -240,10 +259,6 @@ export function CookOverlay() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- secondsLeft свідомо поза залежностями (див. коментар вище)
   }, [running]);
 
-  useEffect(() => {
-    if (secondsLeft === 0 && running) setRunning(false);
-  }, [secondsLeft, running]);
-
   // Бриф-3 п.2: відновлення перерваного готування того самого рецепта.
   const resumeRef = useRef(false);
   useEffect(() => {
@@ -252,13 +267,27 @@ export function CookOverlay() {
     const saved = loadCookSession();
     if (saved && recipe && saved.recipe.t === recipe.t && saved.stepIdx < recipe.st.length) {
       // №10: зроблені кроки — зі збереженої множини; стара сесія без неї —
-      // «усе до поточного», як було. Таймери інших кроків — теж.
+      // «усе до поточного», як було. Таймери інших кроків — теж, але
+      // перегляд 30.09 (issue #4): той, що вже минув на момент відновлення,
+      // згортаємо в {deadline:null,left:0} МОВЧКИ тут-таки — інакше секундний
+      // вартовий (нижче) побачить його як «щойно добіг» і продзвонить удруге
+      // те, що вже могло продзвонити зовні (GlobalCookAlarm), поки попап був
+      // закритий.
       setDone(new Set(saved.done ?? Array.from({ length: saved.stepIdx }, (_, i) => i)));
-      if (saved.timers) timersRef.current = { ...saved.timers };
+      if (saved.timers) {
+        const now = Date.now();
+        const restored: Record<number, StepTimer> = {};
+        for (const [k, t] of Object.entries(saved.timers)) {
+          restored[Number(k)] = t.deadline != null && t.deadline <= now ? { deadline: null, left: 0 } : t;
+        }
+        timersRef.current = restored;
+      }
       setStepIdx(saved.stepIdx);
-      // Пул-7 №1: дедлайн живий → рахунок ішов увесь цей час і продовжує йти;
-      // дедлайн минув → 0:00, алярм наздожене ефектом нуля. Пауза (без
-      // дедлайна) — як і раніше, з збереженим залишком.
+      // Пул-7 №1: дедлайн живий → рахунок ішов увесь цей час і продовжує йти.
+      // Дедлайн минув → 0:00 МОВЧКИ: це вже могло продзвонити зовні
+      // (issue #4, GlobalCookAlarm) — алярм нижче тепер живе ВСЕРЕДИНІ
+      // інтервалу живого відліку (ефект [running]), тож просте
+      // setSecondsLeft(0) тут ніколи його не зачіпає, без окремого прапорця.
       if (saved.deadline) {
         const left = Math.max(0, Math.ceil((saved.deadline - Date.now()) / 1000));
         setSecondsLeft(left);
@@ -279,6 +308,7 @@ export function CookOverlay() {
         return;
       }
       clearCookSession();
+      closeCookAudioSession(); // §5 (issue #3): кінець тієї сесії — і аудіо теж.
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- відновлення сесії лише при монтуванні
   }, []);
@@ -306,18 +336,18 @@ export function CookOverlay() {
   }, []);
 
   // Спек 30.09 §2.1/§4: тіки й аларм тепер із cook-sound.ts (набір «Заводний
-  // таймер», темп 120, сценарій «Тихий пульс») — тікання планується наперед
-  // за дедлайном у ефекті вище (audio().startTicking), тут лишається лише
-  // сигнал завершення. DA2-08 скасовано власником 30.09: повтору кожні 30с
-  // більше нема, аларм дзвонить один раз (§1: «що саме добігло, каже екран,
-  // а не повтор сигналу»).
-  useEffect(() => {
-    if (secondsLeft === 0 && step?.s && !finishedRef.current) {
-      ringAlarm(audio(), step?.t ?? 'Крок', { onlyWhenHidden: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- сигнал лише на перехід до нуля
-  }, [secondsLeft === 0]);
-
+  // таймер», темп 120, сценарій «Тихий пульс») — тікання планується наперед,
+  // а сигнал завершення дзвонить прямо в інтервалі живого відліку (ефект
+  // [running] вище) — не окремим ефектом, що спостерігає secondsLeft.
+  // DA2-08 скасовано власником 30.09: повтору кожні 30с більше нема, аларм
+  // дзвонить один раз (§1: «що саме добігло, каже екран, а не повтор
+  // сигналу»). issue #4 (перегляд 30.09): рахувати «живий це нуль чи ні»
+  // ЗА СПОСТЕРЕЖЕННЯМ secondsLeft виявилось ненадійним — React лишає
+  // stepIdx і secondsLeft короткий час неузгодженими між рендерами
+  // (новий крок відображено, а secondsLeft ще старе), і окремий ефект,
+  // зведений ловити «нуль без живого переходу», ловив і ці хибні
+  // проміжні рендери теж. Дзвонити ЗСЕРЕДИНИ інтервалу, який рахує сам
+  // відлік, — єдине місце, куди навігація/відновлення просто не заходять.
 
   // Актуальний знімок для збереження — оминаємо замикання ефектів.
   const sessionSnapRef = useRef({ stepIdx, secondsLeft, done });
@@ -372,6 +402,7 @@ export function CookOverlay() {
     setFinishing(true);
     finishedRef.current = true;
     clearCookSession();
+    closeCookAudioSession(); // §5 (issue #3): готування скінчилось — і спільна аудіосесія теж.
     // Сесія для пост-кук діалогу: точка запуску, або сесія дня (входи без
     // returnSessionId — «Знову» з журналу, адресна сторінка рецепта).
     let sid = state.returnSessionId ?? null;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadCookSession } from './cook-session';
 import { useCookStore } from '../store/cook';
-import { CookAudioSession, ringAlarm } from './cook-sound';
+import { getCookAudioSession, ringAlarm } from './cook-sound';
 
 // Пул-7 №1: таймер живе поза Cook Mode.
 // · <CookCountdown deadline> — живий «М:СС» для банерів «Готування триває»
@@ -26,14 +26,6 @@ export function CookCountdown({ deadline }: { deadline?: number | null }) {
   return <>{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</>;
 }
 
-// Один AudioContext для всіх алярмів поза Cook Mode (§5: не по одному на
-// виклик) — але, на відміну від сесії кроку в Cook.tsx, живе рівно стільки,
-// скільки застосунок: тут ніколи не тікає, лише зрідка дзвонить один раз.
-let outsideAudio: CookAudioSession | null = null;
-function outsideSession(): CookAudioSession {
-  return (outsideAudio ??= new CookAudioSession());
-}
-
 export function GlobalCookAlarm() {
   const overlayOpen = useCookStore((s) => s.args != null);
   // §2.3: «один раз на кожен таймер, що добіг» — rung тримає дедлайни, які
@@ -56,7 +48,10 @@ export function GlobalCookAlarm() {
       for (const d of due) {
         if (rungRef.current.has(d)) continue;
         rungRef.current.add(d);
-        ringAlarm(outsideSession(), s.recipe.t);
+        // Перегляд 30.09 (issue #3): та сама спільна сесія, що й у Cook.tsx
+        // — не власний контекст, створений тут без жесту (на iOS лишався б
+        // suspended рівно тоді, коли треба дзвонити).
+        ringAlarm(getCookAudioSession(), s.recipe.t);
       }
     }, 1000);
     return () => window.clearInterval(iv);

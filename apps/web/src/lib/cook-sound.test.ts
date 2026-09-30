@@ -3,15 +3,17 @@
 // (docs/superpowers/specs/2026-09-30-cook-timers-sound-design.md), §4.1–4.4.
 // plan()/headOf()/малюнки — чисті функції, тестуються числами з еталона
 // (docs/superpowers/specs/2026-09-30-cook-timers-sound-reference.html)
-// без жодного AudioContext. DSP (tick/five/minute/alarm/second) і
+// без жодного AudioContext. DSP (tick/five/minute/alarm/second/secondFrom) і
 // CookAudioSession перевіряються через мінімальний мок Web Audio — jsdom
-// його не реалізує взагалі, а рахувати створені вузли достатньо, щоб
-// зловити «намалював не той малюнок» чи «заскедулив двічі».
+// його не реалізує взагалі, а рахувати створені вузли (і, де треба, точний
+// час start()) достатньо, щоб зловити «намалював не той малюнок», «заскедулив
+// двічі» чи «запізнився» (перегляд 30.09, issues #1/#2/#3/#4).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   plan, headOf, PULSE, SWING, GALOP,
-  tick, five, minute, alarm, second,
-  CookAudioSession, ringAlarm,
+  tick, five, minute, alarm, second, secondFrom,
+  currentLeft, boundaryAudioTime, rearmDelayMs,
+  CookAudioSession, ringAlarm, getCookAudioSession, closeCookAudioSession,
 } from './cook-sound';
 
 describe('headOf · §4.3 акценти', () => {
@@ -52,8 +54,15 @@ describe('plan · §4.2 сценарій «Тихий пульс»', () => {
 // ── Мінімальний мок Web Audio ────────────────────────────────────────────
 // jsdom не має AudioContext узагалі. Рахуємо створені вузли — саме стільки,
 // скільки й має бути за структурою еталона (алярм — 26 клаців + 27 дзвоників
-// по 3 обертони, і т.д.), без реального звуку.
-class FakeParam { value = 0; setValueAtTime() { return this; } exponentialRampToValueAtTime() { return this; } }
+// по 3 обертони, і т.д.), без реального звуку. Для перегляду 30.09 (issue #1)
+// currentTime — ГЕТТЕР, привʼязаний до Date.now() (fake timers рухають
+// обидва синхронно) — інакше «точність до мс» неможливо перевірити взагалі.
+class FakeParam {
+  value = 0;
+  setValueAtTime(v: number) { this.value = v; return this; }
+  exponentialRampToValueAtTime(v: number) { this.value = v; return this; }
+  cancelScheduledValues() { return this; }
+}
 // Кожен вузол «зʼєднується» сам із собою — реальна маршрутизація тут не при
 // ділі (жоден тест не слухає звук), важливо лише, щоб ланцюжок
 // `a.connect(b).connect(c)` довільної довжини ніколи не впав.
@@ -62,23 +71,31 @@ function node<T extends object>(extra: T): T & { connect: () => T & { connect: (
   n.connect = () => n;
   return n;
 }
-function makeCtx(counts: { osc: number; buf: number; filt: number; gain: number }) {
+interface NoteCall { at: number; committedAt: number }
+function makeCtx(
+  counts: { osc: number; buf: number; filt: number; gain: number },
+  notes: NoteCall[] = [],
+  gains: FakeParam[] = [],
+  origin: number = Date.now(),
+) {
   const ctx = {
-    currentTime: 0,
+    get currentTime() { return (Date.now() - origin) / 1000; },
     sampleRate: 44100,
     state: 'running' as AudioContextState,
     destination: {},
     createOscillator() {
       counts.osc++;
-      return node({ frequency: new FakeParam(), start: () => {}, stop: () => {} });
+      return node({ frequency: new FakeParam(), start: (t: number) => notes.push({ at: t, committedAt: ctx.currentTime }), stop: () => {} });
     },
     createGain() {
       counts.gain++;
-      return node({ gain: new FakeParam() });
+      const g = new FakeParam();
+      gains.push(g);
+      return node({ gain: g });
     },
     createBufferSource() {
       counts.buf++;
-      return node({ buffer: null as unknown, start: () => {} });
+      return node({ buffer: null as unknown, start: (t: number) => notes.push({ at: t, committedAt: ctx.currentTime }) });
     },
     createBiquadFilter() {
       counts.filt++;
@@ -145,19 +162,97 @@ describe('DSP · структура звуку (кількість вузлів,
   });
 });
 
-describe('CookAudioSession · §5 тікання наперед від дедлайну, скасування, аларм', () => {
+// Перегляд 30.09 (issue #1): перший частковий такт після старту (жест
+// припав на середину секунди) і «проспана» межа — ноти, чий час УЖЕ минув
+// відносно notBefore, не грають; малюнок не зсувається (решта нот лишається
+// на своїх «межа+зсув» місцях).
+describe('secondFrom · issue #1 — не зсуває малюнок, пропускає ноти, чий час минув', () => {
+  it('at ≥ notBefore — усі ноти йдуть, точно як у second()', () => {
+    const counts = { osc: 0, buf: 0, filt: 0, gain: 0 };
+    const ctx = makeCtx(counts);
+    secondFrom(ctx as unknown as AudioContext, {} as AudioNode, 0, { pattern: PULSE, head: 'tick', m: 1, name: 'тихий пульс' }, -1);
+    expect(counts.osc + counts.buf).toBe(2 * PULSE.length);
+  });
+
+  it('перша нота минула (0 < notBefore), друга (5/6 с) — ще ні: лишається тільки друга', () => {
+    const counts = { osc: 0, buf: 0, filt: 0, gain: 0 };
+    const ctx = makeCtx(counts);
+    secondFrom(ctx as unknown as AudioContext, {} as AudioNode, 0, { pattern: PULSE, head: 'tick', m: 1, name: 'тихий пульс' }, 0.5);
+    expect(counts.osc + counts.buf).toBe(2); // лише клац+тон другого тіку
+  });
+
+  it('голова (five/minute) теж фільтрується як нота — минула, якщо at < notBefore', () => {
+    const counts = { osc: 0, buf: 0, filt: 0, gain: 0 };
+    const ctx = makeCtx(counts);
+    // SWING head=minute, at=0: offsets [0(head),1/3,0.5,5/6]. notBefore=0.4 —
+    // head (о 0) і перший тік (1/3≈0.333) минули; лишаються 0.5 і 5/6.
+    secondFrom(ctx as unknown as AudioContext, {} as AudioNode, 0, { pattern: SWING, head: 'minute', m: 1, name: 'свінг' }, 0.4);
+    expect(counts.osc + counts.buf).toBe(4); // 2 тіки × (клац+тон)
+  });
+
+  it('усе минуло (notBefore за межею останньої ноти) — жодного вузла', () => {
+    const counts = { osc: 0, buf: 0, filt: 0, gain: 0 };
+    const ctx = makeCtx(counts);
+    secondFrom(ctx as unknown as AudioContext, {} as AudioNode, 0, { pattern: GALOP, head: 'tick', m: 1, name: 'галоп' }, 10);
+    expect(counts.osc + counts.buf).toBe(0);
+  });
+});
+
+// Перегляд 30.09 (issue #1): чиста арифметика без жодного AudioContext —
+// «межа+зсув» з точністю до мілісекунди перевіряється прямо, не через мок.
+describe('currentLeft/boundaryAudioTime/rearmDelayMs · §5 планування наперед (issue #1)', () => {
+  it('currentLeft — стеля до секунди, те саме число, що на екрані', () => {
+    const deadline = 100_000;
+    expect(currentLeft(deadline, 100_000)).toBe(0);
+    expect(currentLeft(deadline, 99_001)).toBe(1);
+    expect(currentLeft(deadline, 97_500)).toBe(3); // 2500мс лишилось → стеля 3
+    expect(currentLeft(deadline, 90_000)).toBe(10);
+  });
+
+  it('boundaryAudioTime — точний аудіо-час межі, мс-точність', () => {
+    const deadline = 100_000;
+    // Межа left=2 настає о deadline-2000=98_000. Зараз 97_950 (за 50мс до неї), ctxNow=5.
+    expect(boundaryAudioTime(deadline, 2, 97_950, 5)).toBeCloseTo(5.05, 6);
+    // Точно на межі (nowMs дорівнює її wall-часу) — at === ctxNow.
+    expect(boundaryAudioTime(deadline, 2, 98_000, 5)).toBeCloseTo(5, 6);
+    // Проспали межу на 20мс — at виходить У МИНУЛОМУ відносно ctxNow (це і
+    // фільтрує secondFrom, а не boundaryAudioTime — вона чесно рахує факт).
+    expect(boundaryAudioTime(deadline, 2, 98_020, 5)).toBeCloseTo(4.98, 6);
+  });
+
+  it('rearmDelayMs — прокидається ~лукахед мс ДО межі, не щосекунди наосліп', () => {
+    const deadline = 100_000;
+    // Щойно почали: nowMs=90_000, left=10, межа цієї секунди — за 1000мс.
+    expect(rearmDelayMs(deadline, 90_000, 120, 10)).toBe(1000 - 0 - 120);
+    // За 900мс у секунду — лишається 100мс до межі, та лукахед 120 більший:
+    // притискаємось до мінімуму, не йдемо в мінус.
+    expect(rearmDelayMs(deadline, 90_900, 120, 10)).toBe(10);
+  });
+
+  it('rearmDelayMs — дедлайн уже минув: -1, зупинитись', () => {
+    expect(rearmDelayMs(100_000, 100_000, 120, 10)).toBe(-1);
+    expect(rearmDelayMs(100_000, 105_000, 120, 10)).toBe(-1);
+  });
+});
+
+describe('CookAudioSession · §5 тікання наперед, скасування гейтом, спільна сесія, аларм', () => {
   let counts: { osc: number; buf: number; filt: number; gain: number };
+  let notes: NoteCall[];
+  let gains: FakeParam[];
   let ctxInstances: number;
 
   beforeEach(() => {
     vi.useFakeTimers();
     counts = { osc: 0, buf: 0, filt: 0, gain: 0 };
+    notes = [];
+    gains = [];
     ctxInstances = 0;
+    const origin = Date.now();
     vi.stubGlobal('AudioContext', class {
-      constructor() { ctxInstances++; return makeCtx(counts) as unknown as AudioContext; }
+      constructor() { ctxInstances++; return makeCtx(counts, notes, gains, origin) as unknown as AudioContext; }
     });
   });
-  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); closeCookAudioSession(); });
 
   it('тікає раз на секунду, не двічі на той самий left', async () => {
     const s = new CookAudioSession();
@@ -171,6 +266,18 @@ describe('CookAudioSession · §5 тікання наперед від дедл�
     expect(counts.osc + counts.buf).toBeGreaterThan(afterFirst);
   });
 
+  it('issue #1: жодна нота не запізнюється — і хоч одна лягає ЗАЗДАЛЕГІДЬ (лукахед), не постфактум', async () => {
+    const s = new CookAudioSession();
+    const deadline = Date.now() + 4000;
+    s.startTicking(deadline);
+    await vi.advanceTimersByTimeAsync(3500);
+    // Жодна нота не запланована пізніше за мить її власного коміту —
+    // старий баг клеїв «at = currentTime + 0.005» постфактум (5–20мс пізно).
+    for (const n of notes) expect(n.at).toBeGreaterThanOrEqual(n.committedAt - 0.001);
+    // І хоч одна нота лягла помітно ЗАЗДАЛЕГІДЬ (справжній лукахед, не «зараз»).
+    expect(notes.some((n) => n.at - n.committedAt > 0.05)).toBe(true);
+  });
+
   it('зупиняється сама на нулі (без нескінченного циклу)', async () => {
     const s = new CookAudioSession();
     s.startTicking(Date.now() + 500);
@@ -180,33 +287,47 @@ describe('CookAudioSession · §5 тікання наперед від дедл�
     expect(true).toBe(true);
   });
 
-  it('stopTicking скасовує заплановане одразу — далі жодних нових вузлів', async () => {
+  it('issue #2: stopTicking глушить шину ОДРАЗУ (gain→0) — те, що вже заплановано, нового вузла не додає', async () => {
     const s = new CookAudioSession();
     s.startTicking(Date.now() + 5000);
     await vi.advanceTimersByTimeAsync(10);
+    const tickGate = gains[1]!; // master, tickGate — саме в цьому порядку в ensure()
+    expect(tickGate.value).toBe(1);
     const before = counts.osc + counts.buf;
     s.stopTicking();
+    expect(tickGate.value).toBe(0); // синхронно, не з наступним тактом
     await vi.advanceTimersByTimeAsync(5000);
     expect(counts.osc + counts.buf).toBe(before);
   });
 
-  it('приглушено (isMuted) — контекст живий, але жодного звукового вузла', async () => {
-    const s = new CookAudioSession(() => true);
+  it('issue #2: setMuted(true) глушить шину миттєво посеред тікання, setMuted(false) — повертає', () => {
+    const s = new CookAudioSession();
     s.startTicking(Date.now() + 3000);
-    await vi.advanceTimersByTimeAsync(2500);
-    expect(ctxInstances).toBe(1); // ensure() усе одно готує контекст — раптове розм'ючення не запізниться
-    expect(counts.osc).toBe(0);
-    expect(counts.buf).toBe(0);
+    const tickGate = gains[1]!;
+    expect(tickGate.value).toBe(1);
+    s.setMuted(true);
+    expect(tickGate.value).toBe(0);
+    s.setMuted(false);
+    expect(tickGate.value).toBe(1);
   });
 
-  it('playAlarm — той самий алярм, що DSP (26 клаців)', () => {
+  it('приглушено від старту — контекст живий (жест уже був), шина одразу на нулі', () => {
+    const s = new CookAudioSession();
+    s.setMuted(true);
+    s.startTicking(Date.now() + 3000);
+    expect(ctxInstances).toBe(1);
+    expect(gains[1]!.value).toBe(0);
+  });
+
+  it('playAlarm — той самий алярм, що DSP (26 клаців), повз шину тіків', () => {
     const s = new CookAudioSession();
     s.playAlarm();
     expect(counts.buf).toBe(26);
   });
 
   it('playAlarm приглушено — жодного вузла, контекст навіть не створюється', () => {
-    const s = new CookAudioSession(() => true);
+    const s = new CookAudioSession();
+    s.setMuted(true);
     s.playAlarm();
     expect(ctxInstances).toBe(0);
     expect(counts.buf).toBe(0);
@@ -220,6 +341,30 @@ describe('CookAudioSession · §5 тікання наперед від дедл�
     const before = counts.osc + counts.buf;
     await vi.advanceTimersByTimeAsync(5000);
     expect(counts.osc + counts.buf).toBe(before);
+  });
+
+  describe('issue #3: getCookAudioSession/closeCookAudioSession — одна сесія на готування', () => {
+    it('повертає той самий інстанс, поки не закрито', () => {
+      const a = getCookAudioSession();
+      const b = getCookAudioSession();
+      expect(a).toBe(b);
+    });
+
+    it('closeCookAudioSession — наступний виклик дає нову сесію', () => {
+      const a = getCookAudioSession();
+      closeCookAudioSession();
+      const b = getCookAudioSession();
+      expect(a).not.toBe(b);
+    });
+
+    it('mute, виставлений однією стороною (попап), поважає інша (зовнішній аларм)', () => {
+      const session = getCookAudioSession();
+      session.setMuted(true);
+      // GlobalCookAlarm бере ту саму сесію — і той самий mute, а не власний.
+      expect(getCookAudioSession()).toBe(session);
+      session.playAlarm();
+      expect(counts.buf).toBe(0); // жодного клацу — приглушено на попаповій стороні
+    });
   });
 });
 

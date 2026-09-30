@@ -9,6 +9,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { GlobalCookAlarm } from './cook-watch';
 import { saveCookSession, clearCookSession } from './cook-session';
+import { closeCookAudioSession } from './cook-sound';
 import { useCookStore } from '../store/cook';
 import type { Recipe } from '../api';
 
@@ -35,6 +36,7 @@ afterEach(async () => {
   if (root) await act(async () => { root!.unmount(); });
   host?.remove(); root = undefined;
   clearCookSession();
+  closeCookAudioSession(); // issue #3: сесія спільна — не лишати muted/деталі наступному тесту.
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });

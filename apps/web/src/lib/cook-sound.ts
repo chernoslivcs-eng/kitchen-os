@@ -127,15 +127,38 @@ export function second(ctx: AudioContext, master: AudioNode, t: number, p: Secon
   });
 }
 
+/**
+ * Той самий такт, але ноти, чий час УЖЕ минув відносно `notBefore`, не
+ * плануються — малюнок лишається привʼязаним до межі `at`, не зсувається.
+ * Два випадки, коли це потрібно: перший (можливо частковий) такт одразу
+ * після старту/зміни дедлайну, і «проспана» межа (дроселена вкладка) — коли
+ * `at` сам виявляється в минулому відносно `notBefore`. Коли `at ≥ notBefore`
+ * (звичайне планування наперед), поведінка як у `second()` — жодна нота не
+ * відсікається.
+ */
+export function secondFrom(ctx: AudioContext, master: AudioNode, at: number, p: SecondPlan, notBefore: number): void {
+  if (p.head === 'minute') { if (at >= notBefore) minute(ctx, master, at, p.m); }
+  else if (p.head === 'five') { if (at >= notBefore) five(ctx, master, at, p.m); }
+  p.pattern.forEach(([o, level]) => {
+    const t = at + o;
+    if (t < notBefore) return;
+    if (o === 0) { if (p.head === 'tick') tick(ctx, master, t, level, p.m); }
+    else tick(ctx, master, t, level, p.m);
+  });
+}
+
 // ── §5: один AudioContext на сесію готування ────────────────────────────
 // Нижче — та частина, якої еталон не мав (він створював контекст на кожну
 // пробу з нуля, для стенду це нормально). Тут — керування ЖИВИМ контекстом:
 // створення/відновлення на жест, тіки наперед за ctx.currentTime від
-// дедлайну (не setInterval-калбеком), і скасування, які не потребують
-// «вбивати» вже заплановані ноти (вони самі по собі 10–90 мс, тож
-// «скасувати» — це просто перестати доклепувати нові).
+// дедлайну (не setInterval-калбеком), і скасування — гейтом, а не спробою
+// «відкликати» вже заплановані ноти (Web Audio цього не вміє).
 
 const MASTER_GAIN = 0.7; // та сама гучність проби, на якій слухав власник.
+/** Наскільки заздалегідь плануємо наступну секунду (мс до її межі). */
+const LOOKAHEAD_MS = 120;
+/** Мінімальна пауза між перевірками — не крутимось частіше цього. */
+const MIN_DELAY_MS = 10;
 
 type ACConstructor = typeof AudioContext;
 function AudioCtor(): ACConstructor | undefined {
@@ -155,14 +178,45 @@ function tryPlaybackSession(): void {
   } catch { /* нема або відмовив — Web Audio й так спробує на голу гучність */ }
 }
 
+/** §5: «left», яке зараз на екрані — початок поточної секунди відліку. */
+export function currentLeft(deadlineMs: number, nowMs: number): number {
+  return Math.ceil((deadlineMs - nowMs) / 1000);
+}
+
+/** §5: точний аудіо-час початку секунди `left` — може вийти в минулому
+ *  відносно `ctxNow`, якщо прокинулись пізніше за межу (secondFrom це фільтрує). */
+export function boundaryAudioTime(deadlineMs: number, left: number, nowMs: number, ctxNow: number): number {
+  const startWall = deadlineMs - left * 1000;
+  return ctxNow + (startWall - nowMs) / 1000;
+}
+
+/**
+ * §5: через скільки мс прокинутись знову — трохи ДО кінця поточної секунди
+ * (лукахед), а не наосліп щосекунди: межі рахує дедлайн, не setInterval.
+ * -1 — дедлайн уже минув, зупинитись.
+ */
+export function rearmDelayMs(deadlineMs: number, nowMs: number, lookaheadMs: number, minDelayMs: number): number {
+  const leftNow = currentLeft(deadlineMs, nowMs);
+  if (leftNow <= 0) return -1;
+  const curStartWall = deadlineMs - leftNow * 1000;
+  const msIntoSecond = nowMs - curStartWall;
+  return Math.max(minDelayMs, 1000 - msIntoSecond - lookaheadMs);
+}
+
 export class CookAudioSession {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  // Перегляд 30.09 (issue #2): тіки йдуть через окрему шину, не напряму в
+  // master. Web Audio не вміє «відмінити» вже заплановану ноту —
+  // stopTicking/mute глушать ВИХІД шини миттєво (gain→0), і те, що вже
+  // лежить у графі, долунює нечутно, замість ще майже секунди цокати
+  // старим планом. Аларм — повз шину, напряму в master: його вимикає
+  // окрема перевірка `muted` перед стартом, не гейт.
+  private tickGate: GainNode | null = null;
   private timer: number | null = null;
   private deadline: number | null = null;
-  private lastLeft: number | null = null;
-
-  constructor(private isMuted: () => boolean = () => false) {}
+  private lastScheduledLeft: number | null = null;
+  private muted = false;
 
   private ensure(): AudioContext | null {
     const C = AudioCtor();
@@ -173,53 +227,89 @@ export class CookAudioSession {
       this.master = this.ctx.createGain();
       this.master.gain.value = MASTER_GAIN;
       this.master.connect(this.ctx.destination);
+      this.tickGate = this.ctx.createGain();
+      this.tickGate.gain.value = 0;
+      this.tickGate.connect(this.master);
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
     return this.ctx;
   }
 
+  /** §4.5: двостановий перемикач власника (три стани — окремий крок макетів).
+   *  Гейт синхронізується ОДРАЗУ — мут глушить і посеред секунди, не з
+   *  наступним запланованим тактом. */
+  setMuted(m: boolean): void {
+    this.muted = m;
+    this.syncGate();
+  }
+
+  private syncGate(): void {
+    if (!this.ctx || !this.tickGate) return;
+    const want = this.muted ? 0 : 1;
+    if (this.tickGate.gain.value !== want) {
+      this.tickGate.gain.cancelScheduledValues(this.ctx.currentTime);
+      this.tickGate.gain.setValueAtTime(want, this.ctx.currentTime);
+    }
+  }
+
   /**
    * §5/§3: тікання кроку, що на екрані, поки він біжить. `deadlineMs` — той
    * самий дедлайн, за яким рахує видимий таймер (одне джерело меж секунд).
-   * Плановий цикл сам перевіряється кожну секунду наперед (lookahead
-   * ~120 мс), а не покроково від попереднього виклику — дрейф не
-   * накопичується, бо кожен крок рахує left заново від дедлайну.
+   * Перший такт після старту може бути частковим (жест припав на середину
+   * секунди) — secondFrom грає лише ноти, чий час іще не минув. Далі кожен
+   * цикл планує НАСТУПНУ секунду заздалегідь (лукахед ~120 мс) на точний
+   * аудіо-час її межі, а не постфактум, коли `left` уже змінився.
    */
   startTicking(deadlineMs: number): void {
     this.stopTicking();
     if (!this.ensure()) return;
     this.deadline = deadlineMs;
+    this.syncGate();
     this.scheduleNext();
   }
 
   private scheduleNext = (): void => {
-    if (this.deadline == null || !this.ctx || !this.master) return;
+    if (this.deadline == null || !this.ctx || !this.tickGate) return;
+    this.syncGate();
     const nowMs = Date.now();
-    const leftNow = Math.ceil((this.deadline - nowMs) / 1000);
+    const ctxNow = this.ctx.currentTime;
+    const leftNow = currentLeft(this.deadline, nowMs);
     if (leftNow <= 0) { this.timer = null; return; }
-    if (leftNow !== this.lastLeft) {
-      const secStartWall = this.deadline - leftNow * 1000;
-      const at = this.ctx.currentTime + (secStartWall - nowMs) / 1000;
-      if (!this.isMuted()) second(this.ctx, this.master, Math.max(at, this.ctx.currentTime + 0.005), plan(leftNow));
-      this.lastLeft = leftNow;
+
+    if (this.lastScheduledLeft == null) {
+      const at = boundaryAudioTime(this.deadline, leftNow, nowMs, ctxNow);
+      secondFrom(this.ctx, this.tickGate, at, plan(leftNow), ctxNow);
+      this.lastScheduledLeft = leftNow;
     }
-    const secStartWall = this.deadline - leftNow * 1000;
-    const msIntoSecond = nowMs - secStartWall;
-    const lookaheadMs = 120;
-    const delay = Math.max(15, 1000 - msIntoSecond - lookaheadMs);
+    const nextLeft = leftNow - 1;
+    if (nextLeft > 0 && nextLeft !== this.lastScheduledLeft) {
+      const at = boundaryAudioTime(this.deadline, nextLeft, nowMs, ctxNow);
+      if ((at - ctxNow) * 1000 <= LOOKAHEAD_MS) {
+        secondFrom(this.ctx, this.tickGate, at, plan(nextLeft), ctxNow);
+        this.lastScheduledLeft = nextLeft;
+      }
+    }
+
+    const delay = rearmDelayMs(this.deadline, nowMs, LOOKAHEAD_MS, MIN_DELAY_MS);
+    if (delay < 0) { this.timer = null; return; }
     this.timer = window.setTimeout(this.scheduleNext, delay);
   };
 
-  /** §5: пауза, зміна кроку, закриття кукінг-моду — заплановане на майбутнє скасовано. */
+  /** §5: пауза, зміна кроку, закриття кукінг-моду — шину глушимо ОДРАЗУ;
+   *  заплановане в графі долунює нечутно, не «ще майже секунду». */
   stopTicking(): void {
     if (this.timer != null) { window.clearTimeout(this.timer); this.timer = null; }
     this.deadline = null;
-    this.lastLeft = null;
+    this.lastScheduledLeft = null;
+    if (this.ctx && this.tickGate) {
+      this.tickGate.gain.cancelScheduledValues(this.ctx.currentTime);
+      this.tickGate.gain.setValueAtTime(0, this.ctx.currentTime);
+    }
   }
 
   /** §4.4/§2.1/§2.2/§2.3: аларм один раз — той самий звук для кроку, фону й закритого кукінг-моду. */
   playAlarm(): void {
-    if (this.isMuted()) return;
+    if (this.muted) return;
     const ctx = this.ensure();
     if (!ctx || !this.master) return;
     alarm(ctx, this.master, ctx.currentTime + 0.04);
@@ -230,7 +320,28 @@ export class CookAudioSession {
     if (this.ctx && this.ctx.state !== 'closed') void this.ctx.close();
     this.ctx = null;
     this.master = null;
+    this.tickGate = null;
   }
+}
+
+let sharedSession: CookAudioSession | null = null;
+/**
+ * §5 (перегляд 30.09, issue #3): ОДНА сесія на все готування, не по одній
+ * на попап і на зовнішній вартовий. Контекст, який жест «Старт» таймера вже
+ * розбудив, лишається придатним дзвонити й тоді, коли попап закрито — на
+ * iOS контекст, створений або відновлений БЕЗ жесту (як робив старий
+ * `ringOutside`), лишається suspended.
+ */
+export function getCookAudioSession(): CookAudioSession {
+  return (sharedSession ??= new CookAudioSession());
+}
+
+/** Кінець сесії готування (finish() / скасування старої сесії заради нової
+ *  — cook-session.ts): наступне готування створить свіжу на своєму жесті.
+ *  Закриття самого попапа сюди НЕ веде — лише stopTicking. */
+export function closeCookAudioSession(): void {
+  sharedSession?.close();
+  sharedSession = null;
 }
 
 /**
