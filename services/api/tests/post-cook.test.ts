@@ -238,6 +238,15 @@ describe('post-cook флоу в чаті', () => {
     expect(body.followup).toBe(FEEDBACK_PROMPT);
     const b = (await repo.listBatches(me.household_id)).find((x) => x.id === batchId)!;
     expect(b.value).toBe(180);                                      // 500 − 320 — списано
+
+    // «Скільки списано» людині: у картці лишається ЗАЛИШОК (180), тож без
+    // знімка «що було» число 320 ніде не взяти. Сервер дописує before при
+    // застосуванні; різницю рахує той, хто малює.
+    expect(body.card.ops[0]).toMatchObject({ op: 'correct', value: 180, before: { value: 500, unit: 'g' } });
+    // І джерело: це списання за рецептом, а не правка кількості руками —
+    // веб по ньому обирає «−320» замість олівця.
+    expect(body.card.source).toMatchObject({ kind: 'cook' });
+    expect(body.card.source.run_id).toBeTruthy();
     const msgs = await repo.listMessages(session.id);
     expect(msgs.filter((m) => m.role === 'user').map((m) => m.text)).toContain('Так. І що до цього з напоїв? Вино?');
     expect(msgs.filter((m) => m.role === 'user').length).toBe(1);   // репліка людини — раз, повністю

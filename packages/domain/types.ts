@@ -82,7 +82,7 @@ export type IntakeOp =
   // палець перетворювався на назву, а назва шукалась findBatchByLabel — перший
   // збіг без сортування, — і при двох однойменних позиціях списувалась не та.
   // Модель id не бачить і не заповнює: для неї лишається label, як було.
-  | { op: 'deplete'; label: string; batch_id?: string }
+  | { op: 'deplete'; label: string; batch_id?: string; before?: BatchBefore }
   | { op: 'open'; label: string; batch_id?: string }
   // `tags` тут не декорація: перейменування — заява «це інший продукт», і
   // теги нового продукту приходять тією самою реплікою («це не мʼясо, а
@@ -95,7 +95,7 @@ export type IntakeOp =
   | { op: 'correct'; label: string; batch_id?: string; value?: number; unit?: Unit; zone?: Zone;
       state?: 'sealed' | 'opened'; tags?: import('./product.js').ProductTags;
       // PR 4 (21.09): вага однієї одиниці штучної партії — на продукт, штуки не чіпає.
-      pack?: { v: number; u: 'g' | 'ml' } };
+      pack?: { v: number; u: 'g' | 'ml' }; before?: BatchBefore };
 
 // M13: рядок чека, який НЕ став op'ом — сірий «додати руками» (unmatched)
 // або згорнутий «не для комори» (nonfood). Живе в source картки, щоб стрічка
@@ -108,6 +108,29 @@ export interface ReceiptLeftover {
   image: string | null;
 }
 
+/**
+ * Скільки було в партії ДО операції. Заповнює СЕРВЕР у момент застосування —
+ * модель цього не шле й не мусить (`deplete` з кількістю досі вважається
+ * malformed, інцидент 07.09), а якщо надішле, серверне значення затирає її.
+ *
+ * Навіщо: картка не знала, скільки списано. `deplete` кількості не несе
+ * взагалі, а часткове списання після готування — це `correct` із ЗАЛИШКОМ у
+ * `value`. Тобто «було 200, лишилось 100» читалось як «100», і людині ніде
+ * було побачити, що пішло саме 100.
+ *
+ * Поле зветься `value`/`unit`, а не `qty`: рівно так вони звуться в самій
+ * партії й у `correct.value`. `qty` в операції `add` означає ІНШЕ — кількість
+ * упаковок, — і назвати знімок так означало б звести дві різні речі.
+ *
+ * Для `deplete` списане = `before` цілком. Для `correct` списане =
+ * `before.value − value`, і тільки коли одиниці збігаються; інакше `before`
+ * усе одно пишемо (він правдивий), а різницю не рахує ніхто.
+ */
+export interface BatchBefore {
+  value: number | null;
+  unit: Unit | null;
+}
+
 export type IntakeSource =
   | {
       kind: 'retail_receipt';
@@ -118,7 +141,18 @@ export type IntakeSource =
       nonfood: ReceiptLeftover[];
       unmatched: ReceiptLeftover[];
     }
-  | { kind: 'chat_receipt'; at: string };
+  | { kind: 'chat_receipt'; at: string }
+  /**
+   * Списання після готування. Веб по ньому вирішує, як показати рядки: тут
+   * кількість ЗМЕНШИВ продукт за рецептом, тож це «−N», а не правка руками з
+   * олівцем.
+   *
+   * Досі цю картку впізнавали за ТЕКСТОМ репліки (`post-cook.ts`,
+   * WRITEOFF_CARD_REPLY) — ознака крихка й нечитана з боку веба. Поле не
+   * замінює той пошук у цьому PR (старі картки його не мають), але дає
+   * структурну ознаку на майбутнє.
+   */
+  | { kind: 'cook'; at: string; run_id?: string };
 
 // Позиція, яку каталог упізнав як НЕХАРЧОВУ і яка тому не поїхала в комору.
 // Окреме поле, а не частина source: вето за категорією не має нічого

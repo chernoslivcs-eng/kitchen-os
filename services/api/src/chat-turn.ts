@@ -343,7 +343,9 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
           }
         }
         if (!writeoffPrefix) {
-        const card: Card = { type: 'intake_diff', ops };
+        // Джерело — щоб веб малював рядки як списання («−N»), а не як правку
+        // кількості з олівцем: це різні події для людини.
+        const card: Card = { type: 'intake_diff', ops, source: { kind: 'cook', at: new Date().toISOString(), run_id: run?.id } };
         const card_id = randomUUID();
         await createPending(repo, { message_id: card_id, household_id, user_id, card });
         await saveTurn(WRITEOFF_CARD_REPLY, card, card_id);
