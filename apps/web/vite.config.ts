@@ -71,4 +71,17 @@ export default defineConfig({
       },
     },
   },
+  // Перегляд ГОЛОВНИЙ ЧАТ: та сама проксі й для `vite preview` (продова
+  // збірка, без StrictMode) — без неї build+preview не міг ходити до API
+  // взагалі (клієнт б'є у відносний /v1/…, preview-сервер такого маршруту
+  // не знає), і живу перевірку прод-збірки проти справжнього API зробити
+  // було неможливо.
+  preview: {
+    proxy: {
+      '/v1': {
+        target: process.env.API_URL ?? 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
+  },
 });

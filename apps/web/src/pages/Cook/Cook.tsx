@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
 import { currentTheme, setThemeOverride, type ThemeChoice } from '../../theme';
-import { api } from '../../api';
+import { api, type Recipe } from '../../api';
 import { loadPantry } from '../../store/pantryList';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
@@ -57,17 +57,82 @@ export function stepTextTier(text: string): StepTextTier {
   return 'l';
 }
 
+interface StepTimer { deadline: number | null; left: number }
+
+interface ResumePlan {
+  stepIdx: number;
+  done: Set<number>;
+  timers: Record<number, StepTimer>;
+  secondsLeft: number;
+  running: boolean;
+}
+
+// Перегляд ГОЛОВНИЙ ЧАТ (живий баг власника на стенді, після мерджу #237):
+// вийшов у чат із таймером, що біжить → таймер добіг → плашка → тап —
+// кукінг-мод відкривався на тому кроці з ПОВНИМ часом замість «час вийшов».
+// Корінь: відновлення сесії латало стан ЕФЕКТАМИ поверх початкового рендеру
+// (ефект зміни кроку ставив повний час, resume-ефект — 0, після нього) —
+// кожен ефект замкнутий на СВІЙ рендер, тож «ефект запису сесії» (той самий
+// перший рендер) зберігав би повний час ПОВЕРХ щойно завантаженої сесії, а
+// в StrictMode (dev) ефект зміни кроку ще й повторно спрацьовував ПІСЛЯ
+// resume (guard `resumeRef` захищав лише сам resume, не сусідні ефекти) —
+// другий прохід знову ставив повний час, останнім словом.
+//
+// Фікс — ОДНЕ синхронне обчислення на монтуванні (перший рендер), а не серія
+// ефектів: крок/таймер/done вже ПРАВИЛЬНІ з першого рендеру, тож усі ефекти,
+// що їх читають (запис сесії, тікання), бачать вірні дані одразу — жодної
+// гонки, незалежно від порядку чи кількості запусків ефектів.
+function buildResumePlan(recipe: Recipe | null, startAt: number | undefined): ResumePlan {
+  const now = Date.now();
+  const saved = loadCookSession();
+  const sameRecipe = !!(saved && recipe && saved.recipe.t === recipe.t && saved.stepIdx < recipe.st.length);
+  if (!sameRecipe) {
+    const stepIdx = startAt ?? 0;
+    return { stepIdx, done: new Set(), timers: {}, secondsLeft: recipe?.st[stepIdx]?.s ?? 0, running: false };
+  }
+  // Перегляд 30.09 (issue #4): таймер, що вже минув на момент відновлення,
+  // згортаємо мовчки в {deadline:null,left:0} — інакше секундний вартовий
+  // (нижче) побачить «щойно добіг» і продзвонить удруге те, що вже могло
+  // продзвонити зовні (GlobalCookAlarm), поки попап був закритий. Той самий
+  // клямп — і для фонових таймерів (saved.timers), і для кроку, який був
+  // АКТИВНИМ на момент збереження (saved.deadline/secondsLeft): уніфіковано
+  // в ОДНІЙ мапі, один шлях для «крок, з якого пішли» і «крок, на якому
+  // застала сесія».
+  const clamp = (t: StepTimer): StepTimer => (t.deadline != null && t.deadline <= now ? { deadline: null, left: 0 } : t);
+  const timers: Record<number, StepTimer> = {};
+  for (const [k, t] of Object.entries(saved!.timers ?? {})) timers[Number(k)] = clamp(t);
+  timers[saved!.stepIdx] = clamp(saved!.deadline != null ? { deadline: saved!.deadline, left: 0 } : { deadline: null, left: saved!.secondsLeft });
+
+  // Перегляд ГОЛОВНИЙ ЧАТ: startAt (плашка фонового таймера) ПЕРЕМАГАЄ
+  // збережений крок — тап веде на крок ІЗ ПЛАШКИ, не туди, де застала сесія.
+  const stepIdx = startAt ?? saved!.stepIdx;
+  const done = new Set(saved!.done ?? Array.from({ length: saved!.stepIdx }, (_, i) => i));
+  const entry = timers[stepIdx];
+  delete timers[stepIdx]; // спожито для початкового рендеру — той самий контракт, що ефект навігації мав для goToStep
+  const secondsLeft = entry
+    ? (entry.deadline != null ? Math.max(0, Math.ceil((entry.deadline - now) / 1000)) : entry.left)
+    : (recipe!.st[stepIdx]?.s ?? 0);
+  const running = !!entry && entry.deadline != null && entry.deadline > now;
+  return { stepIdx, done, timers, secondsLeft, running };
+}
+
 export function CookOverlay() {
   const navigate = useNavigate();
   // Пул-3: поп-ап. Стан приходить зі стора, не з навігації.
   const state = useCookStore((s) => s.args) ?? {} as Partial<import('../../store/cook').CookOpenArgs>;
   const closeOverlay = useCookStore((s) => s.close);
   const recipe = state.recipe ?? null;
-  const [stepIdx, setStepIdx] = useState(state.startAt ?? 0);
+  // Перегляд ГОЛОВНИЙ ЧАТ: один план на монтування — ref-guard переживає
+  // StrictMode-подвоєння рендеру (dev) і гарантує, що buildResumePlan (читає
+  // localStorage) обчислюється РІВНО раз, а не на кожен повторний виклик.
+  const planRef = useRef<ResumePlan | undefined>(undefined);
+  if (planRef.current === undefined) planRef.current = buildResumePlan(recipe, state.startAt);
+  const plan = planRef.current;
+  const [stepIdx, setStepIdx] = useState(plan.stepIdx);
   // №10 (рішення власника): зроблені кроки — явна множина, а не «усе до
   // поточного»: маршрут відкритий на будь-який крок, і «Крок готово»
   // відмічає той, на якому стоїш.
-  const [done, setDone] = useState<Set<number>>(() => new Set());
+  const [done, setDone] = useState<Set<number>>(plan.done);
   // DA2-03: подвійний тап мокрим пальцем перескакував крок (1 → 3). 400ms
   // локу — рівно --dur-slow, тривалість зміни кроку. №10: лок стоїть лише на
   // «Крок готово» (там подвійний тап відмітив би ще й наступний); навігація
@@ -80,8 +145,7 @@ export function CookOverlay() {
   const finishedRef = useRef(false);
   // №10: таймери кроків, з яких пішли. Таймер, що біг, несе дедлайн і йде
   // далі; на паузі — залишок. Поточний крок живе в secondsLeft/running.
-  type StepTimer = { deadline: number | null; left: number };
-  const timersRef = useRef<Record<number, StepTimer>>({});
+  const timersRef = useRef<Record<number, StepTimer>>(plan.timers);
   const [, setTick] = useState(0);
   // Макет 30.09 (COOK-TIMERS-BRIEF-0930, §2.2): плашка добіглого фонового
   // таймера — кроку, з якого пішли, не поточного (той лишається «час
@@ -169,14 +233,28 @@ export function CookOverlay() {
 
   // Таймер на активний крок. Якщо в кроку немає step.s — таймер не показуємо.
   const step = recipe?.st[stepIdx];
-  const initialTimer = step?.s ?? 0;
-  const [secondsLeft, setSecondsLeft] = useState(initialTimer);
-  const [running, setRunning] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(plan.secondsLeft);
+  const [running, setRunning] = useState(plan.running);
   const tickRef = useRef<number | null>(null);
 
   // Зміна кроку: таймер кроку, на який прийшли, — з timersRef (біг → залишок
   // від дедлайну і біжить далі; пауза → збережений залишок), інакше повний.
+  // Перегляд ГОЛОВНИЙ ЧАТ: guard — порівняння з ПОПЕРЕДНІМ stepIdx, не
+  // булевий прапорець «перший раз». Початковий крок/таймер уже правильні з
+  // першого рендеру (buildResumePlan) — цей ефект призначений лише для
+  // СПРАВЖНЬОЇ зміни кроку (goToStep), не для монтування. Булевий прапорець
+  // ламався б у StrictMode (dev): перший прохід виставляє його, другий прохід
+  // бачить «вже не перший» і виконує тіло вдруге — це і був корінь бага
+  // (повний час переписував щойно відновлений «час вийшов»). Порівняння
+  // значень стійке до кількості проходів: обидва проходи монтування бачать
+  // ОДНАКОВИЙ stepIdx (рендер не змінювався між ними), тож обидва тихо
+  // виходять — тіло виконується лише коли stepIdx СПРАВДІ інший, ніж минулого
+  // разу.
+  const prevStepIdxRef = useRef<number | null>(null);
   useEffect(() => {
+    const isRealChange = prevStepIdxRef.current !== null && prevStepIdxRef.current !== stepIdx;
+    prevStepIdxRef.current = stepIdx;
+    if (!isRealChange) return;
     const saved = timersRef.current[stepIdx];
     if (saved) {
       delete timersRef.current[stepIdx];
@@ -285,44 +363,20 @@ export function CookOverlay() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- secondsLeft свідомо поза залежностями (див. коментар вище)
   }, [running]);
 
-  // Бриф-3 п.2: відновлення перерваного готування того самого рецепта.
-  const resumeRef = useRef(false);
+  // Бриф-3 п.2: перерване готування ІНШОГО рецепта в сесії. Крок/таймер/done
+  // ЦЬОГО рецепта вже відновлені синхронно (buildResumePlan, перший рендер,
+  // вище) — той шлях сам відрізняє «той самий рецепт» від «інший» і для
+  // «іншого» просто лишає свіжий старт (recipe.st[startAt].s, done порожній,
+  // без чіпання чужої сесії). Цей ефект — лише побічна дія з ТІЄЇ чужої
+  // сесії: питання й, за згодою, її очищення. Синхронно (у рендері)
+  // window.confirm лишати не можна (побічна дія, і StrictMode дублював би
+  // питання) — тому лишається ефектом, з тим самим guard на повтор.
+  const droppedOtherRef = useRef(false);
   useEffect(() => {
-    if (resumeRef.current) return;
-    resumeRef.current = true;
+    if (droppedOtherRef.current) return;
+    droppedOtherRef.current = true;
     const saved = loadCookSession();
-    if (saved && recipe && saved.recipe.t === recipe.t && saved.stepIdx < recipe.st.length) {
-      // №10: зроблені кроки — зі збереженої множини; стара сесія без неї —
-      // «усе до поточного», як було. Таймери інших кроків — теж, але
-      // перегляд 30.09 (issue #4): той, що вже минув на момент відновлення,
-      // згортаємо в {deadline:null,left:0} МОВЧКИ тут-таки — інакше секундний
-      // вартовий (нижче) побачить його як «щойно добіг» і продзвонить удруге
-      // те, що вже могло продзвонити зовні (GlobalCookAlarm), поки попап був
-      // закритий.
-      setDone(new Set(saved.done ?? Array.from({ length: saved.stepIdx }, (_, i) => i)));
-      if (saved.timers) {
-        const now = Date.now();
-        const restored: Record<number, StepTimer> = {};
-        for (const [k, t] of Object.entries(saved.timers)) {
-          restored[Number(k)] = t.deadline != null && t.deadline <= now ? { deadline: null, left: 0 } : t;
-        }
-        timersRef.current = restored;
-      }
-      setStepIdx(saved.stepIdx);
-      // Пул-7 №1: дедлайн живий → рахунок ішов увесь цей час і продовжує йти.
-      // Дедлайн минув → 0:00 МОВЧКИ: це вже могло продзвонити зовні
-      // (issue #4, GlobalCookAlarm) — алярм нижче тепер живе ВСЕРЕДИНІ
-      // інтервалу живого відліку (ефект [running]), тож просте
-      // setSecondsLeft(0) тут ніколи його не зачіпає, без окремого прапорця.
-      if (saved.deadline) {
-        const left = Math.max(0, Math.ceil((saved.deadline - Date.now()) / 1000));
-        setSecondsLeft(left);
-        setRunning(left > 0);
-      } else {
-        setSecondsLeft(saved.secondsLeft);
-        setRunning(false);
-      }
-    } else if (saved && recipe && saved.recipe.t !== recipe.t) {
+    if (saved && recipe && saved.recipe.t !== recipe.t) {
       // QA8-07: тут живе ІНШЕ незавершене готування. Мовчки затерти його —
       // втратити чиїсь пів рецепта. Питаємо; відмова повертає до стрічки,
       // де рядок «Готування триває» веде до старої сесії.
@@ -336,7 +390,7 @@ export function CookOverlay() {
       clearCookSession();
       closeCookAudioSession(); // §5 (issue #3): кінець тієї сесії — і аудіо теж.
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- відновлення сесії лише при монтуванні
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- перевірка чужої сесії лише при монтуванні
   }, []);
 
 
@@ -394,6 +448,7 @@ export function CookOverlay() {
       // відстає на один ефект — вихід одразу після «Пуск» губив би рахунок).
       const dl = runningRef.current ? deadlineRef.current : null;
       const left = dl != null ? Math.max(0, Math.ceil((dl - Date.now()) / 1000)) : snap.secondsLeft;
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- НАВМИСНЕ читання АКТУАЛЬНОГО timersRef.current у cleanup (не знімок на момент setup) — саме "могло змінитись до cleanup" тут і потрібне: nav-ефект/вартовий мутують мапу, поки попап живе, а вихід повинен зберегти стан на МОМЕНТ виходу, не на момент монтування
       if (!finishedRef.current) saveCookSession({ recipe, stepIdx: snap.stepIdx, secondsLeft: left, deadline: dl, recipeId: state.recipeId, returnSessionId: state.returnSessionId, done: [...snap.done], timers: timersRef.current });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- запис при виході бере знімок із refs; залежність — лише рецепт
