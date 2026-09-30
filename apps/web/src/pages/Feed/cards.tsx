@@ -32,7 +32,7 @@ import { scaleRecipe, coversNeed } from '../../lib/recipe';
 import { Portions } from '../../components/Portions/Portions';
 import { useRecipePortions } from '../../store/recipePortions';
 import { plural } from '../../lib/plural';
-import { movementText, cardSign, movementLabel } from './movement';
+import { movementText, cardSign, movementLabel, isHiddenRemainder } from './movement';
 import styles from './Feed.module.css';
 import { groupShopping, sourceLabel } from './shopping-groups';
 // Псевдонім навмисно: у цьому файлі вже є свій ShoppingItem — позиція
@@ -72,10 +72,17 @@ type IntakeOp = {
   qty?: number;
   pack?: { v?: number; u?: string };
   zone?: string;
+  /** correct: «сметана вже відкрита» — правка стану, а не подія відкриття. */
+  state?: 'sealed' | 'opened';
   confidence?: number;
   evidence?: string;
   /** Серверний знімок «до» (PR #235) — лише deplete/correct. Спек 30.09 §5. */
   before?: { value?: number | null; unit?: string | null } | null;
+  /** correct/deplete після готування (PR #236, спек §2а): скільки САМЕ пішло —
+   *  сильніше за before−value. */
+  used?: { value?: number | null; unit?: string | null } | null;
+  /** add відкритого залишку пачки (PR #236, спек §2а): не рядок, не в N. */
+  remainder?: boolean | null;
 };
 
 type ProposalItem = {
@@ -93,13 +100,6 @@ type ShoppingItem = {
   note?: string;
   v?: number;
   u?: string;
-};
-
-// DA2-24: сирий kind («NOTE») світився латиницею серед кириличних лейблів.
-// UX9-17: correct із зоною показує, КУДИ переїде партія.
-const ZONE_LABELS: Record<string, string> = {
-  fresh: 'Свіже', fridge: 'Холодильник', freezer: 'Морозилка',
-  dry: 'Суха шафа', spices: 'Спеції', drinks: 'Напої',
 };
 
 export interface CardProps {
@@ -353,6 +353,14 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
   // станом (LivePositions тут більше не читається — лишається лише для
   // RecipeLinkCard нижче).
   const ops = (liveCard.ops as IntakeOp[] | undefined ?? []);
+  // §2а: пара «пачка + залишок» — рядок відкритого залишку (add remainder:true)
+  // не показуємо і не рахуємо, але й досі АПЛАЇМО разом з парним correct/deplete
+  // (звідси — shown лише для рендеру/лічби, `ops`-індекси для onApply нижче
+  // лишаються повними). i — індекс у СПРАВЖНЬому ops, чекбокс/off/apply
+  // звертаються саме до нього, не до позиції в shown.
+  const shown = ops
+    .map((op, i) => ({ op, i }))
+    .filter(({ op }) => !isHiddenRemainder(op));
   // №6: чекбокси позицій — «щось лишилось» знімається галочкою, решта
   // застосовується. Дефолт — усе увімкнено; актуально насамперед для
   // пост-кук списання, але працює на будь-якій intake-картці.
@@ -401,7 +409,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
   // знак картки — агрегат рядків (movement.ts), а не «чи є add».
   const sign = cardSign(ops);
   const writeOff = sign === '−';
-  const goingIn = ops.length - off.size;
+  const goingIn = shown.length - off.size;
   const footSlot = useContext(PanelFootSlot);
   // Низ за Screens «Чат · збірка»: «15 додамо додому · 3 уже в списку · 2 не
   // їжа, у список» 13 muted · «Ні» текстом 38 · «Застосувати 15» чорнилом
@@ -425,7 +433,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
           type="button"
           className={styles['rc-apply']}
           onClick={() => onApply!(off.size ? ops.map((_, i) => i).filter((i) => !off.has(i)) : undefined)}
-          disabled={applying || off.size === ops.length}
+          disabled={applying || off.size === shown.length}
           data-apply
         >{writeOff ? 'Списати' : 'Застосувати'} {goingIn}</button>
       )}
@@ -461,17 +469,17 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
             tone="accent"
             mark="none"
             title={movementLabel(sign)}
-            count={ops.length - off.size}
-            action={actionable && ops.length > 1
-              ? () => setOff((prev) => (prev.size === ops.length ? new Set() : new Set(ops.map((_, i) => i))))
+            count={shown.length - off.size}
+            action={actionable && shown.length > 1
+              ? () => setOff((prev) => (prev.size === shown.length ? new Set() : new Set(shown.map(({ i }) => i))))
               : undefined}
-            actionLabel={off.size === ops.length ? 'повернути всі' : 'зняти всі'}
-            rows={ops.map((op, i) => {
+            actionLabel={off.size === shown.length ? 'повернути всі' : 'зняти всі'}
+            rows={shown.map(({ op, i }) => {
               const mv = movementText(op);
               return (
-                <div key={i} className={`${styles.rrow} ${off.has(i) ? styles['rrow-off'] : ''} ${actionable && ops.length > 1 ? styles['rrow-tap'] : ''}`}
-                  onClick={actionable && ops.length > 1 ? () => toggle(i) : undefined}>
-                  {actionable && ops.length > 1 ? (
+                <div key={i} className={`${styles.rrow} ${off.has(i) ? styles['rrow-off'] : ''} ${actionable && shown.length > 1 ? styles['rrow-tap'] : ''}`}
+                  onClick={actionable && shown.length > 1 ? () => toggle(i) : undefined}>
+                  {actionable && shown.length > 1 ? (
                     <button
                       type="button"
                       role="checkbox"
@@ -531,18 +539,18 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
       )}
       {!anyReceipt && (
         <div className={styles.ops}>
-          {ops.map((op, i) => {
+          {shown.map(({ op, i }) => {
             const mv = movementText(op);
             return (
               <div
                 key={i}
                 className={styles.op}
-                onClick={actionable && ops.length > 1 ? () => toggle(i) : undefined}
-                style={actionable && ops.length > 1
+                onClick={actionable && shown.length > 1 ? () => toggle(i) : undefined}
+                style={actionable && shown.length > 1
                   ? { cursor: 'pointer', opacity: off.has(i) ? 0.45 : 1 }
                   : undefined}
               >
-                {actionable && ops.length > 1 && (
+                {actionable && shown.length > 1 && (
                   <span
                     role="checkbox"
                     aria-checked={!off.has(i)}
@@ -553,11 +561,6 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                   {op.op === 'rename'
                     ? <>{op.label ?? '—'} <Icon name="sys.next" size={12} inherit decorative /> {(op as { to?: string }).to ?? '—'}</>
                     : op.label ?? '—'}
-                  {op.op === 'correct' && (op as { zone?: string }).zone && (
-                    <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--muted)' }}>
-                      <Icon name="sys.next" size={12} inherit decorative /> {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
-                    </span>
-                  )}
                   {doubtLabel(op) && <span style={DOUBT_STYLE}>{doubtLabel(op)}</span>}
                 </span>
                 {mv.text && (

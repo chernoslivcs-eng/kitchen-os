@@ -8,7 +8,7 @@ import type { ChatCard } from '../../api';
 import { dishIcon } from '../../lib/dish-icon';
 import type { IconName } from '../../components/Icon/icons';
 import { TRADITION_LABEL } from '../../lib/period';
-import { cardSign, movementLabel, type MoveOp, type RowSign } from './movement';
+import { cardSign, movementLabel, visibleOps, type MoveOp, type RowSign } from './movement';
 
 // Крок Ф2: 'batch' — картка позиції комори в тій самій панелі.
 export type ArtifactKey = 'cart' | 'recipe' | 'receipt' | 'list' | 'event' | 'batch';
@@ -74,10 +74,12 @@ export function isReceiptSourced(t: ArtifactTurn): boolean {
 
 // Скільки рядків у документі разом — саме це число стоїть на вкладці.
 // Воно про документ, а не про те, скільки з нього поїде в комору: людина
-// принесла всі ці рядки, і всі вони в картці видимі.
+// принесла всі ці рядки, і всі вони в картці видимі. Виняток — §2а: рядок
+// відкритого залишку пачки (remainder) не документ, а половина ходу
+// готування, і його тут так само не рахуємо, як у N сліду (movement.ts).
 export function receiptLines(t: ArtifactTurn | undefined): number {
   if (!t || !isIntakeArtifact(t)) return 0;
-  const ops = t.card?.ops?.length ?? 0;
+  const ops = visibleOps((t.card?.ops ?? []) as MoveOp[]).length;
   // Відсічене вето каталогу — теж рядки документа.
   const vetoed = t.card?.nonfood?.length ?? 0;
   const src = t.card?.source;

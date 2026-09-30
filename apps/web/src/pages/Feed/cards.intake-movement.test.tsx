@@ -77,6 +77,55 @@ describe('IntakeCard · §2 рядки без чека (.ops)', () => {
   });
 });
 
+describe('IntakeCard · §2а — уточнення 30.09 (коміт 7f142dfe)', () => {
+  it('add qty×pack — «+4 × 400 г», одна упаковка — «+400 г»', async () => {
+    await mount({
+      type: 'intake_diff',
+      ops: [
+        { op: 'add', label: 'Йогурт баночки', qty: 4, pack: { v: 400, u: 'g' } },
+        { op: 'add', label: 'Песто', qty: 1, pack: { v: 190, u: 'g' } },
+      ],
+    } as unknown as ChatCard);
+    const qty = [...host!.querySelectorAll<HTMLElement>('[class*="op-qty"]')].map((el) => el.textContent);
+    expect(qty).toEqual(['+4 × 400 г', '+190 г']);
+  });
+
+  it('correct без кількості — слово, не число: zone/state/уточнено', async () => {
+    await mount({
+      type: 'intake_diff',
+      ops: [
+        { op: 'correct', label: 'Гречка', zone: 'freezer' },
+        { op: 'correct', label: 'Сметана', state: 'opened' },
+        { op: 'correct', label: 'Камамбер', tags: { lactose_free: true } },
+      ],
+    } as unknown as ChatCard);
+    const qty = [...host!.querySelectorAll<HTMLElement>('[class*="op-qty"]')].map((el) => el.textContent);
+    expect(qty).toEqual(['у морозилку', 'відкрито', 'уточнено']);
+    // Слово — не рух: жоден рядок не пофарбований як «+»/«−».
+    for (const el of host!.querySelectorAll<HTMLElement>('[class*="op-qty"]')) {
+      expect(el.className).not.toMatch(/op-move-(plus|minus)/);
+    }
+  });
+
+  it('готування з пачки: used переважує before, remainder не показаний і не в N', async () => {
+    const card = {
+      type: 'intake_diff',
+      source: { kind: 'cook', at: '2026-09-30T12:00:00Z' },
+      ops: [
+        { op: 'correct', label: 'Гречка', value: 1, unit: 'pcs', before: { value: 2, unit: 'pcs' }, used: { value: 250, unit: 'g' } },
+        { op: 'add', label: 'Гречка', value: 250, unit: 'g', state: 'opened', remainder: true },
+      ],
+    } as unknown as ChatCard;
+    await mount(card);
+    const labels = [...host!.querySelectorAll<HTMLElement>('[class*="op-label"]')].map((el) => el.textContent);
+    // Один рядок, не два: remainder не рендериться взагалі.
+    expect(labels).toEqual(['Гречка']);
+    const qty = host!.querySelector<HTMLElement>('[class*="op-qty"]');
+    expect(qty?.textContent).toBe('−250 г');
+    expect(qty?.className).toContain('op-move-minus');
+  });
+});
+
 describe('IntakeCard · §2 рядки з чеком (ReceiptGroup/.rrow)', () => {
   it('те саме число і колір, тепер праворуч у рядку чека', async () => {
     const card = {
@@ -128,4 +177,5 @@ describe('IntakeCard · §3 слід/шапка — три назви за аг�
     expect(header).not.toContain('У комору');
     expect(header).not.toContain('Списано');
   });
+
 });

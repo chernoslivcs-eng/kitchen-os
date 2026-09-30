@@ -1,8 +1,8 @@
-// Спек власника 30.09 (docs/superpowers/specs/2026-09-30-pantry-movement-cards-design.md).
-// §2 — таблиця рядків, кожен випадок тестом. §3 — три назви сліду/шапки за
-// агрегатним знаком картки.
+// Спек власника 30.09 (docs/superpowers/specs/2026-09-30-pantry-movement-cards-design.md,
+// §2а — уточнення 30.09, коміт 7f142dfe). §2 — таблиця рядків, кожен випадок
+// тестом. §3 — три назви сліду/шапки за агрегатним знаком картки.
 import { describe, it, expect } from 'vitest';
-import { movementText, cardSign, movementLabel, movementSubtitle } from './movement';
+import { movementText, cardSign, movementLabel, movementSubtitle, visibleOps } from './movement';
 
 describe('movementText · §2 таблиця рядків', () => {
   it('add з кількістю — «+1 л»', () => {
@@ -58,9 +58,63 @@ describe('movementText · §2 таблиця рядків', () => {
     expect(movementText({ op: 'rename' })).toEqual({ sign: null, text: '' });
   });
 
-  it('add упаковано (qty/pack) — «+N шт · вага»', () => {
+  it('add упаковано (qty×pack), кілька — «+4 × 400 г» (§2а)', () => {
     expect(movementText({ op: 'add', qty: 4, pack: { v: 400, u: 'g' } }))
-      .toEqual({ sign: '+', text: '+4 шт · 400 г' });
+      .toEqual({ sign: '+', text: '+4 × 400 г' });
+  });
+
+  it('add упаковано, одна упаковка — «+400 г», без «1 ×» (§2а)', () => {
+    expect(movementText({ op: 'add', qty: 1, pack: { v: 400, u: 'g' } }))
+      .toEqual({ sign: '+', text: '+400 г' });
+  });
+
+  it('add лише qty без pack — «+N шт»', () => {
+    expect(movementText({ op: 'add', qty: 3 })).toEqual({ sign: '+', text: '+3 шт' });
+  });
+});
+
+describe('movementText · §2а correct без зміни кількості — слово, не число', () => {
+  it('zone — «у морозилку» / «у холодильник» / «на полицю»', () => {
+    expect(movementText({ op: 'correct', label: 'x', zone: 'freezer' } as never)).toEqual({ sign: null, text: 'у морозилку' });
+    expect(movementText({ op: 'correct', label: 'x', zone: 'fridge' } as never)).toEqual({ sign: null, text: 'у холодильник' });
+    expect(movementText({ op: 'correct', label: 'x', zone: 'dry' } as never)).toEqual({ sign: null, text: 'на полицю' });
+  });
+
+  it('state opened — «відкрито»', () => {
+    expect(movementText({ op: 'correct', state: 'opened' })).toEqual({ sign: null, text: 'відкрито' });
+  });
+
+  it('лише теги (нічого з переліченого) — «уточнено»', () => {
+    expect(movementText({ op: 'correct' })).toEqual({ sign: null, text: 'уточнено' });
+  });
+
+  it('pack (вага одиниці штучної партії) — «уточнено», навіть якщо value стоїть', () => {
+    expect(movementText({ op: 'correct', value: 10, unit: 'pcs', pack: { v: 450, u: 'g' } }))
+      .toEqual({ sign: null, text: 'уточнено' });
+  });
+});
+
+describe('movementText · §2а used переважує before−value (PR #236)', () => {
+  it('correct із used — «−250 г», не «−1 шт» від before−value різних одиниць', () => {
+    expect(movementText({
+      op: 'correct', value: 1, unit: 'pcs', before: { value: 2, unit: 'pcs' }, used: { value: 250, unit: 'g' },
+    })).toEqual({ sign: '−', text: '−250 г' });
+  });
+
+  it('deplete із used — used переважує голий «−» від before', () => {
+    expect(movementText({ op: 'deplete', before: { value: 4, unit: 'pcs' }, used: { value: 4, unit: 'pcs' } }))
+      .toEqual({ sign: '−', text: '−4 шт' });
+  });
+});
+
+describe('visibleOps · §2а пара «пачка + залишок» — remainder не показуємо', () => {
+  it('відкидає лише add із remainder:true', () => {
+    const ops = [
+      { op: 'correct', value: 1, unit: 'pcs', used: { value: 250, unit: 'g' } },
+      { op: 'add', value: 250, unit: 'g', state: 'opened', remainder: true },
+      { op: 'add', value: 1, unit: 'l' },
+    ] as const;
+    expect(visibleOps(ops as never)).toEqual([ops[0], ops[2]]);
   });
 });
 
@@ -87,6 +141,13 @@ describe('cardSign · §3 агрегатний знак', () => {
 
   it('порожні ops — null, не «+» (vacuous truth пастка .every на [])', () => {
     expect(cardSign([])).toBe(null);
+  });
+
+  it('§2а: пара пачка+залишок — remainder не бере участі, лишається «−» (не мішане)', () => {
+    expect(cardSign([
+      { op: 'correct', value: 1, unit: 'pcs', used: { value: 250, unit: 'g' } },
+      { op: 'add', value: 250, unit: 'g', state: 'opened', remainder: true },
+    ] as never)).toBe('−');
   });
 });
 

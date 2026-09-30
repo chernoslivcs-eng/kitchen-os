@@ -198,4 +198,22 @@ describe('intakeSign — агрегатний знак картки (для ле
     const wo = { id: 'a', cardId: 'a', card: { type: 'intake_diff', ops: [{ op: 'deplete', label: 'x', before: { value: 1, unit: 'pcs' } }] } };
     expect(pickArtifacts([wo] as never).map((a) => a.label)).toEqual(['Списано']);
   });
+
+  // §2а (коміт 7f142dfe): пара «пачка + залишок» — TELEGRAM BOT застеріг, що
+  // без приховування remainder цей рід картки (correct + add) читався б як
+  // мішане «Комора · 2»; з ним лишається один мінус-рядок — «Списано · 1».
+  it('§2а: пара пачка+залишок (correct із used + add remainder) — «Списано · 1», meta «1»', () => {
+    const pack = {
+      id: 'a', cardId: 'a', card: {
+        type: 'intake_diff',
+        ops: [
+          { op: 'correct', label: 'Гречка', value: 1, unit: 'pcs', before: { value: 2, unit: 'pcs' }, used: { value: 250, unit: 'g' } },
+          { op: 'add', label: 'Гречка', value: 250, unit: 'g', state: 'opened', remainder: true },
+        ],
+      },
+    };
+    const got = pickArtifacts([pack] as never);
+    expect(got.map((a) => a.label)).toEqual(['Списано']);
+    expect(got.map((a) => a.meta)).toEqual(['1']);
+  });
 });

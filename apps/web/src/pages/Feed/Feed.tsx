@@ -21,7 +21,7 @@ import { api, ApiError, type ProfileFieldV2, type AttachmentUploaded, type ChatR
 import { loadPantry } from '../../store/pantryList';
 import { Card, ShoppingListCard, RecipeStreamCard, traceState, appliedToast, LivePositions, type LivePosition, type RetailStatus } from './cards';
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, intakeSign } from './artifacts';
-import { movementLabel, movementSubtitle } from './movement';
+import { movementLabel, movementSubtitle, visibleOps, type MoveOp } from './movement';
 import { BatchCard } from '../Pantry/BatchCard';
 import { useAuth } from '../../store/auth';
 import { greeting } from '../../lib/greeting';
@@ -1728,7 +1728,7 @@ export function Feed() {
                       ? (unsure > 0 ? `чекає рішення · ${unsure} не впевнений` : 'чекає рішення')
                       // Спек 30.09 §3: слід і шапка панелі — та сама назва й
                       // та сама формула підрядка за агрегатним знаком картки.
-                      : st.tone === 'applied' && !partial ? movementSubtitle(t.card?.ops?.length ?? 0, intakeSign(t))
+                      : st.tone === 'applied' && !partial ? movementSubtitle(visibleOps((t.card?.ops ?? []) as MoveOp[]).length, intakeSign(t))
                       : st.text;
                     return (
                       <span className={`${styles['trace-value']} ${st.tone === 'pending' ? styles['pending-pulse'] : ''}`} data-trace-tone={st.tone}>{text}</span>
