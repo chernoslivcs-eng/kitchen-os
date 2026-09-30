@@ -729,14 +729,12 @@ describe('M13-C1 · підключення Сільпо з панелі «Спи
 // Рішення власника 28.09 (скасовує 02.09) і уточнення 29.09: чисте списання
 // («зʼїли йогурт і допили молоко») малює той самий слід-пігулку, що й
 // наповнення, і відкриває ту саму панель — тепер підписану «Списано», а не
-// «Комора» (панель) / «З комори» (слід), рядки зі знаком «−», НЕ приглушені
-// (приглушення лишається лише для gone-рядків картки додавання, PR #234).
-// Ops — deplete БЕЗ value/unit: саме так «зʼїли все» приходить насправді
-// (packages/domain/types.ts — у deplete нема поля кількості; value на
-// deplete apply.ts:535 відхиляє як malformed). opQty тому не показує нічого —
-// це не хиба тесту, а реальна межа даних (звіт власнику окремо).
+// «Комора» (панель) / «З комори» (слід). Спек 30.09 §2/§3: знак приклеєний
+// до числа праворуч (.op-qty), колонки .op-sign ліворуч більше нема; ці ops
+// — deplete БЕЗ before (стара картка до PR #235) — рядок показує голий «−»
+// (movement.ts), не порожнечу.
 describe('М13-C2 · списання малює той самий слід і панель, що наповнення', () => {
-  it('слід клікабельний «Списано · 2», панель — 2 рядки «−», не muted, без кількості', async () => {
+  it('слід клікабельний «Списано · 2», панель — 2 рядки «−» праворуч, без лівої колонки знаків', async () => {
     todayMessages = [{
       id: 'm1', session_id: 's1', role: 'assistant', text: null, applied: 2,
       created_at: '2026-09-28T09:00:05Z',
@@ -766,16 +764,13 @@ describe('М13-C2 · списання малює той самий слід і �
     const panel = host!.querySelector('aside')!;
     const labels = [...panel.querySelectorAll<HTMLElement>('[class*="op-label"]')].map((el) => el.textContent);
     expect(labels).toEqual(['Йогурт', 'Молоко']);
-    const signs = [...panel.querySelectorAll<HTMLElement>('[class*="op-sign"]')].map((el) => el.textContent);
-    expect(signs).toEqual(['−', '−']);
-    // Не приглушені: жоден рядок не позначений op-gone (той клас — лише для
-    // зʼїденого з картки ДОДАВАННЯ, коли live більше не знає про batch_id).
-    expect(panel.querySelectorAll('[class*="op-gone"]').length).toBe(0);
-    // Реальна межа даних: deplete не несе кількості — колонки qty нема.
-    expect(panel.querySelectorAll('[class*="op-qty"]').length).toBe(0);
+    expect(panel.querySelector('[class*="op-sign"]')).toBeNull();
+    const qty = [...panel.querySelectorAll<HTMLElement>('[class*="op-qty"]')];
+    expect(qty.map((el) => el.textContent)).toEqual(['−', '−']);
+    expect(qty.every((el) => el.className.includes('op-move-minus'))).toBe(true);
   });
 
-  it('мішана картка (add + deplete) — «+» і «−» в одному списку, лейбл «У комору»', async () => {
+  it('мішана картка (add + deplete) — «+» і «−» в одному списку, лейбл «Комора» (спек 30.09 §3: мішане — не напрям)', async () => {
     todayMessages = [{
       id: 'm1', session_id: 's1', role: 'assistant', text: null, applied: 2,
       created_at: '2026-09-28T09:00:05Z',
@@ -790,10 +785,13 @@ describe('М13-C2 · списання малює той самий слід і �
     await mount();
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     const trace = host!.querySelector<HTMLButtonElement>('[data-trace="intake"]')!;
-    expect(trace.textContent).toContain('У комору');
+    expect(trace.textContent).toContain('Комора');
+    expect(trace.textContent).not.toContain('У комору · 2');
     await act(async () => { trace.click(); await new Promise((r) => setTimeout(r, 0)); });
     const panel = host!.querySelector('aside')!;
-    const signs = [...panel.querySelectorAll<HTMLElement>('[class*="op-sign"]')].map((el) => el.textContent);
-    expect(signs).toEqual(['+', '−']);
+    const qty = [...panel.querySelectorAll<HTMLElement>('[class*="op-qty"]')];
+    expect(qty.map((el) => el.textContent)).toEqual(['+1 шт', '−']);
+    expect(qty[0]!.className).toContain('op-move-plus');
+    expect(qty[1]!.className).toContain('op-move-minus');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isIntakeArtifact, pickArtifacts, receiptLines, type ArtifactTurn, isWriteOff } from './artifacts';
+import { isIntakeArtifact, pickArtifacts, receiptLines, type ArtifactTurn, intakeSign } from './artifacts';
 import type { ChatCard } from '../../api';
 
 const turn = (id: string, card: Partial<ChatCard> | null, cardId: string | null = id): ArtifactTurn =>
@@ -100,10 +100,15 @@ describe('pickArtifacts', () => {
     expect(got.map((a) => a.kind)).toEqual(['recipe', 'cart', 'receipt']);
   });
 
-  it('чек зветься «Чек», перелік без джерела — «Комора»', () => {
+  it('чек зветься «Чек», перелік без джерела — за знаком (§3): чисте додавання «У комору»', () => {
     const bare = { type: 'intake_diff', ops: [{ op: 'add' }, { op: 'add' }] } as Partial<ChatCard>;
-    expect(pickArtifacts([turn('a', bare)]).map((a) => a.label)).toEqual(['Комора']);
+    expect(pickArtifacts([turn('a', bare)]).map((a) => a.label)).toEqual(['У комору']);
     expect(pickArtifacts([turn('b', receiptCard(2, 0, 0))]).map((a) => a.label)).toEqual(['Чек']);
+  });
+
+  it('мішана або лише-стан картка без джерела — «Комора»', () => {
+    const mixed = { type: 'intake_diff', ops: [{ op: 'add' }, { op: 'deplete' }] } as Partial<ChatCard>;
+    expect(pickArtifacts([turn('a', mixed)]).map((a) => a.label)).toEqual(['Комора']);
   });
 
   // Рішення власника 28.09 (скасовує 02.09): межа тепер за типом картки, не
@@ -148,42 +153,49 @@ describe('список як артефакт', () => {
   });
 });
 
-// isWriteOff і далі розрізняє наповнення від списання — трейс/лейбл у
-// Feed.tsx читає це, щоб сказати «У комору» проти «З комори». Різниця
-// більше не вирішує, чи БУДЕ артефакт (рішення власника 28.09, скасовує
-// 02.09: раніше isWriteOff-картка не ставала артефактом, слід малювався
-// пігулкою в порожнечу — живий репро після карбонари).
-describe('isWriteOff — розрізняє наповнення й списання (для лейбла сліду)', () => {
-  const card = (ops: { op: string; label: string }[]) => ({ id: 't', card: { type: 'intake_diff', ops } });
+// Спек 30.09 §3: intakeSign рахує ту саму формулу, що й рядки картки
+// (movement.ts) — трейс/лейбл читають це, щоб сказати «Списано» проти
+// «У комору» проти «Комора». isWriteOff («є хоч один add?») скасовано: він
+// плутав «немає add» зі «списанням» — correct із value > before (net-плюс
+// правка) під ним фальшиво ставав «Списано». Різниця знаку більше не
+// вирішує, чи БУДЕ артефакт (рішення власника 28.09, скасовує 02.09: раніше
+// isWriteOff-картка не ставала артефактом, слід малювався пігулкою в
+// порожнечу — живий репро після карбонари).
+describe('intakeSign — агрегатний знак картки (для лейбла сліду)', () => {
+  const card = (ops: Record<string, unknown>[]) => ({ id: 't', card: { type: 'intake_diff', ops } });
 
-  it('ops без жодного add — це списання', () => {
-    expect(isWriteOff(card([
-      { op: 'correct', label: 'спагеті Barilla' },
-      { op: 'deplete', label: 'бекон нарізка' },
-    ]) as never)).toBe(true);
+  it('усі рядки «−» (deplete/correct-менше) — списання', () => {
+    expect(intakeSign(card([
+      { op: 'deplete', label: 'бекон нарізка', before: { value: 200, unit: 'g' } },
+      { op: 'correct', label: 'спагеті Barilla', value: 100, unit: 'g', before: { value: 300, unit: 'g' } },
+    ]) as never)).toBe('−');
   });
 
-  it('є хоч один add — це наповнення, не списання', () => {
-    expect(isWriteOff(card([
-      { op: 'add', label: 'молоко' },
-      { op: 'correct', label: 'хліб' },
-    ]) as never)).toBe(false);
+  it('є хоч один add серед списання — мішане, не «Списано»', () => {
+    expect(intakeSign(card([
+      { op: 'add', label: 'молоко', value: 1, unit: 'l' },
+      { op: 'deplete', label: 'бекон нарізка', before: { value: 200, unit: 'g' } },
+    ]) as never)).toBe(null);
   });
 
-  it('порожні ops не роблять картку списанням', () => {
-    // Малформлена картка моделі не має міняти вигляд сліду.
-    expect(isWriteOff(card([]) as never)).toBe(false);
+  it('порожні ops — null, не «−» (vacuous truth пастка .every на [])', () => {
+    expect(intakeSign(card([]) as never)).toBe(null);
   });
 
-  it('інші типи карток списанням не бувають', () => {
-    expect(isWriteOff({ id: 't', card: { type: 'shopping', items: [] } } as never)).toBe(false);
-    expect(isWriteOff({ id: 't', card: null } as never)).toBe(false);
+  it('інші типи карток — null', () => {
+    expect(intakeSign({ id: 't', card: { type: 'shopping', items: [] } } as never)).toBe(null);
+    expect(intakeSign({ id: 't', card: null } as never)).toBe(null);
   });
 
   it('і списання, і наповнення стають артефактом — тим самим родом', () => {
-    const wo = { id: 'a', cardId: 'a', card: { type: 'intake_diff', ops: [{ op: 'correct', label: 'x' }] } };
+    const wo = { id: 'a', cardId: 'a', card: { type: 'intake_diff', ops: [{ op: 'deplete', label: 'x', before: { value: 1, unit: 'pcs' } }] } };
     const fill = { id: 'b', cardId: 'b', card: { type: 'intake_diff', ops: [{ op: 'add', label: 'y' }] } };
     expect(pickArtifacts([wo] as never).map((a) => a.kind)).toEqual(['receipt']);
     expect(pickArtifacts([fill] as never).map((a) => a.kind)).toEqual(['receipt']);
+  });
+
+  it('лейбл артефакта — «Списано» для чистого списання', () => {
+    const wo = { id: 'a', cardId: 'a', card: { type: 'intake_diff', ops: [{ op: 'deplete', label: 'x', before: { value: 1, unit: 'pcs' } }] } };
+    expect(pickArtifacts([wo] as never).map((a) => a.label)).toEqual(['Списано']);
   });
 });

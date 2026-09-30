@@ -20,7 +20,8 @@ import { HELP_TOPICS, type HelpTopicId } from '@kitchen/domain/help-topics';
 import { api, ApiError, type ProfileFieldV2, type AttachmentUploaded, type ChatResponse, type HouseholdProduct, type PantryBatch, type ShoppingItem } from '../../api';
 import { loadPantry } from '../../store/pantryList';
 import { Card, ShoppingListCard, RecipeStreamCard, traceState, appliedToast, LivePositions, type LivePosition, type RetailStatus } from './cards';
-import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff } from './artifacts';
+import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, intakeSign } from './artifacts';
+import { movementLabel, movementSubtitle } from './movement';
 import { BatchCard } from '../Pantry/BatchCard';
 import { useAuth } from '../../store/auth';
 import { greeting } from '../../lib/greeting';
@@ -1712,18 +1713,22 @@ export function Feed() {
                         списання має впадати в очі одразу, не після читання. */}
                     {isReceiptSourced(t)
                       ? `Чек${t.card?.source?.kind === 'retail_receipt' && t.card.source.shop ? ` ${t.card.source.shop}` : ''}`
-                      : isWriteOff(t) ? 'Списано' : 'У комору'} · {receiptLines(t)}
+                      : movementLabel(intakeSign(t))} · {receiptLines(t)}
                   </span>
                   {(() => {
                     const st = traceState(t.applied, t.undone, t.outcome, t.card?.ops?.length);
                     // Підрядок за кадром: «чекає рішення · N не впевнений», N — рядки, яких каталог не впізнав (unmatched).
                     const src = t.card?.source;
                     const unsure = src?.kind === 'retail_receipt' ? src.unmatched.length : 0;
+                    // Частковий успіх («9 із 14 · 5 пропущено») — своя причина
+                    // недобору, traceState() уже порахував; агрегатний знак
+                    // тут ні до чого, st.text лишається як є.
+                    const partial = !!(t.outcome && t.outcome.applied < t.outcome.total);
                     const text = st.tone === 'pending' && src?.kind === 'retail_receipt'
                       ? (unsure > 0 ? `чекає рішення · ${unsure} не впевнений` : 'чекає рішення')
-                      // Дзеркально до «N у комору»: traceState() завжди каже
-                      // «у комору», тут — «з комори» для списання, та сама форма.
-                      : st.tone === 'applied' && isWriteOff(t) ? `${t.card?.ops?.length ?? 0} з комори`
+                      // Спек 30.09 §3: слід і шапка панелі — та сама назва й
+                      // та сама формула підрядка за агрегатним знаком картки.
+                      : st.tone === 'applied' && !partial ? movementSubtitle(t.card?.ops?.length ?? 0, intakeSign(t))
                       : st.text;
                     return (
                       <span className={`${styles['trace-value']} ${st.tone === 'pending' ? styles['pending-pulse'] : ''}`} data-trace-tone={st.tone}>{text}</span>

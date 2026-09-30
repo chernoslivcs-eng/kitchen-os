@@ -8,6 +8,7 @@ import type { ChatCard } from '../../api';
 import { dishIcon } from '../../lib/dish-icon';
 import type { IconName } from '../../components/Icon/icons';
 import { TRADITION_LABEL } from '../../lib/period';
+import { cardSign, movementLabel, type MoveOp, type RowSign } from './movement';
 
 // Крок Ф2: 'batch' — картка позиції комори в тій самій панелі.
 export type ArtifactKey = 'cart' | 'recipe' | 'receipt' | 'list' | 'event' | 'batch';
@@ -51,19 +52,16 @@ export function isIntakeArtifact(t: ArtifactTurn): boolean {
   return t.card?.type === 'intake_diff';
 }
 
-// Списання. Той самий тип картки, що наповнення, але ops у ньому НЕ
-// додають: deplete/correct/rename зменшують чи правлять те, що вже лежить.
-//
-// Рішення власника 28.09, скасовує 02.09: раніше списання не ставало
-// артефактом (стрілка вела в порожнечу — слід малювався, вкладки не було,
-// живий репро після карбонари), тож слід був рядком тексту. Після фіксу
-// gone-рядків (PR #234: зʼїдене — рядок зі знаком «−», не хвіст) панель
-// завжди має що показати, і причина ховати списання за текстом зникла —
-// pickArtifacts тепер веде його в ту саму вкладку «Комора», що й наповнення.
-export function isWriteOff(t: ArtifactTurn): boolean {
-  if (t.card?.type !== 'intake_diff') return false;
-  const ops = (t.card.ops ?? []) as { op?: string }[];
-  return ops.length > 0 && !ops.some((o) => o.op === 'add');
+// Агрегатний знак картки (спек 30.09 §3) — те саме число, яким рахує кожен
+// рядок §2: усі «+» → додавання, усі «−» → списання, інакше (мішане чи лише
+// зміни стану) → null («Комора»). Рахуємо тут ЖЕ формулою, що й рядки
+// (movement.ts) — раніше «списання» означало лише «нема add», і мішана чи
+// «net-плюс» правка (correct із value > before) під нею фальшиво ставала
+// «Списано». Порахувати двічі різними формулами — саме так слід і рядки
+// колись розійшлись.
+export function intakeSign(t: ArtifactTurn): RowSign {
+  if (t.card?.type !== 'intake_diff') return null;
+  return cardSign((t.card.ops ?? []) as MoveOp[]);
 }
 
 // Чек називається чеком, решта — тим, чим є. «Це додав в комору: дрова,
@@ -136,7 +134,7 @@ export function pickArtifacts<T extends ArtifactTurn>(
         // Уточнення власника 29.09: різниця додавання/списання має бути
         // очевидна — шапка панелі чистого списання зветься «Списано», не
         // «Комора» (наповнення й мішана картка лишаються «Комора»/«Чек»).
-        label: isReceiptSourced(t) ? 'Чек' : isWriteOff(t) ? 'Списано' : 'Комора',
+        label: isReceiptSourced(t) ? 'Чек' : movementLabel(intakeSign(t)),
         meta: String(receiptLines(t)),
         turn: t,
       });

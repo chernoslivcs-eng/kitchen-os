@@ -32,6 +32,7 @@ import { scaleRecipe, coversNeed } from '../../lib/recipe';
 import { Portions } from '../../components/Portions/Portions';
 import { useRecipePortions } from '../../store/recipePortions';
 import { plural } from '../../lib/plural';
+import { movementText, cardSign, movementLabel } from './movement';
 import styles from './Feed.module.css';
 import { groupShopping, sourceLabel } from './shopping-groups';
 // Псевдонім навмисно: у цьому файлі вже є свій ShoppingItem — позиція
@@ -73,6 +74,8 @@ type IntakeOp = {
   zone?: string;
   confidence?: number;
   evidence?: string;
+  /** Серверний знімок «до» (PR #235) — лише deplete/correct. Спек 30.09 §5. */
+  before?: { value?: number | null; unit?: string | null } | null;
 };
 
 type ProposalItem = {
@@ -346,23 +349,10 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
   const [liveCard, setLiveCard] = useState(card);
   // UX9-17: rename/correct ФІЛЬТРУВАЛИСЬ — картка перейменування стояла без
   // жодного предметного рядка, людина тиснула «Застосувати» наосліп.
-  const rawOps = (liveCard.ops as IntakeOp[] | undefined ?? []);
-  // Позиції, а не знімок. Кожен застосований op несе batch_id (сервер
-  // проставив на apply), тож рядок показує ЖИВУ кількість і назву. Порядок і
-  // довжина масиву незмінні — індекси тримають чекбокси й `inList`, — тому
-  // зʼїдене не викидається зі списку, а позначається `gone` і ховається вже
-  // на рендері.
-  const live = useContext(LivePositions);
-  const ops = rawOps.map((op) => {
-    const id = (op as { batch_id?: string }).batch_id;
-    if (!id || !live || live.size === 0) return op;
-    const now = live.get(id);
-    // Ключа немає — позицію зʼїли. Це не помилка й не втрата: чекова книжка
-    // показує лише те, що лишилось.
-    if (!now) return { ...op, gone: true } as IntakeOp & { gone?: boolean };
-    return { ...op, label: now.label, value: now.value ?? undefined, unit: (now.unit ?? undefined) as IntakeOp['unit'] };
-  }) as (IntakeOp & { gone?: boolean })[];
-  const goneCount = ops.filter((o) => o.gone).length;
+  // Спек 30.09 §1: картка — запис ОДНОГО руху, ops не переписуються живим
+  // станом (LivePositions тут більше не читається — лишається лише для
+  // RecipeLinkCard нижче).
+  const ops = (liveCard.ops as IntakeOp[] | undefined ?? []);
   // №6: чекбокси позицій — «щось лишилось» знімається галочкою, решта
   // застосовується. Дефолт — усе увімкнено; актуально насамперед для
   // пост-кук списання, але працює на будь-якій intake-картці.
@@ -373,14 +363,6 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
     if (next.has(i)) next.delete(i); else next.add(i);
     return next;
   });
-  const signFor = (op?: IntakeOp['op']) => {
-    if (op === 'deplete') return '−';
-    if (op === 'open') return '◔';
-    // Етап 1.6: гліф ✎ знято — знак «рукою» зі словника. Саме знак, не
-    // його назва: рядок 'live.byHand' друкувався текстом у рядку позиції.
-    if (op === 'rename' || op === 'correct') return <Icon name="live.byHand" size={12} inherit decorative />;
-    return '+';
-  };
   // M13: intake з чека — шапка-джерело, сірі «додати руками», згорнуте
   // «не для комори». apply/undo — той самий шлях, що у всіх intake.
   // Два роди чека: у мережевого є магазин, сума і розкладка каталогу;
@@ -415,8 +397,10 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
   // із чекбоксами, тож наслідок дії відомий заздалегідь, а не після.
   // Списання — той самий тип картки, але ops не додають. Заголовок мусить це
   // казати: «У КОМОРУ» на картці, що ЗАБИРАЄ з комори, — пряма брехня, і саме
-  // вона стояла після готування карбонари (живий репро 02.09).
-  const writeOff = ops.length > 0 && !ops.some((o) => o.op === 'add');
+  // вона стояла після готування карбонари (живий репро 02.09). Спек 30.09 §3:
+  // знак картки — агрегат рядків (movement.ts), а не «чи є add».
+  const sign = cardSign(ops);
+  const writeOff = sign === '−';
   const goingIn = ops.length - off.size;
   const footSlot = useContext(PanelFootSlot);
   // Низ за Screens «Чат · збірка»: «15 додамо додому · 3 уже в списку · 2 не
@@ -476,61 +460,47 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
           <ReceiptGroup
             tone="accent"
             mark="none"
-            title={writeOff ? 'Списано' : 'У комору'}
-            count={ops.length - off.size - goneCount}
+            title={movementLabel(sign)}
+            count={ops.length - off.size}
             action={actionable && ops.length > 1
               ? () => setOff((prev) => (prev.size === ops.length ? new Set() : new Set(ops.map((_, i) => i))))
               : undefined}
             actionLabel={off.size === ops.length ? 'повернути всі' : 'зняти всі'}
-            rows={ops.map((op, i) => op.gone ? (
-              // Власник 28.09: зʼїдене — не хвіст «ще N закінчилось», а той
-              // самий рядок, що й додане, зі знаком «−» на місці чекбокса
-              // (нічого togglати — уже сталось поза цією карткою) і
-              // приглушеним кольором (rrow-quiet, той самий, що «Не для
-              // комори»). Кількість — та, що була додана: gone-op не
-              // переписаний живою позицією (ops.map вище), знімок лишився.
-              <div key={i} className={`${styles.rrow} ${styles['rrow-quiet']}`}>
-                <span className={styles['rrow-sign']}>{signFor('deplete')}</span>
-                <span className={styles['rrow-name']}>
-                  <span className={styles['rrow-title']}>{op.label ?? '—'}</span>
-                  {passportOf(op) && <span className={styles['rrow-sub']}>{passportOf(op)}</span>}
-                </span>
-                {opQty(op) && (
-                  <span className={styles['rrow-qty']}>{opQty(op)}</span>
-                )}
-              </div>
-            ) : (
-              <div key={i} className={`${styles.rrow} ${off.has(i) ? styles['rrow-off'] : ''} ${actionable && ops.length > 1 ? styles['rrow-tap'] : ''}`}
-                onClick={actionable && ops.length > 1 ? () => toggle(i) : undefined}>
-                {actionable && ops.length > 1 ? (
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={!off.has(i)}
-                    aria-label={op.label ?? 'позиція'}
-                    className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`} data-tap
-                    onClick={(e) => { e.stopPropagation(); toggle(i); }}
-                  >{off.has(i) ? null : <Icon name="sys.done" size={12} inherit decorative />}</button>
-                ) : (
-                  <span className={`${styles.rbox} ${styles['rbox-on']}`}><Icon name="sys.done" size={12} inherit decorative /></span>
-                )}
-                <span className={styles['rrow-name']}>
-                  <span className={styles['rrow-title']}>
-                    {op.op === 'rename'
-                      ? <>{op.label ?? '—'} <Icon name="sys.next" size={12} inherit decorative /> {(op as { to?: string }).to ?? '—'}</>
-                      : op.label ?? '—'}
-                    {doubtLabel(op) && <span style={DOUBT_STYLE}>{doubtLabel(op)}</span>}
+            rows={ops.map((op, i) => {
+              const mv = movementText(op);
+              return (
+                <div key={i} className={`${styles.rrow} ${off.has(i) ? styles['rrow-off'] : ''} ${actionable && ops.length > 1 ? styles['rrow-tap'] : ''}`}
+                  onClick={actionable && ops.length > 1 ? () => toggle(i) : undefined}>
+                  {actionable && ops.length > 1 ? (
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={!off.has(i)}
+                      aria-label={op.label ?? 'позиція'}
+                      className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`} data-tap
+                      onClick={(e) => { e.stopPropagation(); toggle(i); }}
+                    >{off.has(i) ? null : <Icon name="sys.done" size={12} inherit decorative />}</button>
+                  ) : (
+                    <span className={`${styles.rbox} ${styles['rbox-on']}`}><Icon name="sys.done" size={12} inherit decorative /></span>
+                  )}
+                  <span className={styles['rrow-name']}>
+                    <span className={styles['rrow-title']}>
+                      {op.op === 'rename'
+                        ? <>{op.label ?? '—'} <Icon name="sys.next" size={12} inherit decorative /> {(op as { to?: string }).to ?? '—'}</>
+                        : op.label ?? '—'}
+                      {doubtLabel(op) && <span style={DOUBT_STYLE}>{doubtLabel(op)}</span>}
+                    </span>
+                    {passportOf(op) && <span className={styles['rrow-sub']}>{passportOf(op)}</span>}
                   </span>
-                  {passportOf(op) && <span className={styles['rrow-sub']}>{passportOf(op)}</span>}
-                </span>
-                {inList.has(i) && (
-                  <span className={styles['rrow-inlist']} data-in-list><Icon name="sys.list" size={12} inherit decorative />у списку</span>
-                )}
-                {opQty(op) && (
-                  <span className={styles['rrow-qty']}>{opQty(op)}</span>
-                )}
-              </div>
-            ))}
+                  {inList.has(i) && (
+                    <span className={styles['rrow-inlist']} data-in-list><Icon name="sys.list" size={12} inherit decorative />у списку</span>
+                  )}
+                  {mv.text && (
+                    <span className={`${styles['rrow-qty']} ${mv.sign === '+' ? styles['rrow-move-plus'] : mv.sign === '−' ? styles['rrow-move-minus'] : ''}`}>{mv.text}</span>
+                  )}
+                </div>
+              );
+            })}
           />
 
           {nonfoodRows.length > 0 && <NonfoodGroup rows={nonfoodRows} onNonfoodToList={onNonfoodToList} />}
@@ -561,51 +531,41 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
       )}
       {!anyReceipt && (
         <div className={styles.ops}>
-          {ops.map((op, i) => op.gone ? (
-            // Власник 28.09: той самий рядок, що й додане, зі знаком «−»
-            // (signFor('deplete')) і приглушеним кольором — не хвіст-лічильник.
-            // rename/zone/сумнів тут не показуємо: рядок каже, що зникло, а
-            // не як воно сюди потрапило — ці подробиці вже не при ділі.
-            <div key={i} className={`${styles.op} ${styles['op-gone']}`}>
-              <span className={styles['op-sign']}>{signFor('deplete')}</span>
-              <span className={styles['op-label']}>{op.label ?? '—'}</span>
-              {opQty(op) && (
-                <span className={styles['op-qty']}>{opQty(op)}</span>
-              )}
-            </div>
-          ) : (
-            <div
-              key={i}
-              className={styles.op}
-              onClick={actionable && ops.length > 1 ? () => toggle(i) : undefined}
-              style={actionable && ops.length > 1
-                ? { cursor: 'pointer', opacity: off.has(i) ? 0.45 : 1 }
-                : undefined}
-            >
-              {actionable && ops.length > 1 && (
-                <span
-                  role="checkbox"
-                  aria-checked={!off.has(i)}
-                  className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`} data-tap
-                >{off.has(i) ? null : <Icon name="sys.done" size={12} inherit decorative />}</span>
-              )}
-              <span className={styles['op-sign']}>{signFor(op.op)}</span>
-              <span className={styles['op-label']}>
-                {op.op === 'rename'
-                  ? <>{op.label ?? '—'} <Icon name="sys.next" size={12} inherit decorative /> {(op as { to?: string }).to ?? '—'}</>
-                  : op.label ?? '—'}
-                {op.op === 'correct' && (op as { zone?: string }).zone && (
-                  <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--muted)' }}>
-                    <Icon name="sys.next" size={12} inherit decorative /> {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
-                  </span>
+          {ops.map((op, i) => {
+            const mv = movementText(op);
+            return (
+              <div
+                key={i}
+                className={styles.op}
+                onClick={actionable && ops.length > 1 ? () => toggle(i) : undefined}
+                style={actionable && ops.length > 1
+                  ? { cursor: 'pointer', opacity: off.has(i) ? 0.45 : 1 }
+                  : undefined}
+              >
+                {actionable && ops.length > 1 && (
+                  <span
+                    role="checkbox"
+                    aria-checked={!off.has(i)}
+                    className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`} data-tap
+                  >{off.has(i) ? null : <Icon name="sys.done" size={12} inherit decorative />}</span>
                 )}
-                {doubtLabel(op) && <span style={DOUBT_STYLE}>{doubtLabel(op)}</span>}
-              </span>
-              {opQty(op) && (
-                <span className={styles['op-qty']}>{op.op === 'correct' ? <><Icon name="sys.next" size={12} inherit decorative /> </> : null}{opQty(op)}</span>
-              )}
-            </div>
-          ))}
+                <span className={styles['op-label']}>
+                  {op.op === 'rename'
+                    ? <>{op.label ?? '—'} <Icon name="sys.next" size={12} inherit decorative /> {(op as { to?: string }).to ?? '—'}</>
+                    : op.label ?? '—'}
+                  {op.op === 'correct' && (op as { zone?: string }).zone && (
+                    <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--muted)' }}>
+                      <Icon name="sys.next" size={12} inherit decorative /> {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
+                    </span>
+                  )}
+                  {doubtLabel(op) && <span style={DOUBT_STYLE}>{doubtLabel(op)}</span>}
+                </span>
+                {mv.text && (
+                  <span className={`${styles['op-qty']} ${mv.sign === '+' ? styles['op-move-plus'] : mv.sign === '−' ? styles['op-move-minus'] : ''}`}>{mv.text}</span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
       {intakeFoot}
