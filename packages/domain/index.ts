@@ -6,6 +6,7 @@ export { shelfOpenDays, openDaysFor, OPEN_SHELF } from './shelf-life.js';
 export * from './context.js';
 export * from './model-response.js';
 export * from './recipe-match.js';
+export * from './tap-water.js';
 export * from './recipe-labels.js';
 export * from './pantry-alias.js';
 export * from './occasions.js';

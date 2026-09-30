@@ -74,3 +74,38 @@ describe('RecipePage · крок 4', () => {
     expect(host!.textContent).toContain('900 г');
   });
 });
+
+// Живий баг (скрін із проду): «окріп · 180 мл» у складі показувався як
+// позиція, якої бракує. Власник: «треба щоб окріп не був як товар, це ж
+// гаряча вода». Ця сторінка (/recipe/:id) мала СВОЮ окрему крапку стану
+// (`!ing.p → 'missing'`), не через isMissing/matchRecipe — окремий консюмер,
+// окремий фікс. `lib` тут навмисне null (recipe_id без пари в /v1/recipes) —
+// саме цей шлях (клієнтський have/total, без серверного lib) і читав
+// `!ing.p` напряму.
+describe('RecipePage · вода з-під крана — не товар', () => {
+  const waterRecipe: Recipe = {
+    t: 'Паста', sv: 2, tm: 20, ch: '', d: '', rk: '',
+    ing: [{ n: 'Спагеті', v: 200, u: 'g' }, { n: 'окріп', v: 180, u: 'ml' }],
+    st: [{ t: 'Варити', c: 'x' }],
+  };
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url === '/v1/recipes/r-water') return json({ id: 'r-water', saved_at: null, recipe: waterRecipe, nutrition_calc: null });
+      if (url === '/v1/recipes') return json({ recipes: [] }); // lib = null — клієнтський fallback
+      if (url.startsWith('/v1/pantry')) return json({ batches: [], products: [] });
+      if (url.startsWith('/v1/profile')) return json({ veto: [] });
+      return json({});
+    }));
+  });
+
+  it('окріп: крапка «have», не «missing»; статус «майже · 1 з 2», не «далеко · 0 з 2»', async () => {
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => {
+      root!.render(<MemoryRouter initialEntries={['/recipe/r-water']}><Routes><Route path="/recipe/:id" element={<RecipePage />} /></Routes></MemoryRouter>);
+    });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    const states = [...host!.querySelectorAll('[data-ing-state]')].map((e) => e.getAttribute('data-ing-state'));
+    expect(states).toEqual(['missing', 'have']); // спагеті далі бракує, окріп — «є»
+    expect(host!.textContent).toContain('майже · 1 з 2'); // не «далеко · 0 з 2»
+  });
+});

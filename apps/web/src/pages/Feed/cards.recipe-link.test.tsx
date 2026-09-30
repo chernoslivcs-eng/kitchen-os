@@ -98,3 +98,64 @@ describe('RecipeLinkCard · порційник', () => {
     expect(sent.ing[0].v).toBe(400);
   });
 });
+
+// Живий баг (скрін із проду): «окріп · 180 мл» показувався як позиція, якої
+// бракує — кошик, жовте виділення. Власник: «треба щоб окріп не був як
+// товар, це ж гаряча вода». Рядок лишається (кількість потрібна для
+// готування), але без ознак «бракує».
+describe('RecipeLinkCard · вода з-під крана — не товар', () => {
+  let root: Root | undefined; let host: HTMLDivElement | undefined;
+  afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); root = undefined; host = undefined; });
+
+  const recipe = {
+    t: 'Паста', sv: 2, tm: 20, ch: '', d: '', rk: '',
+    ing: [
+      { n: 'спагеті', v: 200, u: 'g' },          // без партії в коморі — справжній товар, бракує
+      { n: 'окріп', v: 180, u: 'ml' },            // вода — не товар
+    ],
+    st: [{ t: 'Варити', c: 'x' }],
+  };
+  const onNeedToList = vi.fn();
+  async function mount() {
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    // recipe_id ВІДМІННИЙ від 'r1' вище: useRecipePortions — спільний
+    // модульний стор за recipe_id, і той блок вище лишає його на 4 порціях.
+    const card = { type: 'recipe_link', recipe_id: 'r-water', title: 'Паста', recipe } as unknown as ChatCard;
+    await act(async () => { root!.render(<MemoryRouter><Card card={card} onNeedToList={onNeedToList} /></MemoryRouter>); });
+  }
+  const rows = () => [...host!.querySelectorAll<HTMLElement>('[data-recipe-ings] [class*="recipe-ing"]')];
+  const waterRow = () => rows().find((r) => r.textContent?.includes('окріп'))!;
+
+  it('окріп: не [data-missing], без кошика, без «затисни щоб додати», кількість «180 мл»', async () => {
+    await mount();
+    const row = waterRow();
+    expect(row.hasAttribute('data-missing')).toBe(false);
+    expect(row.title).toBe('');
+    expect(row.querySelector('[data-icon="cook.missing"]')).toBeNull();
+    expect(row.textContent).toContain('180 мл');
+    expect(row.textContent).not.toContain('є вдома');
+    // Спагеті (справжній товар) лишається бракуючим — фікс не глушить інше.
+    const pasta = rows().find((r) => r.textContent?.includes('спагеті'))!;
+    expect(pasta.hasAttribute('data-missing')).toBe(true);
+  });
+
+  it('довге натискання на рядок води нічого не додає в список — onPointerDown на ньому не навішаний', async () => {
+    await mount();
+    const row = waterRow();
+    await act(async () => {
+      row.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 600));
+      row.dispatchEvent(new Event('pointerup', { bubbles: true }));
+    });
+    expect(onNeedToList).not.toHaveBeenCalled();
+  });
+
+  it('«У список · N» рахує лише справжній товар (спагеті), не воду', async () => {
+    await mount();
+    const toList = host!.querySelector<HTMLButtonElement>('[data-recipe-tolist]')!;
+    expect(toList.disabled).toBe(false);
+    await act(async () => { toList.click(); });
+    expect(onNeedToList).toHaveBeenCalledTimes(1);
+    expect(onNeedToList).toHaveBeenCalledWith('спагеті', 200, 'g', 'Паста');
+  });
+});

@@ -73,6 +73,27 @@ describe('бібліотека рецептів', () => {
     expect(recipes[0].missing).toEqual(['спагеті', 'пармезан']);
   });
 
+  // Живий баг (скрін із проду): «окріп · 180 мл» показувався як позиція,
+  // якої бракує. Власник: «треба щоб окріп не був як товар, це ж гаряча
+  // вода» — у «бракує: …» води нема, і вона не тягне статус.
+  it('окріп у «бракує» не потрапляє, статус рахується без нього', async () => {
+    const me = await signIn(app, mailer, 'water@example.com');
+    const recipeWithWater = { ...RECIPE, ing: [...RECIPE.ing, { n: 'окріп', v: 180, u: 'ml' }] };
+    await app.inject({
+      method: 'POST', url: '/v1/recipes',
+      headers: { cookie: me.cookie }, payload: { recipe: recipeWithWater },
+    });
+    await addBatch(me.household_id, 'Спагеті №5');
+    await addBatch(me.household_id, 'Пармезан');
+
+    const { recipes } = (await app.inject({
+      method: 'GET', url: '/v1/recipes', headers: { cookie: me.cookie },
+    })).json();
+    expect(recipes[0].missing).toEqual([]); // не ['окріп'] — вода не товар
+    expect(recipes[0].status).toBe('ready'); // і статус не гіршає від її наявності в складі
+    expect(recipes[0].total).toBe(3); // рядок лишається в складі (кількість потрібна)
+  });
+
   // Головна обіцянка екрана: докупив — рецепт сам переїхав у «можу зараз».
   it('купив усе → той самий рецепт стає ready без жодної дії', async () => {
     const me = await signIn(app, mailer, 'me@example.com');

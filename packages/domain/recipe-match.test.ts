@@ -92,6 +92,28 @@ describe('matchRecipe', () => {
     expect(m.status).toBe('ready');
     expect(m.total).toBe(0);
   });
+
+  // Живий баг (скрін із проду): «окріп · 180 мл» показувався як бракуюча
+  // позиція. Власник: «це ж гаряча вода», не товар.
+  it('окріп/вода — не товар, не в missing, статус від неї не гіршає', () => {
+    const m = matchRecipe(
+      [{ n: 'спагеті' }, { n: 'окріп', v: 180, u: 'ml' }],
+      [batch('Спагеті №5')],
+    );
+    expect(m.status).toBe('ready'); // без води все є — не «near»/«far»
+    expect(m.missing).toHaveLength(0);
+    expect(m.have).toBe(2);
+    expect(m.total).toBe(2);
+  });
+
+  it('вода — не товар, навіть коли решта рецепту бракує', () => {
+    const m = matchRecipe(
+      [{ n: 'бекон' }, { n: 'гаряча вода', v: 200, u: 'ml' }],
+      [],
+    );
+    expect(m.missing.map((x) => x.n)).toEqual(['бекон']); // вода в missing не потрапила
+    expect(m.status).toBe('far'); // статус психує лише через бекон
+  });
 });
 
 describe('suggestAlternatives', () => {
