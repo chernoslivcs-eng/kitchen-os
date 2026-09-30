@@ -49,8 +49,10 @@ describe('упаковане: qty + pack', () => {
     const [b] = await repo.listBatches(me.household_id);
     const ops = await buildWriteoffOps(repo, me.household_id, { t: 'x', sv: 2, ing: [{ p: b!.id, n: 'квасоля', v: 200, u: 'g' }], st: [] } as never);
     expect(ops).toEqual([
-      { op: 'correct', label: b!.label, batch_id: b!.id, value: 3, unit: 'pcs' },
-      expect.objectContaining({ op: 'add', state: 'opened', value: 200, unit: 'g' }),
+      // used/remainder (спек §2а): рядок читається як «−200 г», а не «−1 шт»,
+      // і залишок веб не показує окремою покупкою.
+      { op: 'correct', label: b!.label, batch_id: b!.id, value: 3, unit: 'pcs', used: { value: 200, unit: 'g' } },
+      expect.objectContaining({ op: 'add', state: 'opened', value: 200, unit: 'g', remainder: true }),
     ]);
   });
 

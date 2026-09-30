@@ -76,13 +76,19 @@ export type IntakeOp =
       // Упаковане (PR 4, 21.09): qty — скільки одиниць (ціле), pack — вага/обʼєм
       // ОДНІЄЇ одиниці. Одна банка «кукурудза 340 г» → qty 1 + pack {340, g},
       // не «value 340 g» (штуки губились) і не «4 pcs» без ваги (вага губилась).
-      qty?: number; pack?: { v: number; u: 'g' | 'ml' } }
+      qty?: number; pack?: { v: number; u: 'g' | 'ml' };
+      /**
+       * Відкритий залишок пачки після готування — не покупка, а «зворотний
+       * бік» списання. Ставить СЕРВЕР у post-cook; веб такий рядок не показує
+       * і в кількість рядків не рахує (спек §2а).
+       */
+      remainder?: boolean }
   // batch_id і тут — коли той, хто складає операцію, ЗНАЄ позицію. Списання
   // після готування знає: рецепт тримає палець на партії (ing.p). Раніше цей
   // палець перетворювався на назву, а назва шукалась findBatchByLabel — перший
   // збіг без сортування, — і при двох однойменних позиціях списувалась не та.
   // Модель id не бачить і не заповнює: для неї лишається label, як було.
-  | { op: 'deplete'; label: string; batch_id?: string; before?: BatchBefore }
+  | { op: 'deplete'; label: string; batch_id?: string; before?: BatchBefore; used?: UsedAmount }
   | { op: 'open'; label: string; batch_id?: string }
   // `tags` тут не декорація: перейменування — заява «це інший продукт», і
   // теги нового продукту приходять тією самою реплікою («це не мʼясо, а
@@ -95,7 +101,7 @@ export type IntakeOp =
   | { op: 'correct'; label: string; batch_id?: string; value?: number; unit?: Unit; zone?: Zone;
       state?: 'sealed' | 'opened'; tags?: import('./product.js').ProductTags;
       // PR 4 (21.09): вага однієї одиниці штучної партії — на продукт, штуки не чіпає.
-      pack?: { v: number; u: 'g' | 'ml' }; before?: BatchBefore };
+      pack?: { v: number; u: 'g' | 'ml' }; before?: BatchBefore; used?: UsedAmount };
 
 // M13: рядок чека, який НЕ став op'ом — сірий «додати руками» (unmatched)
 // або згорнутий «не для комори» (nonfood). Живе в source картки, щоб стрічка
@@ -126,6 +132,19 @@ export interface ReceiptLeftover {
  * `before.value − value`, і тільки коли одиниці збігаються; інакше `before`
  * усе одно пишемо (він правдивий), а різницю не рахує ніхто.
  */
+/**
+ * Скільки саме пішло в страву — у вазі/обʼємі рецепта, а не в одиницях партії.
+ * Ставить СЕРВЕР у post-cook, де це число відоме точно; модель його не шле.
+ *
+ * Потрібне там, де різниця `before − value` відповідає не на те питання.
+ * Класика — пачка: списання дає пару «−1 шт» і «+250 г залишку», хоч людина
+ * просто взяла 250 г з пачки. `used` каже саме це, і воно сильніше за різницю.
+ */
+export interface UsedAmount {
+  value: number;
+  unit: Unit;
+}
+
 export interface BatchBefore {
   value: number | null;
   unit: Unit | null;
