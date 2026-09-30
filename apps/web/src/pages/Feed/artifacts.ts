@@ -23,9 +23,6 @@ export interface ArtifactTurn {
   undone?: boolean;
 }
 
-/** Жива партія комори очима стрічки — рівно те, що вона тримає з /v1/pantry. */
-export interface LiveBatch { label: string; value: number | null; unit: string | null }
-
 export interface Artifact<T extends ArtifactTurn> {
   // Ключ — це КАРТКА, а не рід. Три рецепти в сесії це три артефакти, два
   // чеки — два. Заміщення «наступний рецепт займає ту саму вкладку» знято:
@@ -54,59 +51,19 @@ export function isIntakeArtifact(t: ArtifactTurn): boolean {
   return t.card?.type === 'intake_diff';
 }
 
-// Списання після готування. Той самий тип картки, що наповнення, але ops у
-// ньому НЕ додають: deplete/correct зменшують те, що вже лежить.
+// Списання. Той самий тип картки, що наповнення, але ops у ньому НЕ
+// додають: deplete/correct/rename зменшують чи правлять те, що вже лежить.
 //
-// Різниця не косметична. Наповнення — це РІЧ, яка лишається жити: її
-// відкривають артефактом, до неї повертаються. Списання — ПОДІЯ: сталась і
-// минула, редагувати в ній нема чого. Тому воно не стає артефактом (див.
-// intakeAdds у pickArtifacts) — а слід у стрічці все одно малювався пігулкою
-// з стрілкою «→», яка вела в порожнечу. Живий репро 02.09: після карбонари
-// «4 у комору →» не натискалось нічим.
+// Рішення власника 28.09, скасовує 02.09: раніше списання не ставало
+// артефактом (стрілка вела в порожнечу — слід малювався, вкладки не було,
+// живий репро після карбонари), тож слід був рядком тексту. Після фіксу
+// gone-рядків (PR #234: зʼїдене — рядок зі знаком «−», не хвіст) панель
+// завжди має що показати, і причина ховати списання за текстом зникла —
+// pickArtifacts тепер веде його в ту саму вкладку «Комора», що й наповнення.
 export function isWriteOff(t: ArtifactTurn): boolean {
   if (t.card?.type !== 'intake_diff') return false;
   const ops = (t.card.ops ?? []) as { op?: string }[];
   return ops.length > 0 && !ops.some((o) => o.op === 'add');
-}
-
-// П6-Т3: партії, яких картка списання торкнулась і які лишились ЖИВІ.
-//
-// Списання буває двох родів, і різниця між ними — не відтінок. «Зʼїли все»
-// (`deplete`) забирає партію цілком: показувати після нього нема чого, і
-// стрілка вела б у порожнечу — саме тому слід списання досі був рядком
-// тексту. «Зʼїли половину» (`correct` із залишком, а після готування ще й
-// `open`) лишає партію в коморі з новим числом — і от її показати треба:
-// це головне, що людина хоче перевірити відразу.
-//
-// Живою вважаємо ту, що є в мапі: стрічка кладе туди лише не-depleted
-// партії. Ключ — `batch_id`, який сервер проставляє на застосуванні; назви
-// тут недостатньо, бо однойменних партій буває дві.
-export function survivingBatches(
-  t: ArtifactTurn,
-  live: Map<string, LiveBatch>,
-): { id: string; label: string; value: number | null; unit: string | null }[] {
-  if (!isWriteOff(t) || !t.applied || t.undone) return [];
-  const out: { id: string; label: string; value: number | null; unit: string | null }[] = [];
-  const seen = new Set<string>();
-  for (const op of (t.card?.ops ?? []) as { batch_id?: string }[]) {
-    const id = op.batch_id;
-    if (!id || seen.has(id)) continue;
-    const b = live.get(id);
-    if (!b) continue;
-    seen.add(id);
-    out.push({ id, ...b });
-  }
-  return out;
-}
-
-// Позиції тієї самої картки, яких у живих уже немає, — повне списання.
-// Вони лишаються рядком тексту без стрілки: відкривати нема чого.
-export function goneLabels(t: ArtifactTurn, live: Map<string, LiveBatch>): string[] {
-  if (!isWriteOff(t)) return [];
-  return ((t.card?.ops ?? []) as { label?: string; batch_id?: string }[])
-    .filter((o) => !o.batch_id || !live.has(o.batch_id))
-    .map((o) => o.label)
-    .filter((l): l is string => !!l);
 }
 
 // Чек називається чеком, решта — тим, чим є. «Це додав в комору: дрова,
@@ -139,24 +96,17 @@ export function receiptLines(t: ArtifactTurn | undefined): number {
 // «створити новий» і «правити наявний» робиться ВИЩЕ — тим, чи народжується
 // нова картка. Панель просто показує те, що є, і нічого не заміщає.
 //
-// Звідси й межа: артефактом стає картка, яка щось ДОДАЄ. Правка (rename,
-// correct) і списання після готування (deplete) — не документи, а дії над
-// уже наявним; вони лишаються карткою у стрічці й вкладки не відкривають.
-// Порогів за кількістю рядків більше немає: «три банана» це такий самий
-// документ, як чек на двадцять, просто коротший.
-function intakeAdds(t: ArtifactTurn): boolean {
-  const ops = (t.card?.ops ?? []) as { op?: string }[];
-  return ops.some((o) => o.op === 'add');
-}
-
+// Межа тепер одна — тип картки, не її вміст: артефактом стає будь-яка
+// intake_diff (наповнення, правка чи списання). До 28.09 списання (deplete/
+// correct/rename без жодного add) сюди не потрапляло — панель відкривалась
+// би порожньою, поки не було gone-рядків (PR #234). Тепер вони є завжди,
+// і причина розрізняти зникла: pickArtifacts веде всі intake_diff в один
+// артефакт, а «Комора»/«З комори» (label/трейс) кажуть, що саме сталось.
 export function pickArtifacts<T extends ArtifactTurn>(
   turns: T[],
   // Кількість позицій списку, якщо його ВІДКРИЛИ. null — вкладки немає:
   // список «сам не з'являється й сам не тримається» (V4).
   listCount: number | null = null,
-  // П6-Т3: живі партії комори. Порожня мапа = «нічого не знаємо», і тоді
-  // вкладок партій просто не буде — екран деградує до того, як було.
-  live: Map<string, LiveBatch> = new Map(),
 ): Artifact<T>[] {
   const out: Artifact<T>[] = [];
   for (const t of turns) {
@@ -179,7 +129,7 @@ export function pickArtifacts<T extends ArtifactTurn>(
         ? (c.unsubscribe && items.length === 1 ? items[0]?.title ?? 'Сезон' : c.tradition && c.set !== 'seasons' ? `${TRADITION_LABEL[c.tradition]} свята` : 'Сезони')
         : (c.title ?? 'Період');
       out.push({ key: t.cardId, kind: 'event', label, meta: series && !c.unsubscribe ? String(items.length) : '', turn: t });
-    } else if (isIntakeArtifact(t) && t.cardId && intakeAdds(t)) {
+    } else if (isIntakeArtifact(t) && t.cardId) {
       out.push({
         key: t.cardId,
         kind: 'receipt',
@@ -187,20 +137,6 @@ export function pickArtifacts<T extends ArtifactTurn>(
         meta: String(receiptLines(t)),
         turn: t,
       });
-    } else if (isIntakeArtifact(t)) {
-      // П6-Т3: часткове списання. Артефакт тут — не картка, а ПАРТІЯ: та
-      // сама `batch`, яку вже вміє панель (її відкриває Комора), просто досі
-      // зі стрічки недосяжна. Нового виду артефакта не заводимо — проводимо
-      // наявний.
-      //
-      // Одна партія — одна вкладка на всю сесію: два списання того самого
-      // томата це не два документи, а один стан, і показує його жива комора,
-      // а не знімок ходу.
-      for (const b of survivingBatches(t, live)) {
-        const key = `batch:${b.id}`;
-        if (out.some((a) => a.key === key)) continue;
-        out.push({ key, kind: 'batch', label: b.label, meta: '', turn: t });
-      }
     }
   }
   if (listCount !== null) out.push({ key: 'list', kind: 'list', label: 'Список', meta: String(listCount), turn: null });

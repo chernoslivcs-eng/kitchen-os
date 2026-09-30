@@ -725,3 +725,68 @@ describe('M13-C1 · підключення Сільпо з панелі «Спи
     expect([...host!.querySelectorAll('button')].find((b) => b.textContent === 'Зібрати кошик у Сільпо →')).toBeFalsy();
   });
 });
+
+// Рішення власника 28.09 (скасовує 02.09): чисте списання («зʼїли йогурт і
+// допили молоко») малює той самий слід-пігулку, що й наповнення, і
+// відкриває ту саму панель «Комора» — рядки зі знаком «−», НЕ приглушені
+// (приглушення лишається лише для gone-рядків картки додавання, PR #234).
+describe('М13-C2 · списання малює той самий слід і панель, що наповнення', () => {
+  it('слід клікабельний «З комори · 2», панель — 2 рядки «−», не muted', async () => {
+    todayMessages = [{
+      id: 'm1', session_id: 's1', role: 'assistant', text: null, applied: 2,
+      created_at: '2026-09-28T09:00:05Z',
+      card: {
+        type: 'intake_diff',
+        ops: [
+          { op: 'deplete', label: 'Йогурт', value: 4, unit: 'pcs', batch_id: 'b1' },
+          { op: 'deplete', label: 'Молоко', value: 1, unit: 'l', batch_id: 'b2' },
+        ],
+      },
+    }];
+    await mount();
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+
+    const trace = host!.querySelector<HTMLButtonElement>('[data-trace="intake"]')!;
+    expect(trace).toBeTruthy();
+    expect(trace.tagName).toBe('BUTTON');
+    expect(trace.textContent).toContain('З комори');
+    expect(trace.textContent).toContain('2');
+    expect(host!.textContent).not.toContain('Використали:');
+
+    await act(async () => { trace.click(); await new Promise((r) => setTimeout(r, 0)); });
+
+    // Інлайновий доккард лишається в DOM (artifact-in-feed: display:none,
+    // jsdom його не вирізає) — рядки шукаємо саме в панелі (<aside>), не по
+    // всьому host, інакше кожен рядок знайдеться двічі.
+    const panel = host!.querySelector('aside')!;
+    const labels = [...panel.querySelectorAll<HTMLElement>('[class*="op-label"]')].map((el) => el.textContent);
+    expect(labels).toEqual(['Йогурт', 'Молоко']);
+    const signs = [...panel.querySelectorAll<HTMLElement>('[class*="op-sign"]')].map((el) => el.textContent);
+    expect(signs).toEqual(['−', '−']);
+    // Не приглушені: жоден рядок не позначений op-gone (той клас — лише для
+    // зʼїденого з картки ДОДАВАННЯ, коли live більше не знає про batch_id).
+    expect(panel.querySelectorAll('[class*="op-gone"]').length).toBe(0);
+  });
+
+  it('мішана картка (add + deplete) — «+» і «−» в одному списку, лейбл «У комору»', async () => {
+    todayMessages = [{
+      id: 'm1', session_id: 's1', role: 'assistant', text: null, applied: 2,
+      created_at: '2026-09-28T09:00:05Z',
+      card: {
+        type: 'intake_diff',
+        ops: [
+          { op: 'add', label: 'Хліб', value: 1, unit: 'pcs', batch_id: 'b1' },
+          { op: 'deplete', label: 'Молоко', value: 1, unit: 'l', batch_id: 'b2' },
+        ],
+      },
+    }];
+    await mount();
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    const trace = host!.querySelector<HTMLButtonElement>('[data-trace="intake"]')!;
+    expect(trace.textContent).toContain('У комору');
+    await act(async () => { trace.click(); await new Promise((r) => setTimeout(r, 0)); });
+    const panel = host!.querySelector('aside')!;
+    const signs = [...panel.querySelectorAll<HTMLElement>('[class*="op-sign"]')].map((el) => el.textContent);
+    expect(signs).toEqual(['+', '−']);
+  });
+});
