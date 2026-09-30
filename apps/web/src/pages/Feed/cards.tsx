@@ -18,6 +18,7 @@ import { OnboardingCard } from './OnboardingCard';
 // а веб серверний код не бандлить (той самий принцип, що whenLabel у when.ts).
 import { CARD_BUTTON_LABEL, applyMode } from '@kitchen/domain/card-modes';
 import { formatDuration } from '@kitchen/domain/duration';
+import { isTapWater } from '@kitchen/domain/tap-water';
 import { Button } from '../../components/Button/Button';
 // M13-C1: кнопка-лінк «Підключити Сільпо» — той самий рід, що Button, але
 // має бути справжнім <a href> (навігація на OAuth-редирект, не fetch), тож
@@ -940,6 +941,8 @@ export function RecipeLinkCard({ card, onCook, onShare, onNeedToList, batchLabel
   // Рядок «бракує»: партії нема — або партія є, але на вибрані порції її
   // замало (зіставні одиниці: однакові, г↔кг, мл↔л; інакше — «є», як досі).
   const isMissing = (ing: (typeof scaled.ing)[number]): boolean => {
+    // Рішення власника: вода з-під крана — не товар, ніколи не «бракує».
+    if (isTapWater(ing.n)) return false;
     if (!ing.p) return true;
     const pos = live?.get(ing.p);
     return !!pos && coversNeed(ing.v, ing.u, pos.value, pos.unit) === 'short';
@@ -1095,7 +1098,9 @@ export function RecipeStreamCard({ card, active, onOpen, onCook, onShare, onNeed
   const [servings, setServings] = useRecipePortions(rid);
   const sv = servings ?? r?.sv ?? 1;
   const scaled = r ? scaleRecipe(r, sv) : undefined;
-  const isMissing = (ing: { p?: string | null; v?: number | null; u?: string | null }): boolean => {
+  const isMissing = (ing: { p?: string | null; n?: string | null; v?: number | null; u?: string | null }): boolean => {
+    // Рішення власника: вода з-під крана — не товар, ніколи не «бракує».
+    if (isTapWater(ing.n)) return false;
     if (!ing.p) return true;
     const pos = live?.get(ing.p);
     return !!pos && coversNeed(ing.v, ing.u, pos.value, pos.unit) === 'short';

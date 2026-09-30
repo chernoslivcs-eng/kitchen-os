@@ -16,7 +16,8 @@
     "./shelf-thresholds": "./shelf-thresholds.ts",
     "./dish-category": "./dish-category.ts",
     "./subscription": "./subscription.ts",
-    "./paywall": "./paywall.ts"
+    "./paywall": "./paywall.ts",
+    "./tap-water": "./tap-water.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

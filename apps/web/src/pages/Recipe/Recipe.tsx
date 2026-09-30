@@ -19,6 +19,7 @@ import { loadPantry } from '../../store/pantryList';
 import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
 import { formatDuration } from '@kitchen/domain/duration';
+import { isTapWater } from '@kitchen/domain/tap-water';
 import { resolveIngName, renderStepContent, stepLabelsFrom, scaleRecipe, type BatchLabels } from '../../lib/recipe';
 import styles from './Recipe.module.css';
 import { Icon } from '../../components/Icon/Icon';
@@ -168,7 +169,8 @@ export function RecipePage() {
 
   const sv = recipe.sv ?? 1;
   const total = recipe.ing.length;
-  const have = recipe.ing.filter((ing) => !!ing.p).length;
+  // Рішення власника: вода з-під крана — не товар, завжди «є».
+  const have = recipe.ing.filter((ing) => isTapWater(ing.n) || !!ing.p).length;
   // Чіп стану в роді: слово з бібліотеки (сервер), «N з M» — зі складу.
   const status = lib ? statusWord(lib) : statusWord({ status: have === total ? 'ready' : total - have <= 2 ? 'near' : 'far' });
   const kcal = kcalLine(calc, recipe.nu);
@@ -224,7 +226,8 @@ export function RecipePage() {
         const name = resolveIngName(ing, batchLabels);
         const { allergy, anti } = flagsFor(name);
         const opened = !!ing.p && openedIds.has(ing.p);
-        const dot = !ing.p ? 'missing' : opened ? 'opened' : 'have';
+        // Рішення власника: вода з-під крана — не товар, завжди «є» (не «бракує»).
+        const dot = isTapWater(ing.n) ? 'have' : !ing.p ? 'missing' : opened ? 'opened' : 'have';
         return (
           <div key={i} className={styles.ing} data-ing-state={dot}>
             <span className={`${styles.dot} ${styles[`dot-${dot}`]}`} aria-hidden />

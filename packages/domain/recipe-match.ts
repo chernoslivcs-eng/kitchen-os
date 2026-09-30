@@ -12,6 +12,7 @@
 import { root, meaningfulWords } from '@kitchen/catalog';
 import type { PantryBatch } from './types.js';
 import { effectiveExpiry, daysLeft } from './pantry-view.js';
+import { isTapWater } from './tap-water.js';
 
 export interface RecipeIngredient {
   p?: string;              // id партії — модель показала пальцем
@@ -74,6 +75,9 @@ export function matchRecipe(
   let criticalMissing = false;
 
   for (const i of ing) {
+    // Рішення власника: вода з-під крана — не товар, завжди «є», рецепт
+    // від неї не гіршає («окріп» не тягне статус у «near»/«far»).
+    if (isTapWater(i.n)) continue;
     const have = resolveIng(i, pantry);
     if (!have) {
       missing.push(i);

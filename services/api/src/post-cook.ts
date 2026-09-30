@@ -9,6 +9,7 @@
 // викликає модель — 0 токенів.
 
 import type { Repo, IntakeOp, CookRunWithRecipe, MessageRow, SessionWriteoff, PantryBatch } from '@kitchen/domain';
+import { isTapWater } from '@kitchen/domain';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { Recipe } from './model.js';
 
@@ -290,7 +291,9 @@ export async function sessionWriteoffs(
         : o.op === 'correct' && o.value != null ? `лишилось ${o.value} ${o.unit ?? ''}`.trim() : '';
       return { label: o.label, amount };
     });
-    const notFound = (recipe?.ing ?? []).filter((i) => !i.p || !opByBatch.has(i.p)).map((i) => i.n).filter((n): n is string => !!n);
+    // Рішення власника: вода з-під крана — не товар, у «не знайшлось у
+    // коморі» не потрапляє (її ніхто не списує й не купує).
+    const notFound = (recipe?.ing ?? []).filter((i) => !isTapWater(i.n) && (!i.p || !opByBatch.has(i.p))).map((i) => i.n).filter((n): n is string => !!n);
     out.push({ title: recipe?.t ?? run?.recipe?.title ?? 'Готування', at: m.created_at, lines, notFound });
   }
   return out.slice(-2);

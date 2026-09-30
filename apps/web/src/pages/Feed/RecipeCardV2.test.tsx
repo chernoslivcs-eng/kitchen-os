@@ -134,3 +134,36 @@ describe('Р5: кошик cook.missing amber у рядках складу арт
     expect(row.querySelector('[data-icon="cook.missing"]')).not.toBeNull();
   });
 });
+
+// Живий баг (скрін із проду): «окріп · 180 мл» показувався як позиція, якої
+// бракує — кошик, жовте виділення. Власник: «треба щоб окріп не був як
+// товар, це ж гаряча вода». Покриває RecipeStreamCard.isMissing (чіпи
+// складу) — RecipeLinkCard.isMissing (рядки артефакту) вкрито окремо в
+// cards.recipe-link.test.tsx.
+describe('вода з-під крана — не товар (RecipeStreamCard)', () => {
+  const waterRecipe: Recipe = {
+    t: 'Паста', sv: 2, tm: 20, ch: '', d: '', rk: '',
+    ing: [{ n: 'сіль', v: 5, u: 'g' }, { n: 'окріп', v: 180, u: 'ml' }],
+    st: [{ t: "Закип'ятити", c: 'x' }],
+  } as unknown as Recipe;
+  const waterCard: ChatCard = { type: 'recipe_link', recipe_id: 'r-stream-water', recipe: waterRecipe } as unknown as ChatCard;
+
+  it('чіп окропу — без amber і без кошика; сіль лишається amber', async () => {
+    await mount(<RecipeStreamCard card={waterCard} />);
+    const waterChip = host!.querySelector('[title="окріп"]')!;
+    expect(waterChip.className).not.toMatch(/prop-chip-amber/);
+    expect(waterChip.querySelector('[data-icon="cook.missing"]')).toBeNull();
+    expect(waterChip.textContent).toContain('180 мл');
+    const saltChip = host!.querySelector('[title="сіль"]')!;
+    expect(saltChip.className).toMatch(/prop-chip-amber/);
+  });
+
+  it('«У список · N» рахує лише сіль — окріп не в N і не додається', async () => {
+    const added: string[] = [];
+    await mount(<RecipeStreamCard card={waterCard} onCook={() => {}} onNeedToList={(label) => added.push(label)} />);
+    const toList = host!.querySelector('[data-recipe-tolist]') as HTMLButtonElement;
+    expect(toList.textContent).toContain('У список · 1');
+    await act(async () => { toList.click(); });
+    expect(added).toEqual(['сіль']);
+  });
+});

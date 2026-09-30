@@ -52,6 +52,25 @@ describe('sessionWriteoffs', () => {
     expect(dyn).toContain('[СПИСАНО В ЦІЙ СЕСІЇ]');
   });
 
+  // Живий баг (скрін із проду): «окріп» показувався як «не знайшлось у
+  // коморі (не списано)» — вода не товар, її ніхто не списує й не купує.
+  it('окріп у «не знайшлось у коморі» не потрапляє; справжня нестача (каперси) — так само показується', async () => {
+    const me = await signIn(app, mailer, 'w-water@example.com');
+    const tomatoes = await batch(me.household_id, 'вʼялені томати', 200, 'g');
+    const session = await repo.createFreshSession(me.user_id, '2026-09-19');
+    await cookAndWriteoff(me, session.id, 'Паста з вʼяленими томатами', [
+      { p: tomatoes, n: 'вʼялені томати', v: 80, u: 'g' },
+      { n: 'каперси', v: 20, u: 'g' },
+      { n: 'окріп', v: 180, u: 'ml' },
+    ]);
+    const msgs = await repo.listMessages(session.id);
+    const w = await sessionWriteoffs(repo, me.user_id, session.id, msgs);
+    expect(w[0]!.notFound).toEqual(['каперси']); // не ['каперси', 'окріп']
+    const block = renderSessionWriteoffs(w, new Date());
+    expect(block).toContain('не знайшлось у коморі (не списано): каперси');
+    expect(block).not.toContain('окріп');
+  });
+
   it('скасоване undo списання не показується; до двох останніх готувань; нова сесія — без блока', async () => {
     const me = await signIn(app, mailer, 'w2@example.com');
     const session = await repo.createFreshSession(me.user_id, '2026-09-19');
