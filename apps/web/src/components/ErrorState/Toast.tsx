@@ -149,8 +149,14 @@ export function Toast({ text, mutedPrefix, lead, tone = 'danger', action, onDism
       onClick={onTap ? bodyClick : undefined}>
       <span className={`${styles.dot} ${styles[`dot-${tone}`]}`} aria-hidden="true" />
       <span className={styles.text}>
-        {mutedPrefix && <span className={styles.muted}>{mutedPrefix} · </span>}
+        {mutedPrefix && (
+          <>
+            <span className={`${styles.muted} ${styles.mutedPart}`}>{mutedPrefix}</span>
+            <span className={`${styles.dotSep} ${styles.mutedPart}`} aria-hidden="true">·</span>
+          </>
+        )}
         {lead && <b className={styles.lead}>{lead}</b>}
+        {lead && <span className={styles.dotSep} aria-hidden="true">·</span>}
         <span className={styles.trail}>{text}</span>
       </span>
       {action && (

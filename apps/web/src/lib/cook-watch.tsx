@@ -92,7 +92,7 @@ export function GlobalCookAlarm() {
           const fromEnd = toasts.length - 1 - i;
           return (
             <div key={t.id} className={styles.slot} style={{ transform: `translateY(${fromEnd * 56}px)`, zIndex: 85 - fromEnd }}>
-              <Toast text=" · час вийшов" lead={t.stepText} mutedPrefix={t.recipeName} tone="sage" placement="chin" closable
+              <Toast text="час вийшов" lead={t.stepText} mutedPrefix={t.recipeName} tone="sage" placement="chin" closable
                 onDismiss={() => removeToast(t.id)}
                 onTap={() => {
                   removeToast(t.id);

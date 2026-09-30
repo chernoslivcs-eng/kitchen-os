@@ -64,7 +64,9 @@ describe('§2.2 · плашка фонового таймера', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
     const t = toasts();
     expect(t).toHaveLength(1);
-    expect(t[0]!.textContent).toBe('Зварити пасту · час вийшов');
+    // Перегляд ГОЛОВНИЙ ЧАТ round 2, п.3: роздільник — окремий flex-item, не
+    // пробіл у тексті (проміжок — CSS gap); textContent тому без пробілів.
+    expect(t[0]!.textContent).toBe('Зварити пасту·час вийшов');
     expect(t[0]!.getAttribute('data-toast-tone')).toBe('sage'); // рід спокійний, не danger/amber
   });
 
@@ -141,14 +143,14 @@ describe('§2.2 · плашка фонового таймера', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(7000); });
     const t = toasts();
     expect(t).toHaveLength(1);
-    expect(t[0]!.textContent).toBe('Обсмажити цибулю з морквою до золотистого · час вийшов');
+    expect(t[0]!.textContent).toBe('Обсмажити цибулю з морквою до золотистого·час вийшов');
     const textEl = t[0]!.querySelector<HTMLElement>('[class*="text"]');
     expect(textEl).toBeTruthy();
     // CSS-модулі в jsdom не рендерять реальний overflow, але клас .text —
     // той самий, що в E3 (white-space не форсовано nowrap там навмисно:
     // текст сам одним рядком за шириною плашки в реальному браузері,
-    // перевірка тут — що текст ЦІЛИЙ і «· час вийшов» не порізаний рядком).
-    expect(t[0]!.textContent!.endsWith('· час вийшов')).toBe(true);
+    // перевірка тут — що текст ЦІЛИЙ і «час вийшов» не порізаний рядком).
+    expect(t[0]!.textContent!.endsWith('час вийшов')).toBe(true);
   });
 
   it('після зникнення нічого не лишається — рядок кроку в маршруті звичайний', async () => {

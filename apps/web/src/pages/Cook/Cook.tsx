@@ -654,7 +654,7 @@ export function CookOverlay() {
                 const fromEnd = bgToasts.length - 1 - i;
                 return (
                   <div key={t.id} className={styles['toast-slot']} style={{ transform: `translateY(calc(-50% + ${fromEnd * 56}px))`, zIndex: 80 - fromEnd }}>
-                    <Toast text=" · час вийшов" lead={t.text} tone="sage" placement="chin" closable
+                    <Toast text="час вийшов" lead={t.text} tone="sage" placement="chin" closable
                       onDismiss={() => removeBgToast(t.id)}
                       onTap={() => { goToStep(t.stepIdx); removeBgToast(t.id); }} />
                   </div>

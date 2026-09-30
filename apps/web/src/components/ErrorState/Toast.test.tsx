@@ -70,21 +70,47 @@ describe('макет 30.09 · closable/onTap/chin', () => {
   // Виміряно в бандлі (Kitchen OS - Cook Timers.dc.html): назва кроку — 600,
   // назва рецепта (mutedPrefix) і «· час вийшов» (text) — 400.
   it('lead — жирний, mutedPrefix і text — звичайні; порядок mutedPrefix → lead → text', async () => {
-    await mount(<Toast text=" · час вийшов" lead="Зварити пасту" mutedPrefix="Спагеттіні з мідіями" tone="sage" />);
+    await mount(<Toast text="час вийшов" lead="Зварити пасту" mutedPrefix="Спагеттіні з мідіями" tone="sage" />);
     const textEl = host!.querySelector<HTMLElement>('[class*="text"]')!;
-    expect(textEl.textContent).toBe('Спагеттіні з мідіями · Зварити пасту · час вийшов');
+    // Перегляд ГОЛОВНИЙ ЧАТ round 2, п.3: роздільник — окремий flex-item
+    // (.dotSep), не пробіл у тексті — видимий проміжок дає CSS gap, не
+    // текстовий вузол, тож textContent без пробілів навколо «·».
+    expect(textEl.textContent).toBe('Спагеттіні з мідіями·Зварити пасту·час вийшов');
     const lead = textEl.querySelector('b')!;
     expect(lead.textContent).toBe('Зварити пасту');
     const muted = textEl.querySelector<HTMLElement>('[class*="muted"]')!;
-    expect(muted.textContent).toBe('Спагеттіні з мідіями · ');
+    expect(muted.textContent).toBe('Спагеттіні з мідіями');
   });
 
-  it('chin: «· час вийшов» (trail) ніколи не обрізається — трикрапка лише на lead (CSS)', () => {
+  it('chin: «· час вийшов» (trail) ніколи не обрізається — трикрапка лише на lead і muted (CSS)', () => {
     const css = readFileSync(resolve(fileURLToPath(import.meta.url), '..', 'Toast.module.css'), 'utf8');
-    const chinBlock = css.slice(css.indexOf('.toast.chin .text'), css.indexOf('.toast.chin .text') + 400);
-    expect(chinBlock).toMatch(/\.toast\.chin \.lead\s*\{[^}]*text-overflow:\s*ellipsis/s);
-    expect(chinBlock).toMatch(/\.toast\.chin \.trail\s*\{[^}]*flex:\s*none/s);
-    expect(chinBlock).not.toMatch(/\.trail\s*\{[^}]*text-overflow/s); // .trail сам не обрізається
+    expect(css).toMatch(/\.toast\.chin \.lead\s*\{[^}]*text-overflow:\s*ellipsis/s);
+    expect(css).toMatch(/\.toast\.chin \.muted\s*\{[^}]*text-overflow:\s*ellipsis/s);
+    expect(css).toMatch(/\.toast\.chin \.trail\s*\{\s*flex:\s*none;\s*\}/);
+    expect(css).not.toMatch(/\.trail\s*\{[^}]*text-overflow/s); // .trail сам не обрізається
+  });
+
+  // Перегляд ГОЛОВНИЙ ЧАТ round 2, п.3: «· час вийшов» приліплювалось до
+  // сусіднього слова — пробіл на краю flex-елемента схлопується (кожна
+  // дитина flex сама згортає свій крайній пробіл). Фікс — роздільник власним
+  // flex-item (.dotSep), проміжок — CSS gap, не текстовий пробіл; закріплено
+  // тестом на розмітку (структура) і на CSS (gap), а не лише на textContent.
+  it('роздільники — окремі .dotSep-елементи (не пробіл у тексті), проміжок — CSS gap', async () => {
+    await mount(<Toast text="час вийшов" lead="Крок 3 · 70 с" mutedPrefix="Перевірка звуку таймера" tone="sage" placement="chin" />);
+    const textEl = host!.querySelector<HTMLElement>('[class*="text"]')!;
+    const parts = Array.from(textEl.children);
+    // Порядок: muted, dotSep, lead(b), dotSep, trail — п'ять окремих вузлів.
+    expect(parts).toHaveLength(5);
+    expect(parts[0]!.textContent).toBe('Перевірка звуку таймера');
+    expect(parts[1]!.textContent).toBe('·');
+    expect(parts[1]!.getAttribute('aria-hidden')).toBe('true');
+    expect(parts[2]!.tagName).toBe('B');
+    expect(parts[2]!.textContent).toBe('Крок 3 · 70 с'); // текст lead може сам містити «·» — не плутати з роздільником
+    expect(parts[3]!.textContent).toBe('·');
+    expect(parts[3]!.getAttribute('aria-hidden')).toBe('true');
+    expect(parts[4]!.textContent).toBe('час вийшов');
+    const css = readFileSync(resolve(fileURLToPath(import.meta.url), '..', 'Toast.module.css'), 'utf8');
+    expect(css).toMatch(/\.toast\.chin \.text\s*\{[^}]*gap:\s*5px/s);
   });
 
   it('closable: клік по хрестику закриває, дію не чіпаючи', async () => {

@@ -121,10 +121,12 @@ describe('§2.3 · плашка поверх застосунку', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
     const t = toasts();
     expect(t).toHaveLength(1);
-    expect(t[0]!.textContent).toBe('Спагеттіні з мідіями · Зварити пасту · час вийшов');
+    // Перегляд ГОЛОВНИЙ ЧАТ round 2, п.3: роздільник — окремий flex-item, не
+    // пробіл у тексті (проміжок — CSS gap); textContent тому без пробілів.
+    expect(t[0]!.textContent).toBe('Спагеттіні з мідіями·Зварити пасту·час вийшов');
     expect(t[0]!.getAttribute('data-toast-tone')).toBe('sage');
     const muted = t[0]!.querySelector<HTMLElement>('[class*="muted"]');
-    expect(muted?.textContent).toBe('Спагеттіні з мідіями · ');
+    expect(muted?.textContent).toBe('Спагеттіні з мідіями');
   });
 
   it('фоновий таймер поза кукінг-модом — теж плашка', async () => {
@@ -136,7 +138,7 @@ describe('§2.3 · плашка поверх застосунку', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
     const t = toasts();
     expect(t).toHaveLength(1);
-    expect(t[0]!.textContent).toBe('Спагеттіні з мідіями · Тушкувати соус · час вийшов');
+    expect(t[0]!.textContent).toBe('Спагеттіні з мідіями·Тушкувати соус·час вийшов');
   });
 
   it('хрестик закриває плашку', async () => {
