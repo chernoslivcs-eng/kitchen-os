@@ -160,16 +160,26 @@ export async function buildWriteoffOps(
       if (batch.state === 'sealed') ops.push({ op: 'open', label: batch.label, batch_id: batch.id });
       continue;
     }
+    // `used` — скільки пішло в страву. Тут воно збігається з різницею, але
+    // веб бере його першим: одне правило на всі cook-рядки, без «а тут
+    // рахуй, а тут бери готове» (спек §2а).
+    const unit = batch.unit ?? undefined;
     if (batch.value != null && batch.value > used) {
       ops.push({
         op: 'correct',
         label: batch.label,
         batch_id: batch.id,
         value: Math.round((batch.value - used) * 100) / 100,
-        unit: batch.unit ?? undefined,
+        unit,
+        ...(unit ? { used: { value: used, unit } } : {}),
       });
     } else {
-      ops.push({ op: 'deplete', label: batch.label, batch_id: batch.id });
+      // Партії не вистачило — пішла вся, скільки було.
+      const gone = batch.value;
+      ops.push({
+        op: 'deplete', label: batch.label, batch_id: batch.id,
+        ...(gone != null && unit ? { used: { value: gone, unit } } : {}),
+      });
     }
   }
   return ops;
@@ -200,10 +210,11 @@ async function splitUnit(repo: Repo, all: PantryBatch[], batch: PantryBatch, use
   for (const o of opened) {
     if (left <= 0) break;
     if (o.value! > left) {
-      ops.push({ op: 'correct', label: o.label, batch_id: o.id, value: Math.round((o.value! - left) * 100) / 100, unit: base });
+      ops.push({ op: 'correct', label: o.label, batch_id: o.id, value: Math.round((o.value! - left) * 100) / 100, unit: base, used: { value: left, unit: base } });
       left = 0;
     } else {
-      ops.push({ op: 'deplete', label: o.label, batch_id: o.id });
+      // З цієї відкритої пішло все, що в ній було.
+      ops.push({ op: 'deplete', label: o.label, batch_id: o.id, used: { value: o.value!, unit: base } });
       left = Math.round((left - o.value!) * 100) / 100;
     }
   }
@@ -212,13 +223,19 @@ async function splitUnit(repo: Repo, all: PantryBatch[], batch: PantryBatch, use
   const w = await unitWeightOf(repo, batch, base);
   const units = w ? Math.max(1, Math.ceil(left / w)) : 1;
   const count = batch.value ?? 1;
-  if (count > units) ops.push({ op: 'correct', label: batch.label, batch_id: batch.id, value: count - units, unit: batch.unit ?? undefined });
-  else ops.push({ op: 'deplete', label: batch.label, batch_id: batch.id });
+  // Партія лишається в ШТУКАХ — але поруч кладемо, скільки з неї пішло в
+  // страву у вазі. Без цього рядок читався б як «−1 шт», хоч людина взяла
+  // 250 г з пачки, а решта повернулась відкритою (спек §2а).
+  const usedHere = { value: left, unit: base };
+  if (count > units) ops.push({ op: 'correct', label: batch.label, batch_id: batch.id, value: count - units, unit: batch.unit ?? undefined, used: usedHere });
+  else ops.push({ op: 'deplete', label: batch.label, batch_id: batch.id, used: usedHere });
   const product = batch.product_id ? await repo.getProduct(batch.product_id) : null;
   const remainder = w ? Math.round((w * units - left) * 100) / 100 : null;
   if (remainder === 0) return ops;   // одиницю вжито цілком — відкритого залишку нема
   ops.push({
     op: 'add', label: batch.label, zone: batch.zone, state: 'opened',
+    // Зворотний бік списання, не покупка: веб цей рядок не показує.
+    remainder: true,
     ...(product ? { product: product.product, brand: product.brand ?? undefined, variant: product.variant ?? undefined } : {}),
     ...(remainder != null ? { value: remainder, unit: base } : {}),
     evidence: 'user_statement', confidence: 1,

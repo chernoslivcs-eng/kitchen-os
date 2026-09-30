@@ -12,6 +12,7 @@ import { InMemoryRepo, createPending, applyCard, undoCard, type IntakeCard } fro
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
+import { buildWriteoffOps } from '../src/post-cook.js';
 
 describe('before у картці списання', () => {
   let repo: InMemoryRepo; let app: ReturnType<typeof buildApp>; let mailer: ConsoleMailer;
@@ -115,5 +116,92 @@ describe('before у картці списання', () => {
     // лишається записом про те, що БУЛО зроблено й відкочено, а не обіцянкою.
     expect((await repo.getPending(message_id))?.undone_at).toBeTruthy();
     await expect(applyCard(repo, message_id, [], me.user_id)).rejects.toThrow(/undone/);
+  });
+});
+
+// §2а спека (30.09): готування з пачки дає ПАРУ операцій — «−1 шт» і «+залишок».
+// Людина при цьому списала частину пачки, а не «мінус штука, плюс грами». Тому
+// сервер позначає пару: скільки саме пішло в страву (`used`) і який рядок є
+// залишком (`remainder`). Веб малює один рядок «−250 г» і залишок не рахує.
+describe('used і remainder після готування', () => {
+  let repo2: InMemoryRepo; let app2: ReturnType<typeof buildApp>; let mailer2: ConsoleMailer;
+  beforeEach(async () => {
+    repo2 = new InMemoryRepo(); mailer2 = new ConsoleMailer();
+    app2 = buildApp(repo2, new InMemoryStore(), mailer2); await app2.ready();
+  });
+
+  const seedPack = async (h: string, u: string, qty: number, pack: number) => {
+    const message_id = randomUUID();
+    await createPending(repo2, {
+      message_id, household_id: h, user_id: u,
+      card: { type: 'intake_diff', ops: [{ op: 'add', label: 'макарони', qty, pack: { v: pack, u: 'g' }, zone: 'dry' }] },
+    });
+    await applyCard(repo2, message_id, [], u);
+    return (await repo2.listBatches(h)).find((b) => b.label === 'макарони')!;
+  };
+
+  it('пачка 2×500 г, рецепт бере 250 г → correct.used 250 г і add.remainder', async () => {
+    const me = await signIn(app2, mailer2, 'u1@example.com');
+    const batch = await seedPack(me.household_id, me.user_id, 2, 500);
+    const ops = await buildWriteoffOps(repo2, me.household_id, {
+      ing: [{ p: batch.id, n: 'макарони', v: 250, u: 'g' }],
+    } as never);
+
+    const corr = ops.find((o) => o.op === 'correct')!;
+    // Штуки лишаються штуками — але поруч стоїть, скільки пішло в страву.
+    expect(corr).toMatchObject({ op: 'correct', unit: 'pcs', used: { value: 250, unit: 'g' } });
+    const add = ops.find((o) => o.op === 'add')!;
+    expect(add).toMatchObject({ remainder: true, value: 250, unit: 'g' });
+  });
+
+  it('вагова партія 500 г, рецепт бере 320 г → used 320 г поруч із залишком 180', async () => {
+    const me = await signIn(app2, mailer2, 'u2@example.com');
+    const message_id = randomUUID();
+    await createPending(repo2, {
+      message_id, household_id: me.household_id, user_id: me.user_id,
+      card: { type: 'intake_diff', ops: [{ op: 'add', label: 'фарш', value: 500, unit: 'g', zone: 'fridge' }] },
+    });
+    await applyCard(repo2, message_id, [], me.user_id);
+    const batch = (await repo2.listBatches(me.household_id)).find((b) => b.label === 'фарш')!;
+
+    const ops = await buildWriteoffOps(repo2, me.household_id, {
+      ing: [{ p: batch.id, n: 'фарш', v: 320, u: 'g' }],
+    } as never);
+    expect(ops[0]).toMatchObject({ op: 'correct', value: 180, unit: 'g', used: { value: 320, unit: 'g' } });
+  });
+
+  it('партія менша за потрібне → deplete, і used каже, що пішла вся', async () => {
+    const me = await signIn(app2, mailer2, 'u3@example.com');
+    const message_id = randomUUID();
+    await createPending(repo2, {
+      message_id, household_id: me.household_id, user_id: me.user_id,
+      card: { type: 'intake_diff', ops: [{ op: 'add', label: 'вершки', value: 200, unit: 'ml', zone: 'fridge' }] },
+    });
+    await applyCard(repo2, message_id, [], me.user_id);
+    const batch = (await repo2.listBatches(me.household_id)).find((b) => b.label === 'вершки')!;
+
+    const ops = await buildWriteoffOps(repo2, me.household_id, {
+      ing: [{ p: batch.id, n: 'вершки', v: 500, u: 'ml' }],
+    } as never);
+    expect(ops[0]).toMatchObject({ op: 'deplete', used: { value: 200, unit: 'ml' } });
+  });
+
+  it('залишок з уже відкритої пачки: used на ній — саме взяте, не весь залишок', async () => {
+    const me = await signIn(app2, mailer2, 'u4@example.com');
+    const pack = await seedPack(me.household_id, me.user_id, 2, 500);
+    // Відкрита пачка того самого продукту з 300 г — беруть спершу з неї.
+    const open_id = randomUUID();
+    await createPending(repo2, {
+      message_id: open_id, household_id: me.household_id, user_id: me.user_id,
+      card: { type: 'intake_diff', ops: [{ op: 'add', label: 'макарони', value: 300, unit: 'g', zone: 'dry', state: 'opened' }] },
+    });
+    await applyCard(repo2, open_id, [], me.user_id);
+
+    const ops = await buildWriteoffOps(repo2, me.household_id, {
+      ing: [{ p: pack.id, n: 'макарони', v: 100, u: 'g' }],
+    } as never);
+    // 100 г цілком беруться з відкритих 300 → лишається 200, пачку не чіпаємо.
+    expect(ops).toHaveLength(1);
+    expect(ops[0]).toMatchObject({ op: 'correct', value: 200, unit: 'g', used: { value: 100, unit: 'g' } });
   });
 });
