@@ -674,6 +674,29 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(await repo.getRetailConnection(user_id, 'silpo')).toBeNull();
     });
 
+    // Знімок «що було» лежить усередині JSON-картки, тобто міграції не
+    // потребує, — але саме тому варто переконатись, що він доживає до бази й
+    // назад, а не гине в маперах.
+    it('updateMessageCard: before в операції переживає перезавантаження', async () => {
+      const { repo, user_id } = ctx;
+      const session = await repo.getOrCreateSessionForDay(user_id, '2026-09-02');
+      const mid = randomUUID();
+      await repo.saveMessage({
+        id: mid, session_id: session.id, role: 'assistant', text: 'списав',
+        card: { type: 'intake_diff', ops: [{ op: 'deplete', label: 'сир' }] },
+        applied: 0, created_at: new Date().toISOString(),
+      });
+      await repo.updateMessageCard(mid, {
+        type: 'intake_diff',
+        ops: [{ op: 'deplete', label: 'сир', batch_id: 'b1', before: { value: 300, unit: 'g' } }],
+        source: { kind: 'cook', at: '2026-09-30T10:00:00.000Z', run_id: 'r1' },
+      });
+      const back = (await repo.listMessages(session.id)).find((m) => m.id === mid);
+      const card = back?.card as { ops: { before?: { value: number; unit: string } }[]; source?: { kind: string } };
+      expect(card.ops[0]?.before).toEqual({ value: 300, unit: 'g' });
+      expect(card.source?.kind).toBe('cook');
+    });
+
     it('updateMessageCard: заміна в кошику переживає перезавантаження', async () => {
       const { repo, user_id } = ctx;
       const session = await repo.getOrCreateSessionForDay(user_id, '2026-09-01');
