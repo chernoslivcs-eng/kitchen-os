@@ -32,41 +32,6 @@
   flex-direction: column;
   padding: 16px 24px 20px;
   gap: 16px;
-  /* Макет 30.09: плашка фонового таймера позиціонується щодо цього шару —
-     «чубчик» лягає на top:0, тобто на межу шапки, не зсуваючи нічого. */
-  position: relative;
-}
-
-/* ── Плашка фонового таймера (макет 30.09, COOK-TIMERS-BRIEF-0930) ───────
-   Шар-«привид», що дзеркалить грід .body (клемп 280–360 + фокус) — так сама
-   плашка centers over «колонку фокуса», не над усім .screen, без виміру
-   ширини маршруту в JS. pointer-events: none на шарі й колонці — клікабельна
-   лише сама картка тоста (toast-slot). */
-.toast-layer {
-  position: absolute;
-  top: 0; left: 24px; right: 24px;
-  z-index: 80;
-  display: grid;
-  grid-template-columns: clamp(280px, 30%, 360px) minmax(0, 1fr);
-  gap: 20px;
-  pointer-events: none;
-}
-.toast-col {
-  grid-column: 2;
-  position: relative;
-  justify-self: center;
-  width: 100%;
-  max-width: 520px;
-}
-/* Стос: новіша плашка — top:0 (найвищий z), старіша зʼїжджає на 56 px тим
-   самим рухом (моушн-пас макета) — інлайновий transform/z-index ставить Cook.tsx. */
-.toast-slot {
-  position: absolute; top: 0; left: 0; right: 0;
-  pointer-events: auto;
-  transition: transform var(--dur-base) cubic-bezier(.2, .8, .2, 1);
-}
-@media (prefers-reduced-motion: reduce) {
-  .toast-slot { transition: none; }
 }
 
 /* ≥1024 (Prototype): рейка лишається видимою зліва — попап займає main.
@@ -77,7 +42,7 @@
 }
 
 /* ── Шапка ─────────────────────────────────────────────────────────────── */
-.head { display: flex; align-items: center; gap: 12px; flex: none; }
+.head { display: flex; align-items: center; gap: 12px; flex: none; position: relative; }
 /* Р6 (spec 18.09): danger-токен палітри, як в інших danger-кнопках (Pantry
    .card-remove, Feed .att-remove) — не новий колір. */
 .exit {
@@ -93,6 +58,47 @@
   display: flex; align-items: center; justify-content: center; gap: 8px;
   font-family: var(--font-body); font-size: 15px; font-weight: 600; color: var(--ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* Перегляд ГОЛОВНИЙ ЧАТ (плашка ≥768): заголовок по центру шапки — та сама
+     позиція, де центрується плашка (не колонка фокуса). Гасне на час показу
+     плашки (Cook.tsx ставить data-toast-active), інакше плашка ріже його
+     з середини за будь-якої довжини назви. */
+  transition: opacity var(--dur-fast) linear;
+}
+.head-title[data-toast-active] { opacity: 0; }
+
+/* ── Плашка фонового таймера (макет 30.09, COOK-TIMERS-BRIEF-0930) ───────
+   Дитина .head (не .screen!) — так позиція й розмір автоматично збігаються
+   з реальною шапкою на КОЖНІЙ ширині (враховує .segments над шапкою на
+   <768 без жодних чисел вручну: .head сам стоїть під ними в потоці).
+   Вертикальне центрування без виміру висоти в JS: .toast-col ставиться на
+   top:50% шапки, а кожен .toast-slot центрує САМЕ СЕБЕ через
+   translateY(-50% від власної висоти) — CSS-відсоток у transform завжди
+   рахується від висоти самого елемента, не батька, тож це працює навіть
+   якщо в батька (.toast-col) немає власної висоти (усі діти — absolute). */
+.toast-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+}
+.toast-col {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  /* ≥768 і ≥1024 — той самий toastMax макета (W(), успадковано в COOK·768). */
+  max-width: 520px;
+}
+/* Стос: новіша плашка — «нульове» зміщення (найвищий z), старіша зʼїжджає
+   на 56 px тим самим рухом (моушн-пас макета) — Cook.tsx додає це зміщення
+   ДО -50% у тому самому inline transform. */
+.toast-slot {
+  position: absolute; top: 0; left: 0; right: 0;
+  pointer-events: auto;
+  transition: transform var(--dur-base) cubic-bezier(.2, .8, .2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-slot { transition: none; }
 }
 /* 12.09 (A7): тема — один тогл sun-moon у круглій кнопці .round; сегмент sun/moon знято. */
 .round {
@@ -284,10 +290,6 @@
 /* ── 768–1023 («Cook · 768») — за шириною попапа (№9) ──────────────────── */
 @container cook (max-width: 1023px) {
   .screen { padding: 0; gap: 0; }
-  /* 768: .body вже не грід (флекс-колонка) — «привид»-грід над фокус-колонкою
-     тут ні до чого; плашка просто центрується своєю шириною. */
-  .toast-layer { left: 20px; right: 20px; display: block; }
-  .toast-col { max-width: 480px; margin: 0 auto; }
   .head { height: 64px; padding: 0 20px; gap: 10px; }
   .exit { height: 38px; padding: 0 14px 0 10px; }
   .round { width: 38px; height: 38px; }
@@ -339,9 +341,6 @@
 
 /* ── <768 («Cook · 390») — за шириною попапа (№9) ─────────────────────── */
 @container cook (max-width: 767px) {
-  /* Макет 30.09: 390 — на всю ширину з полями 12, top 4. */
-  .toast-layer { left: 12px; right: 12px; top: 4px; }
-  .toast-col { max-width: none; }
   .segments { display: flex; gap: 5px; padding: 14px 16px 0; flex: none; }
   .seg { flex: 1; height: 4px; border: 0; border-radius: 2px; background: var(--line2); padding: 0; pointer-events: none; }
   .seg-done { background: var(--sage); }

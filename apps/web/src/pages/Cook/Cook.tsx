@@ -613,25 +613,6 @@ export function CookOverlay() {
   return (
     <div className={styles.shell} data-cook-mode>
     <div className={styles.screen}>
-      {/* Макет 30.09 (§2.2): плашка добіглого фонового таймера — «чубчик»
-          поверх шапки, центрована над колонкою фокуса на 1440. Стос:
-          новіша top:0/найвищий z, старіша зʼїжджає на 56 px тим самим рухом. */}
-      {bgToasts.length > 0 && (
-        <div className={styles['toast-layer']}>
-          <div className={styles['toast-col']}>
-            {bgToasts.map((t, i) => {
-              const fromEnd = bgToasts.length - 1 - i;
-              return (
-                <div key={t.id} className={styles['toast-slot']} style={{ transform: `translateY(${fromEnd * 56}px)`, zIndex: 80 - fromEnd }}>
-                  <Toast text=" · час вийшов" lead={t.text} tone="sage" placement="chin" closable
-                    onDismiss={() => removeBgToast(t.id)}
-                    onTap={() => { goToStep(t.stepIdx); removeBgToast(t.id); }} />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
       {/* 390: сегменти прогресу вгорі — лише індикатор (0912 C: 4 px не ціль дотику;
           перехід — кроками-пілюлями в шторці та «← →»). */}
       <div className={styles.segments} aria-hidden>
@@ -651,10 +632,37 @@ export function CookOverlay() {
           <span className={styles['step-pill-gap']} />
           <Icon name="cook.steps" size={16} inherit decorative />
         </button>
-        <span className={styles['head-title']}><Icon name={dishIcon(recipe.t)} size={16} inherit decorative />{recipe.t}</span>
+        {/* Перегляд ГОЛОВНИЙ ЧАТ (плашка): заголовок гасне (opacity 120мс),
+            поки плашка показана — інакше вона ріже його з середини (центр
+            шапки — та сама позиція, де центрується заголовок). */}
+        <span className={styles['head-title']} data-toast-active={bgToasts.length > 0 || undefined}>
+          <Icon name={dishIcon(recipe.t)} size={16} inherit decorative />{recipe.t}
+        </span>
         <button type="button" className={styles.exit} data-tap onClick={exitToOrigin} data-exit>
           <Icon name="sys.close" size={16} inherit decorative /><span className={styles['exit-text']}>Вийти</span>
         </button>
+        {/* Макет 30.09 (§2.2), перегляд ГОЛОВНИЙ ЧАТ: плашка — дитина САМОЇ
+            шапки (не .screen) — позиція й розмір завжди збігаються з
+            реальною шапкою на будь-якій ширині, без ручних чисел на
+            брейкпоінт (враховує .segments над шапкою на <768 через звичайний
+            потік документа). Стос: новіша — нульове зміщення (найвищий z),
+            старіша зʼїжджає на 56 px тим самим рухом. */}
+        {bgToasts.length > 0 && (
+          <div className={styles['toast-layer']}>
+            <div className={styles['toast-col']}>
+              {bgToasts.map((t, i) => {
+                const fromEnd = bgToasts.length - 1 - i;
+                return (
+                  <div key={t.id} className={styles['toast-slot']} style={{ transform: `translateY(calc(-50% + ${fromEnd * 56}px))`, zIndex: 80 - fromEnd }}>
+                    <Toast text=" · час вийшов" lead={t.text} tone="sage" placement="chin" closable
+                      onDismiss={() => removeBgToast(t.id)}
+                      onTap={() => { goToStep(t.stepIdx); removeBgToast(t.id); }} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </header>
 
       <div className={styles.body}>
