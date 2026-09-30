@@ -4,7 +4,34 @@
 // цього тесту, щоб не переzavantaжувати модуль). PLANS = buildPlans(BETA_PLAN)
 // перевіряється окремо — фіксує, що прапорець зараз дійсно true.
 import { describe, it, expect } from 'vitest';
-import { buildPlans, BETA_PLAN, PLANS, PRICE } from './copy';
+import { buildPlans, BETA_PLAN, PLANS, PRICE, HERO, FOOTER } from './copy';
+
+// Рішення власника 30.09: нове копі першого екрана — гасло «Кухня, яка
+// памʼятає» на паузі (не вживати в нових матеріалах), лід коротшає до
+// одного речення з «нема з чого» в лапках.
+describe('HERO · копі 30.09', () => {
+  it('a/b — нове гасло, «Готуй з того, що вже є» без змін', () => {
+    expect(HERO.a).toBe('Продукти є. Вечері немає.');
+    expect(HERO.b).toBe('Готуй з того, що вже є.');
+  });
+
+  it('lead і leadMobile — однакові, з «нема з чого» в українських лапках', () => {
+    expect(HERO.lead).toBe('Готувати вдома може бути легко. Щодня, без плану і без «нема з чого».');
+    expect(HERO.leadMobile).toBe(HERO.lead);
+  });
+
+  it('стара слоган-фраза ніде в HERO/FOOTER не лишилась', () => {
+    expect(Object.values(HERO)).not.toContain('Кухня, яка памʼятає.');
+    expect(FOOTER.tagline).not.toBe('Кухня, яка памʼятає.');
+  });
+});
+
+describe('FOOTER · копі 30.09', () => {
+  it('tagline/taglineLong — «Готуй з того, що вже є», без картки', () => {
+    expect(FOOTER.tagline).toBe('Готуй з того, що вже є.');
+    expect(FOOTER.taglineLong).toBe('Готуй з того, що вже є. Без реклами й проплачених пропозицій усередині.');
+  });
+});
 
 describe('buildPlans(false) — рівно PR #208, без слідів картки «Бета-тест»', () => {
   const plans = buildPlans(false);
