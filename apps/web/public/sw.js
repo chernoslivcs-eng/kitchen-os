@@ -7,7 +7,8 @@
 // вибиваєтся в activate. Без цього після деплою PWA лишалась із застарілим
 // index.html.
 
-const CACHE_VERSION = 'kitchen-os-' + (new URL(self.location.href).searchParams.get('v') || 'dev');
+const CACHE_PREFIX = 'kitchen-os-';
+const CACHE_VERSION = CACHE_PREFIX + (new URL(self.location.href).searchParams.get('v') || 'dev');
 const OFFLINE_FALLBACK = '/index.html';
 
 self.addEventListener('install', (event) => {
@@ -19,13 +20,32 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
+// Лишаємо ДВІ версії: поточну й одну попередню.
+//
+// Раніше activate зносив усе, крім нової. Але skipWaiting + clients.claim
+// означають, що нова SW перехоплює ВЖЕ ВІДКРИТІ вкладки — і разом із кешем
+// зникали чанки, на які ті вкладки досі посилаються. Далі сторінка йшла по
+// них у мережу й отримувала 404: саме так народився `vite:preloadError`,
+// заради якого писався обробник у lib/preload-error.ts.
+//
+// Попередню впізнаємо за іменем: версія — це Date.now().toString(36) з білду
+// (vite.config.ts). Такі рядки мають однакову довжину (вісім символів аж до
+// 2059 року), а в base36 цифри йдуть перед літерами і за значенням, і в ASCII
+// — тож звичайне сортування рядків збігається з хронологічним. Перевірено, а
+// не припущено.
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    const ours = keys.filter((k) => k.startsWith(CACHE_PREFIX));
+    // Найсвіжіша з ЧУЖИХ (не поточної) — і є попередня.
+    const previous = ours.filter((k) => k !== CACHE_VERSION).sort().pop();
+    const keep = new Set([CACHE_VERSION]);
+    if (previous) keep.add(previous);
+    // Видаляємо лише СВОЇ: кеш під чужим іменем на цьому домені — не наш, щоб
+    // його зносити. Раніше цикл ішов по всіх ключах поспіль.
+    await Promise.all(ours.filter((k) => !keep.has(k)).map((k) => caches.delete(k)));
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('fetch', (event) => {
