@@ -123,4 +123,30 @@ describe('відновлення сесії в StrictMode (перегляд ГО
     expect(stepText()).toBe('Тушкувати соус.'); // крок ІЗ ПЛАШКИ (2), не saved.stepIdx (0)
     expect(timerValue()).toBe('0:00');
   });
+
+  // Перегляд (ГОЛОВНИЙ ЧАТ, feat/cook-timer-toast, 30.09): звіт про той самий
+  // клас бага, але на версії файлу ДО buildResumePlan — там перший рендер ще
+  // мав stepIdx=0 (useState(startAt ?? 0)), а resume-ефект переставляв його
+  // на saved.stepIdx ПІЗНІШЕ; фоновий таймер, збережений саме під ключем "0",
+  // збігався з тим тимчасовим stepIdx=0 і StrictMode стирав його другим
+  // проходом. buildResumePlan (комент вище, №811e2877) прибрав саму умову
+  // збігу — stepIdx уже правильний (2) на першому рендері, тож ефект зміни
+  // кроку на монтуванні взагалі не займає ключ "0". Пін навмисно з ключем
+  // "0" (а не 2, як у тестах вище) — саме це число називав звіт.
+  it('фоновий таймер під ключем "0" переживає монтування, коли resume веде на інший крок', async () => {
+    const now = Date.now();
+    saveCookSession({
+      recipe: RECIPE, stepIdx: 2, secondsLeft: 60, deadline: now + 10_000,
+      done: [0, 1], timers: { 0: { deadline: now + 5_000, left: 0 } },
+    });
+    await mount(); // звичайне «Готуємо», без startAt — saved.stepIdx (2) як є
+    expect(stepText()).toBe('Тушкувати соус.');
+    const backBtn = host!.querySelector('[data-step-back]') as HTMLButtonElement;
+    await act(async () => { backBtn.click(); });
+    await act(async () => { backBtn.click(); });
+    expect(stepText()).toBe('Зварити пасту.'); // повернулись на крок 0
+    // Якби StrictMode стер timersRef.current[0], таймер тут був би повним
+    // (60с, «Старт») замість залишку, що й досі біжить («Пауза»).
+    expect(host!.querySelector('[data-timer-toggle]')!.textContent).toContain('Пауза');
+  });
 });
