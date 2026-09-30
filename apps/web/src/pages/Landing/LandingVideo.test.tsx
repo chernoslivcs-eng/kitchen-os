@@ -57,14 +57,14 @@ describe('бульбашка/блок — перемикач за шириною
   it('≥1024 — бульбашка, без блоку', async () => {
     mockMatchMedia(true);
     await mount();
-    expect(host!.querySelector('[aria-label="Відкрити відео про Kitchen OS"]')).toBeTruthy();
-    expect(host!.textContent).toContain('1:19');
+    expect(document.querySelector('[aria-label="Відкрити відео про Kitchen OS"]')).toBeTruthy();
+    expect(document.body.textContent).toContain('1:19');
   });
 
   it('<1024 — блок у потоці, без бульбашки-картки з підписом', async () => {
     mockMatchMedia(false);
     await mount();
-    expect(host!.textContent).not.toContain('Як це працює ·');
+    expect(document.body.textContent).not.toContain('Як це працює ·');
   });
 });
 
@@ -72,47 +72,47 @@ describe('плеєр — відкриття й закриття', () => {
   it('тап по бульбашці відкриває плеєр з відео', async () => {
     mockMatchMedia(true);
     await mount();
-    const bubble = host!.querySelector('[aria-label="Відкрити відео про Kitchen OS"]') as HTMLElement;
+    const bubble = document.querySelector('[aria-label="Відкрити відео про Kitchen OS"]') as HTMLElement;
     await act(async () => { bubble.click(); });
-    expect(host!.querySelector('video[src="/video/showreel-full.mp4"]')).toBeTruthy();
+    expect(document.querySelector('video[src="/video/showreel-full.mp4"]')).toBeTruthy();
   });
 
   it('Esc закриває плеєр', async () => {
     mockMatchMedia(true);
     await mount();
-    const bubble = host!.querySelector('[aria-label="Відкрити відео про Kitchen OS"]') as HTMLElement;
+    const bubble = document.querySelector('[aria-label="Відкрити відео про Kitchen OS"]') as HTMLElement;
     await act(async () => { bubble.click(); });
-    expect(host!.querySelector('[role="dialog"]')).toBeTruthy();
+    expect(document.querySelector('[role="dialog"]')).toBeTruthy();
     await act(async () => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
-    expect(host!.querySelector('[role="dialog"]')).toBeFalsy();
+    expect(document.querySelector('[role="dialog"]')).toBeFalsy();
   });
 
   it('клік по хрестику закриває плеєр', async () => {
     mockMatchMedia(true);
     await mount();
-    const bubble = host!.querySelector('[aria-label="Відкрити відео про Kitchen OS"]') as HTMLElement;
+    const bubble = document.querySelector('[aria-label="Відкрити відео про Kitchen OS"]') as HTMLElement;
     await act(async () => { bubble.click(); });
-    const close = host!.querySelector('[aria-label="Закрити відео"]') as HTMLElement;
+    const close = document.querySelector('[aria-label="Закрити відео"]') as HTMLElement;
     await act(async () => { close.click(); });
-    expect(host!.querySelector('[role="dialog"]')).toBeFalsy();
+    expect(document.querySelector('[role="dialog"]')).toBeFalsy();
   });
 
   it('клік по бекдропу (не по панелі) закриває плеєр', async () => {
     mockMatchMedia(true);
     await mount();
-    const bubble = host!.querySelector('[aria-label="Відкрити відео про Kitchen OS"]') as HTMLElement;
+    const bubble = document.querySelector('[aria-label="Відкрити відео про Kitchen OS"]') as HTMLElement;
     await act(async () => { bubble.click(); });
-    const backdrop = host!.querySelector('[role="presentation"]') as HTMLElement;
+    const backdrop = document.querySelector('[role="presentation"]') as HTMLElement;
     await act(async () => { backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
-    expect(host!.querySelector('[role="dialog"]')).toBeFalsy();
+    expect(document.querySelector('[role="dialog"]')).toBeFalsy();
   });
 
   it('тап по блоку (<1024) теж відкриває той самий плеєр', async () => {
     mockMatchMedia(false);
     await mount();
-    const block = host!.querySelector('[aria-label="Відкрити відео про Kitchen OS"]') as HTMLElement;
+    const block = document.querySelector('[aria-label="Відкрити відео про Kitchen OS"]') as HTMLElement;
     await act(async () => { block.click(); });
-    expect(host!.querySelector('video[src="/video/showreel-full.mp4"]')).toBeTruthy();
+    expect(document.querySelector('video[src="/video/showreel-full.mp4"]')).toBeTruthy();
   });
 });
 
@@ -120,14 +120,14 @@ describe('«сховати» бульбашку — до кінця сесії',
   it('хрестик бульбашки ховає її й пише в sessionStorage; після перемонтування лишається схованою', async () => {
     mockMatchMedia(true);
     await mount();
-    const dismiss = host!.querySelector('[aria-label="Сховати відео"]') as HTMLElement;
+    const dismiss = document.querySelector('[aria-label="Сховати відео"]') as HTMLElement;
     await act(async () => { dismiss.click(); });
     expect(sessionStorage.getItem('kos-video-bubble-dismissed')).toBe('1');
-    expect(host!.querySelector('[aria-label="Відкрити відео про Kitchen OS"]')).toBeFalsy();
+    expect(document.querySelector('[aria-label="Відкрити відео про Kitchen OS"]')).toBeFalsy();
 
     await act(async () => { root?.unmount(); });
     host!.remove();
     await mount();
-    expect(host!.querySelector('[aria-label="Відкрити відео про Kitchen OS"]')).toBeFalsy();
+    expect(document.querySelector('[aria-label="Відкрити відео про Kitchen OS"]')).toBeFalsy();
   });
 });

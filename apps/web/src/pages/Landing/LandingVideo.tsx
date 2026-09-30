@@ -3,6 +3,7 @@
 // поріг матчмедіа, ОКРЕМИЙ від bp лендінгу (desk/tab/mob, useBreakpoint), бо
 // бриф ділить рівно на 1024, а не на 768/1280. Плеєр — один на обидві ширини.
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from '../../components/Icon/Icon';
 import { lockBodyScroll } from '../../lib/lockBodyScroll';
 import { useBackdropClose } from '../../lib/backdrop-close';
@@ -61,7 +62,11 @@ export function VideoBubble({ onOpen, onDismiss, footerRef }: BubbleProps) {
     return () => io.disconnect();
   }, [footerRef]);
 
-  return (
+  // Портал у body: .page.desk має CSS zoom (useFrameZoom, «плинний» 1920-канвас
+  // на вужчих ширинах) — zoom, на відміну від transform, масштабує й
+  // position:fixed нащадків, тож бульбашка й плеєр мусять жити ПОЗА цим
+  // деревом, інакше 240px на 1440 рендериться як 240×(1440/1920)=180px.
+  return createPortal(
     <div className={styles.bubbleWrap} data-hide={nearFooter || undefined}>
       <span className={styles.bubbleCaption}>{VIDEO.caption} · {VIDEO.duration}</span>
       <div
@@ -84,7 +89,8 @@ export function VideoBubble({ onOpen, onDismiss, footerRef }: BubbleProps) {
           <Icon name="sys.close" size={12} inherit decorative />
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -133,7 +139,7 @@ export function VideoPlayerOverlay({ onClose }: { onClose: () => void }) {
   }, [close]);
 
   const backdrop = useBackdropClose(close);
-  return (
+  return createPortal(
     <div {...backdrop} role="presentation" className={styles.playerBackdrop}>
       <div
         ref={panelRef} onClick={(e) => e.stopPropagation()}
@@ -145,6 +151,7 @@ export function VideoPlayerOverlay({ onClose }: { onClose: () => void }) {
         </button>
         <video ref={videoRef} className={styles.playerVideo} src={VIDEO_FULL} poster={VIDEO_POSTER} controls autoPlay playsInline />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
