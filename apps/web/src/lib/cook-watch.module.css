@@ -1,0 +1,33 @@
+/* Макет 30.09 (COOK-TIMERS-BRIEF-0930, §2.3): плашка поза кукінг-модом —
+   поверх усього застосунку, зверху по центру. GlobalCookAlarm мониться на
+   App-рівні (App.tsx), тому позиція — fixed щодо вʼюпорту, не щодо якогось
+   локального контейнера (на відміну від Cook.module.css .toast-layer, що
+   дзеркалить грід колонки фокуса лише всередині кукінг-моду). */
+.layer {
+  position: fixed;
+  top: env(safe-area-inset-top, 0px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 85;
+  width: 100%;
+  max-width: 620px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.col {
+  position: relative;
+}
+/* Стос: новіша плашка — top:0 (найвищий z), старіша зʼїжджає на 56 px тим
+   самим рухом (моушн-пас макета) — інлайновий transform/z-index ставить cook-watch.tsx. */
+.slot {
+  position: absolute; top: 0; left: 0; right: 0;
+  pointer-events: auto;
+  transition: transform var(--dur-base) cubic-bezier(.2, .8, .2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .slot { transition: none; }
+}
+@media (max-width: 767px) {
+  .layer { padding: 0 12px; top: calc(4px + env(safe-area-inset-top, 0px)); }
+}

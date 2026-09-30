@@ -178,6 +178,34 @@ function tryPlaybackSession(): void {
   } catch { /* нема або відмовив — Web Audio й так спробує на голу гучність */ }
 }
 
+/**
+ * §4.5: кнопка звуку кукінг-моду — три стани по колу.
+ * `on` — тікання й аларм; `signal` («лише сигнал»/«лише аларм» у різних
+ * редакціях тексту, той самий стан) — без тікання, аларм звучить; `off`
+ * («тиша»/«без звуку») — без звуку взагалі, вібро й системна нотифікація
+ * лишаються (це рівень Cook.tsx/ringAlarm, сесії не стосується).
+ */
+export type SoundMode = 'on' | 'signal' | 'off';
+const SOUND_MODE_KEY = 'kos-cook-sound-mode';
+const SOUND_MODES: readonly SoundMode[] = ['on', 'signal', 'off'];
+
+/** Наступний стан по колу — та сама послідовність, що й макет: звук → лише сигнал → тиша → звук. */
+export function nextSoundMode(m: SoundMode): SoundMode {
+  return SOUND_MODES[(SOUND_MODES.indexOf(m) + 1) % SOUND_MODES.length]!;
+}
+
+function loadSoundMode(): SoundMode {
+  try {
+    const v = window.localStorage?.getItem(SOUND_MODE_KEY);
+    if (v === 'on' || v === 'signal' || v === 'off') return v;
+  } catch { /* localStorage недоступний (приватне вікно, SSR-тест) — типовий стан */ }
+  return 'on';
+}
+
+function saveSoundMode(m: SoundMode): void {
+  try { window.localStorage?.setItem(SOUND_MODE_KEY, m); } catch { /* тихо — не критично */ }
+}
+
 /** §5: «left», яке зараз на екрані — початок поточної секунди відліку. */
 export function currentLeft(deadlineMs: number, nowMs: number): number {
   return Math.ceil((deadlineMs - nowMs) / 1000);
@@ -211,7 +239,7 @@ export class CookAudioSession {
   // stopTicking/mute глушать ВИХІД шини миттєво (gain→0), і те, що вже
   // лежить у графі, долунює нечутно, замість ще майже секунди цокати
   // старим планом. Аларм — повз шину, напряму в master: його вимикає
-  // окрема перевірка `muted` перед стартом, не гейт.
+  // окрема перевірка режиму (`mode === 'off'`) перед стартом, не гейт.
   //
   // Перегляд 30.09, раунд 2 (issue D): шина ОДНОРАЗОВА — нова щоразу на
   // startTicking, не одна на все життя контексту. Причина: gain→0 глушить
@@ -226,7 +254,13 @@ export class CookAudioSession {
   private timer: number | null = null;
   private deadline: number | null = null;
   private lastScheduledLeft: number | null = null;
-  private muted = false;
+  // §4.5 (макет 30.09, бриф COOK-TIMERS-BRIEF-0930): три стани по колу
+  // («звук» → «лише сигнал» → «тиша»), не двостановий mute. «лише сигнал» —
+  // без тікання, аларм звучить; «тиша» — без звуку взагалі (вібро й
+  // нотифікація лишаються, це Cook.tsx/ringAlarm, тут їх нема). Читається з
+  // localStorage при народженні сесії — діє і для аларму поза кукінг-модом,
+  // бо GlobalCookAlarm бере ту саму спільну сесію (issue #3).
+  private mode: SoundMode = loadSoundMode();
   // Перегляд 30.09, раунд 2 (issue A): бажаний стан шини — ЄДИНЕ джерело
   // правди для порівняння. AudioParam.value НЕ читаємо ніде: у реальному
   // браузері геттер не встигає синхронно відобразити щойно записане —
@@ -257,12 +291,17 @@ export class CookAudioSession {
     return this.ctx;
   }
 
-  /** §4.5: двостановий перемикач власника (три стани — окремий крок макетів).
-   *  Гейт синхронізується ОДРАЗУ — мут глушить і посеред секунди, не з
-   *  наступним запланованим тактом. */
-  setMuted(m: boolean): void {
-    this.muted = m;
-    this.applyGate(!m);
+  /** §4.5: перемикач власника — три стани по колу. Гейт синхронізується
+   *  ОДРАЗУ — перехід у «лише сигнал»/«тиша» глушить тікання й посеред
+   *  секунди, не з наступним запланованим тактом. */
+  setMode(m: SoundMode): void {
+    this.mode = m;
+    saveSoundMode(m);
+    this.applyGate(m === 'on');
+  }
+
+  getMode(): SoundMode {
+    return this.mode;
   }
 
   /** issue A: єдине місце, що пише в AudioParam шини — завжди cancel+set,
@@ -280,7 +319,7 @@ export class CookAudioSession {
 
   private syncGate(): void {
     if (!this.ctx || !this.tickGate) return;
-    const want = !this.muted;
+    const want = this.mode === 'on';
     if (this.gateOpen !== want) this.applyGate(want);
   }
 
@@ -304,7 +343,7 @@ export class CookAudioSession {
     this.deadline = deadlineMs;
     this.alarmScheduled = false; // issue B: нове тікання — аларм цього дедлайну ще не грав.
     // issue A: примусово, не через syncGate/порівняння — «на старті завжди».
-    this.applyGate(!this.muted);
+    this.applyGate(this.mode === 'on');
     this.scheduleNext();
   }
 
@@ -365,7 +404,8 @@ export class CookAudioSession {
   private commitAlarm(at: number): void {
     if (this.alarmScheduled || !this.ctx || !this.master) return;
     this.alarmScheduled = true;
-    if (!this.muted) alarm(this.ctx, this.master, Math.max(at, this.ctx.currentTime));
+    // §4.5: «лише сигнал» ще дзвонить — глушиться лише «тиша».
+    if (this.mode !== 'off') alarm(this.ctx, this.master, Math.max(at, this.ctx.currentTime));
   }
 
   /**
@@ -379,7 +419,7 @@ export class CookAudioSession {
   ensureAlarm(): void {
     if (this.alarmScheduled) return;
     this.alarmScheduled = true;
-    if (this.muted) return;
+    if (this.mode === 'off') return;
     const ctx = this.ensure();
     if (!ctx || !this.master) return;
     alarm(ctx, this.master, ctx.currentTime + 0.04);
@@ -409,7 +449,7 @@ export class CookAudioSession {
 
   /** §4.4/§2.1/§2.2/§2.3: аларм один раз — той самий звук для кроку, фону й закритого кукінг-моду. */
   playAlarm(): void {
-    if (this.muted) return;
+    if (this.mode === 'off') return;
     const ctx = this.ensure();
     if (!ctx || !this.master) return;
     alarm(ctx, this.master, ctx.currentTime + 0.04);

@@ -14,7 +14,16 @@ import {
   tick, five, minute, alarm, second, secondFrom,
   currentLeft, boundaryAudioTime, rearmDelayMs,
   CookAudioSession, ringAlarm, getCookAudioSession, closeCookAudioSession,
+  nextSoundMode,
 } from './cook-sound';
+
+describe('nextSoundMode · §4.5 три стани по колу', () => {
+  it('звук → лише сигнал → тиша → звук', () => {
+    expect(nextSoundMode('on')).toBe('signal');
+    expect(nextSoundMode('signal')).toBe('off');
+    expect(nextSoundMode('off')).toBe('on');
+  });
+});
 
 describe('headOf · §4.3 акценти', () => {
   it('кратне 60 — хвилина', () => { expect(headOf(60)).toBe('minute'); expect(headOf(120)).toBe('minute'); });
@@ -301,6 +310,9 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
     gains = [];
     gainNodes = [];
     ctxInstances = 0;
+    // §4.5: режим звуку тепер персистить у localStorage (читається при
+    // народженні сесії) — без чищення один тест лишав би режим наступному.
+    localStorage.clear();
     const origin = Date.now();
     vi.stubGlobal('AudioContext', class {
       constructor() { ctxInstances++; return makeCtx(counts, notes, gains, origin, gainNodes) as unknown as AudioContext; }
@@ -356,20 +368,20 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
     expect(counts.osc + counts.buf).toBe(before);
   });
 
-  it('issue #2: setMuted(true) глушить шину миттєво посеред тікання, setMuted(false) — повертає', () => {
+  it("issue #2: setMode('off') глушить шину миттєво посеред тікання, setMode('on') — повертає", () => {
     const s = new CookAudioSession();
     s.startTicking(Date.now() + 3000);
     const tickGate = gains[1]!;
     expect(tickGate.writes.at(-1)).toBe(1);
-    s.setMuted(true);
+    s.setMode('off');
     expect(tickGate.writes.at(-1)).toBe(0);
-    s.setMuted(false);
+    s.setMode('on');
     expect(tickGate.writes.at(-1)).toBe(1);
   });
 
   it('приглушено від старту — контекст живий (жест уже був), шина одразу на нулі', () => {
     const s = new CookAudioSession();
-    s.setMuted(true);
+    s.setMode('off');
     s.startTicking(Date.now() + 3000);
     expect(ctxInstances).toBe(1);
     expect(gains[1]!.writes.at(-1)).toBe(0);
@@ -408,10 +420,56 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
 
   it('playAlarm приглушено — жодного вузла, контекст навіть не створюється', () => {
     const s = new CookAudioSession();
-    s.setMuted(true);
+    s.setMode('off');
     s.playAlarm();
     expect(ctxInstances).toBe(0);
     expect(counts.buf).toBe(0);
+  });
+
+  // §4.5 (бриф COOK-TIMERS-BRIEF-0930): «лише сигнал» — середній із трьох
+  // станів, не просто «ще один синонім мута». Тікання глухне, аларм лишається.
+  describe("§4.5: режим 'signal' — без тікання, аларм лишається", () => {
+    it('тікання мовчить у режимі signal, як і в off', () => {
+      const s = new CookAudioSession();
+      s.setMode('signal');
+      s.startTicking(Date.now() + 3000);
+      expect(gains[1]!.writes.at(-1)).toBe(0); // шина закрита, як при off
+    });
+
+    it('playAlarm звучить у режимі signal (на відміну від off)', () => {
+      const s = new CookAudioSession();
+      s.setMode('signal');
+      s.playAlarm();
+      expect(counts.buf).toBe(26); // повний аларм, не приглушено
+    });
+
+    it('проактивний аларм (commitAlarm через scheduleNext) теж звучить у signal', async () => {
+      const s = new CookAudioSession();
+      s.setMode('signal');
+      s.startTicking(Date.now() + 1000);
+      await vi.advanceTimersByTimeAsync(890); // рубіж коміту межі (~880мс), як у issue B тестах
+      expect(counts.buf).toBeGreaterThanOrEqual(26); // аларм закомічено, попри signal
+    });
+  });
+
+  describe('§4.5: режим персистить у localStorage — нова сесія читає його при народженні', () => {
+    it('нова сесія після конструктора з uже збереженим режимом читає saved режим', () => {
+      const a = new CookAudioSession();
+      a.setMode('signal');
+      const b = new CookAudioSession(); // окремий інстанс — режим не в памʼяті об'єкта a, а в localStorage
+      expect(b.getMode()).toBe('signal');
+    });
+
+    it('без збереженого значення — типовий режим on', () => {
+      const s = new CookAudioSession();
+      expect(s.getMode()).toBe('on');
+    });
+
+    it("невалідне/биту значення в localStorage — типовий 'on', не падає", () => {
+      localStorage.setItem('kos-cook-sound-mode', 'щось-не-те');
+      const s = new CookAudioSession();
+      expect(s.getMode()).toBe('on');
+    });
   });
 
   it('close() зупиняє тікання й закриває контекст', async () => {
@@ -553,7 +611,7 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
       for (const n of oldNotes) expect(reaches(n.source, master)).toBe(false);
     });
 
-    it('setMuted керує лише ПОТОЧНОЮ шиною — на стару (відʼєднану) запис уже не впливає на чутність', () => {
+    it('setMode керує лише ПОТОЧНОЮ шиною — на стару (відʼєднану) запис уже не впливає на чутність', () => {
       const s = new CookAudioSession();
       s.startTicking(Date.now() + 3000);
       const oldGain = gains[1]!; // перша (тепер стара) шина
@@ -563,14 +621,14 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
       const idx = gains.length;
       s.startTicking(Date.now() + 3000); // друге startTicking — нова шина, стара відʼєднана
       const newGain = gains[idx]!;
-      s.setMuted(true);
-      s.setMuted(false);
-      // Поточна (нова) шина реагує на mute нормально — останній запис відкриває.
+      s.setMode('off');
+      s.setMode('on');
+      // Поточна (нова) шина реагує на зміну режиму нормально — останній запис відкриває.
       expect(newGain.writes.at(-1)).toBe(1);
-      // Стара шина взагалі не отримує нових записів від setMuted — вона вже
+      // Стара шина взагалі не отримує нових записів від setMode — вона вже
       // не this.tickGate, а applyGate/syncGate працюють лише з поточною.
       const oldWritesBefore = oldGain.writes.length;
-      s.setMuted(true);
+      s.setMode('off');
       expect(oldGain.writes.length).toBe(oldWritesBefore);
     });
   });
@@ -591,7 +649,7 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
 
     it('mute, виставлений однією стороною (попап), поважає інша (зовнішній аларм)', () => {
       const session = getCookAudioSession();
-      session.setMuted(true);
+      session.setMode('off');
       // GlobalCookAlarm бере ту саму сесію — і той самий mute, а не власний.
       expect(getCookAudioSession()).toBe(session);
       session.playAlarm();
@@ -602,6 +660,7 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
 
 describe('ringAlarm · §2.1/§2.2/§2.3 аларм+вібро+нотифікація з одного місця', () => {
   beforeEach(() => {
+    localStorage.clear(); // §4.5: режим звуку персистить — не лишати попередньому тесту.
     vi.stubGlobal('AudioContext', class { constructor() { return makeCtx({ osc: 0, buf: 0, filt: 0, gain: 0 }) as unknown as AudioContext; } });
   });
   afterEach(() => { vi.unstubAllGlobals(); });

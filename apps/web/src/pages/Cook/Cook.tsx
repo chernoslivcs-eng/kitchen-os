@@ -4,6 +4,8 @@
 // подія списання, тут ми зберігаємо тільки локальний стан.
 
 import { Icon } from '../../components/Icon/Icon';
+import type { IconName } from '../../components/Icon/icons';
+import { Toast } from '../../components/ErrorState/Toast';
 import { dishIcon } from '../../lib/dish-icon';
 import { useEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
@@ -15,7 +17,7 @@ import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
 import { useIncidentStore } from '../../store/incident';
 import { saveCookSession, loadCookSession, clearCookSession, stashUnsavedRun } from '../../lib/cook-session';
-import { getCookAudioSession, closeCookAudioSession, ringAlarm, notifyOnly } from '../../lib/cook-sound';
+import { getCookAudioSession, closeCookAudioSession, ringAlarm, notifyOnly, nextSoundMode, type SoundMode } from '../../lib/cook-sound';
 import { useCookStore } from '../../store/cook';
 import { renderStepContent, stepIngredients, resolveIngName, stepLabelsFrom, type BatchLabels } from '../../lib/recipe';
 import styles from './Cook.module.css';
@@ -81,18 +83,30 @@ export function CookOverlay() {
   type StepTimer = { deadline: number | null; left: number };
   const timersRef = useRef<Record<number, StepTimer>>({});
   const [, setTick] = useState(0);
+  // Макет 30.09 (COOK-TIMERS-BRIEF-0930, §2.2): плашка добіглого фонового
+  // таймера — кроку, з якого пішли, не поточного (той лишається «час
+  // вийшов» на самому кроці, як зараз). id — власний лічильник, не stepIdx:
+  // той самий крок теоретично може добігти вдруге (повернулись, запустили
+  // знову, пішли ще раз), а стос розрізняє events, не steps.
+  interface BgToast { id: number; stepIdx: number; text: string }
+  const [bgToasts, setBgToasts] = useState<BgToast[]>([]);
+  const bgToastSeq = useRef(0);
+  const removeBgToast = (id: number) => setBgToasts((list) => list.filter((t) => t.id !== id));
   // Вигляд (cook-share-v3): тема застосунку (sun/moon), звук beep, шторка кроків на 390.
   const [theme, setThemeState] = useState<ThemeChoice>(() => currentTheme());
   const setTheme = (t: ThemeChoice) => { setThemeOverride(t); setThemeState(t); };
-  const [muted, setMuted] = useState(false);
-  const mutedRef = useRef(false); mutedRef.current = muted;
+  // §4.5 (бриф COOK-TIMERS-BRIEF-0930): три стани по колу, не двостановий
+  // mute — початковий стан читаємо з тієї ж спільної сесії (вона сама читає
+  // localStorage при народженні), щоб кнопка на відкритті збігалась із тим,
+  // що людина лишила минулого разу.
+  const [soundMode, setSoundModeState] = useState<SoundMode>(() => getCookAudioSession().getMode());
   // Перегляд 30.09 (issue #3): ОДНА сесія на все готування, спільна з
   // GlobalCookAlarm (cook-watch.tsx) — не своя на попап. Контекст, який
   // жест «Старт» таймера вже розбудив, лишається придатним дзвонити й тоді,
   // коли попап закрито; закриття попапа саме по собі контекст НЕ чіпає
   // (лише stopTicking нижче) — see finish()/скасування сесії далі.
   const audio = getCookAudioSession;
-  useEffect(() => { getCookAudioSession().setMuted(muted); }, [muted]);
+  useEffect(() => { getCookAudioSession().setMode(soundMode); }, [soundMode]);
   const [sheetOpen, setSheetOpen] = useState(false);
   useEffect(() => { setSheetOpen(false); }, [stepIdx]);
   // №35: змах униз закриває шторку кроків — той самий механізм, що в Sheet.
@@ -194,6 +208,8 @@ export function CookOverlay() {
         if (t.deadline <= now) {
           timersRef.current[Number(k)] = { deadline: null, left: 0 };
           ringAlarm(audio(), recipe?.st[Number(k)]?.t ?? 'Крок', { onlyWhenHidden: true });
+          // Макет 30.09 §2.2: плашка на 4с — крок лишається, куди пішли.
+          setBgToasts((list) => [...list, { id: bgToastSeq.current++, stepIdx: Number(k), text: recipe?.st[Number(k)]?.t ?? 'Крок' }]);
         }
       }
       if (any) setTick((v) => v + 1);
@@ -536,9 +552,14 @@ export function CookOverlay() {
       <Icon name="sys.theme" size={16} inherit decorative />
     </button>
   );
+  // §4.5: три стани по колу «звук → лише сигнал → тиша», один тап —
+  // наступний стан. Вигляд кола той самий у всіх станах (макет 30.09: без
+  // окремого «вимкненого» стилю) — розрізняє лише знак.
+  const SOUND_ICON: Record<SoundMode, IconName> = { on: 'sys.sound', signal: 'sys.sound-signal', off: 'sys.sound-off' };
+  const SOUND_LABEL: Record<SoundMode, string> = { on: 'Звук', signal: 'Лише сигнал', off: 'Без звуку' };
   const soundBtn = (
-    <button type="button" className={`${styles.round} ${muted ? styles['round-off'] : ''}`} data-tap onClick={() => setMuted((m) => !m)} aria-pressed={!muted} aria-label={muted ? 'Увімкнути звук' : 'Вимкнути звук'} title={muted ? 'Звук вимкнено' : 'Звук'}>
-      <Icon name="sys.sound" size={16} inherit decorative />
+    <button type="button" className={styles.round} data-tap onClick={() => setSoundModeState((m) => nextSoundMode(m))} aria-label={SOUND_LABEL[soundMode]} title={SOUND_LABEL[soundMode]}>
+      <Icon name={SOUND_ICON[soundMode]} size={16} inherit decorative />
     </button>
   );
 
@@ -592,6 +613,25 @@ export function CookOverlay() {
   return (
     <div className={styles.shell} data-cook-mode>
     <div className={styles.screen}>
+      {/* Макет 30.09 (§2.2): плашка добіглого фонового таймера — «чубчик»
+          поверх шапки, центрована над колонкою фокуса на 1440. Стос:
+          новіша top:0/найвищий z, старіша зʼїжджає на 56 px тим самим рухом. */}
+      {bgToasts.length > 0 && (
+        <div className={styles['toast-layer']}>
+          <div className={styles['toast-col']}>
+            {bgToasts.map((t, i) => {
+              const fromEnd = bgToasts.length - 1 - i;
+              return (
+                <div key={t.id} className={styles['toast-slot']} style={{ transform: `translateY(${fromEnd * 56}px)`, zIndex: 80 - fromEnd }}>
+                  <Toast text=" · час вийшов" lead={t.text} tone="sage" placement="chin" closable
+                    onDismiss={() => removeBgToast(t.id)}
+                    onTap={() => { goToStep(t.stepIdx); removeBgToast(t.id); }} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {/* 390: сегменти прогресу вгорі — лише індикатор (0912 C: 4 px не ціль дотику;
           перехід — кроками-пілюлями в шторці та «← →»). */}
       <div className={styles.segments} aria-hidden>
