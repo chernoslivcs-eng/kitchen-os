@@ -124,6 +124,33 @@ describe('IntakeCard · §2а — уточнення 30.09 (коміт 7f142dfe)
     expect(qty?.textContent).toBe('−250 г');
     expect(qty?.className).toContain('op-move-minus');
   });
+
+  // TELEGRAM BOT (30.09): продукт без числа — весь життєвий цикл двома
+  // ходами, обидва без used (used — ознака готування, тут звичайний чат).
+  // Партія без unit НІКОЛИ не доходить до correct/deplete після готування
+  // (post-cook.ts normalizeForBatch віддає null раніше), тож ту гілку
+  // (used без unit) свідомо не тестуємо — вона непороджувана.
+  it('продукт без числа: додали «+», закінчився — голий «−», не «−null»/«−0»', async () => {
+    await mount({
+      type: 'intake_diff',
+      ops: [
+        { op: 'add', label: 'Сіль' },
+        { op: 'deplete', label: 'Сіль', before: { value: null, unit: null } },
+      ],
+    } as unknown as ChatCard);
+    const qty = [...host!.querySelectorAll<HTMLElement>('[class*="op-qty"]')].map((el) => el.textContent);
+    expect(qty).toEqual(['+', '−']);
+    expect(qty.join('')).not.toMatch(/null|−0\b/);
+  });
+
+  it('deplete від людини на партію З числом (не готування) — «−1 л», без used', async () => {
+    await mount({
+      type: 'intake_diff',
+      ops: [{ op: 'deplete', label: 'Молоко', before: { value: 1, unit: 'l' } }],
+    } as unknown as ChatCard);
+    const qty = host!.querySelector<HTMLElement>('[class*="op-qty"]');
+    expect(qty?.textContent).toBe('−1 л');
+  });
 });
 
 describe('IntakeCard · §2 рядки з чеком (ReceiptGroup/.rrow)', () => {
