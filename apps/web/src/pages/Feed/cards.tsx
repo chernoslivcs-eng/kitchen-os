@@ -476,7 +476,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
           <ReceiptGroup
             tone="accent"
             mark="none"
-            title={writeOff ? 'З комори' : 'У комору'}
+            title={writeOff ? 'Списано' : 'У комору'}
             count={ops.length - off.size - goneCount}
             action={actionable && ops.length > 1
               ? () => setOff((prev) => (prev.size === ops.length ? new Set() : new Set(ops.map((_, i) => i))))

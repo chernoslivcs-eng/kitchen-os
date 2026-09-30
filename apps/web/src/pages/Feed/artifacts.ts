@@ -133,7 +133,10 @@ export function pickArtifacts<T extends ArtifactTurn>(
       out.push({
         key: t.cardId,
         kind: 'receipt',
-        label: isReceiptSourced(t) ? 'Чек' : 'Комора',
+        // Уточнення власника 29.09: різниця додавання/списання має бути
+        // очевидна — шапка панелі чистого списання зветься «Списано», не
+        // «Комора» (наповнення й мішана картка лишаються «Комора»/«Чек»).
+        label: isReceiptSourced(t) ? 'Чек' : isWriteOff(t) ? 'Списано' : 'Комора',
         meta: String(receiptLines(t)),
         turn: t,
       });

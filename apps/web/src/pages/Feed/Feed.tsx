@@ -1707,9 +1707,12 @@ export function Feed() {
                         пігулка бандла (знак · назва · підрядок · шеврон). */}
                     {/* Пакет 4 №5 (Р126), кадр «Чат · збірка»: «Чек Сільпо · 19» — магазин із
                         джерела, число без слова «позицій». */}
+                    {/* Уточнення власника 29.09: «Списано» різкіше від
+                        «У комору», ніж «З комори» — різниця додавання й
+                        списання має впадати в очі одразу, не після читання. */}
                     {isReceiptSourced(t)
                       ? `Чек${t.card?.source?.kind === 'retail_receipt' && t.card.source.shop ? ` ${t.card.source.shop}` : ''}`
-                      : isWriteOff(t) ? 'З комори' : 'У комору'} · {receiptLines(t)}
+                      : isWriteOff(t) ? 'Списано' : 'У комору'} · {receiptLines(t)}
                   </span>
                   {(() => {
                     const st = traceState(t.applied, t.undone, t.outcome, t.card?.ops?.length);
