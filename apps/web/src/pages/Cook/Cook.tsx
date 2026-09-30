@@ -15,7 +15,7 @@ import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
 import { useIncidentStore } from '../../store/incident';
 import { saveCookSession, loadCookSession, clearCookSession, stashUnsavedRun } from '../../lib/cook-session';
-import { getCookAudioSession, closeCookAudioSession, ringAlarm } from '../../lib/cook-sound';
+import { getCookAudioSession, closeCookAudioSession, ringAlarm, notifyOnly } from '../../lib/cook-sound';
 import { useCookStore } from '../../store/cook';
 import { renderStepContent, stepIngredients, resolveIngName, stepLabelsFrom, type BatchLabels } from '../../lib/recipe';
 import styles from './Cook.module.css';
@@ -226,7 +226,7 @@ export function CookOverlay() {
     // цього самого дедлайну — не від 250мс-інтервалу нижче (той лишається
     // тільки для ЦИФР на екрані).
     audio().startTicking(deadlineRef.current);
-    // Перегляд 30.09 (issue #4): аларм дзвонить ТУТ, у самому інтервалі
+    // Перегляд 30.09 (issue #4): сигнал дзвонить ТУТ, у самому інтервалі
     // живого відліку — не окремим ефектом, що спостерігає secondsLeft.
     // Причина: той окремий ефект не міг надійно відрізнити «живий нуль»
     // від «нуля, поставленого напряму» (навігація на вже готовий крок,
@@ -236,6 +236,15 @@ export function CookOverlay() {
     // спрацювання теж. rangRef — локальний прапорець САМЕ ЦЬОГО запуску
     // інтервалу (не рефка компонента): що б не сталось із secondsLeft поза
     // ним (навігація, відновлення), він на це просто не підписаний.
+    //
+    // Перегляд 30.09, раунд 2 (issue B): звук більше НЕ звідси — цей
+    // 250мс-інтервал запізнюється відносно ритму на 0–290мс щоразу
+    // по-різному, а еталон, який слухав власник, лягає точно на межу.
+    // CookAudioSession.startTicking вище вже сама планує звук наперед, у
+    // тому самому лукахед-вікні, що й тіки, точно на аудіо-час межі —
+    // ensureAlarm() тут лише гарантує (не дублює), якщо вікно раптом
+    // проспали цілком. Вібро/нотифікацію/стан лишаються тут, як і завжди:
+    // їм точність до мс не потрібна.
     const rangRef = { current: false };
     tickRef.current = window.setInterval(() => {
       const d = deadlineRef.current;
@@ -246,7 +255,8 @@ export function CookOverlay() {
         setRunning(false);
         if (!rangRef.current && step?.s && !finishedRef.current) {
           rangRef.current = true;
-          ringAlarm(audio(), step?.t ?? 'Крок', { onlyWhenHidden: true });
+          audio().ensureAlarm();
+          notifyOnly(step?.t ?? 'Крок', { onlyWhenHidden: true });
         }
       }
     }, 250);

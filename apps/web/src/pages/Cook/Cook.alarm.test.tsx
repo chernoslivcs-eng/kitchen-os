@@ -100,6 +100,20 @@ describe('issue #4 — подвійний дзвінок при повернен
     expect(vibrate).not.toHaveBeenCalled();
   });
 
+  // Перегляд 30.09, раунд 2 (побічна знахідка): чи сам крок (не пілюля
+  // ChatHead) коректно показує «час вийшов» після зовнішнього дзвінка, а не
+  // повний/свіжий час. secondsLeft тут СТАЛИЙ (як лишається в сесії, поки
+  // таймер біжить, — записується лише на зміну кроку/стану, не щосекунди),
+  // deadline — точний: відновлення мусить порахувати залишок ІЗ deadline, а
+  // не довіритись сталому secondsLeft.
+  it('продзвонив ЗОВНІ → відкрив кукінг-мод → сам крок показує 0:00, не повний час', async () => {
+    saveCookSession({ recipe: RECIPE, stepIdx: 0, secondsLeft: 3, deadline: Date.now() - 500 });
+    await mount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(host!.querySelector('[data-timer-value]')!.textContent).toBe('0:00');
+    expect(host!.querySelector('[data-timer]')!.className).toMatch(/timer-zero/);
+  });
+
   it('продзвонив ЗОВНІ фоновий крок (timers) → відкрив кукінг-мод → тиша (не лише поточний деdline)', async () => {
     saveCookSession({
       recipe: RECIPE, stepIdx: 1, secondsLeft: 5, deadline: null,

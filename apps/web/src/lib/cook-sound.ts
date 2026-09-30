@@ -217,6 +217,18 @@ export class CookAudioSession {
   private deadline: number | null = null;
   private lastScheduledLeft: number | null = null;
   private muted = false;
+  // Перегляд 30.09, раунд 2 (issue A): бажаний стан шини — ЄДИНЕ джерело
+  // правди для порівняння. AudioParam.value НЕ читаємо ніде: у реальному
+  // браузері геттер не встигає синхронно відобразити щойно записане —
+  // лишається старим ще ~300 мс (виміряно на стенді), тоді як jsdom-мок
+  // оновлював його синхронно, тож старий баг ховався від тестів. Наслідок:
+  // stopTicking→startTicking в одному коміті React («+1 хв», зміна кроку)
+  // читав застаріле value===1 і мовчки НЕ переписував шину, яку stopTicking
+  // щойно закрив, — вона лишалась німою до наступного природного пробудження.
+  private gateOpen: boolean | null = null;
+  // issue B: чи аларм цього дедлайну вже закомічено в граф (чи зіграно
+  // приглушеним) — раз на дедлайн, скидається на кожному startTicking/stopTicking.
+  private alarmScheduled = false;
 
   private ensure(): AudioContext | null {
     const C = AudioCtor();
@@ -240,16 +252,26 @@ export class CookAudioSession {
    *  наступним запланованим тактом. */
   setMuted(m: boolean): void {
     this.muted = m;
-    this.syncGate();
+    this.applyGate(!m);
+  }
+
+  /** issue A: єдине місце, що пише в AudioParam шини — завжди cancel+set,
+   *  без умови. Порівняння «чи треба писати» робить лише syncGate, і робить
+   *  його проти this.gateOpen (звичайне поле класу), НІКОЛИ проти
+   *  AudioParam.value: той у браузері ще ~300мс показує старе значення після
+   *  щойного запису, тож порівняння з ним могло мовчки пропустити потрібний
+   *  запис (issue A). */
+  private applyGate(open: boolean): void {
+    if (!this.ctx || !this.tickGate) return;
+    this.gateOpen = open;
+    this.tickGate.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.tickGate.gain.setValueAtTime(open ? 1 : 0, this.ctx.currentTime);
   }
 
   private syncGate(): void {
     if (!this.ctx || !this.tickGate) return;
-    const want = this.muted ? 0 : 1;
-    if (this.tickGate.gain.value !== want) {
-      this.tickGate.gain.cancelScheduledValues(this.ctx.currentTime);
-      this.tickGate.gain.setValueAtTime(want, this.ctx.currentTime);
-    }
+    const want = !this.muted;
+    if (this.gateOpen !== want) this.applyGate(want);
   }
 
   /**
@@ -264,28 +286,50 @@ export class CookAudioSession {
     this.stopTicking();
     if (!this.ensure()) return;
     this.deadline = deadlineMs;
-    this.syncGate();
+    this.alarmScheduled = false; // issue B: нове тікання — аларм цього дедлайну ще не грав.
+    // issue A: примусово, не через syncGate/порівняння — «на старті завжди»,
+    // незалежно від того, яким this.gateOpen міг лишитись після stopTicking
+    // щойно перед цим у ТОМУ Ж коміті React.
+    this.applyGate(!this.muted);
     this.scheduleNext();
   }
 
   private scheduleNext = (): void => {
-    if (this.deadline == null || !this.ctx || !this.tickGate) return;
+    if (this.deadline == null || !this.ctx || !this.tickGate || !this.master) return;
     this.syncGate();
     const nowMs = Date.now();
     const ctxNow = this.ctx.currentTime;
     const leftNow = currentLeft(this.deadline, nowMs);
-    if (leftNow <= 0) { this.timer = null; return; }
 
-    if (this.lastScheduledLeft == null) {
+    // issue C: «ще не планували САМЕ ЦЕ left», не «лише перший виклик».
+    // lastScheduledLeft тільки спадає (left рахує до нуля), тож будь-яке
+    // попереднє значення БІЛЬШЕ за поточне left означає, що одну чи кілька
+    // меж проспали (дросельована вкладка) — і поточну секунду теж ще не
+    // планували: її майбутні ноти (secondFrom сама відсіє минулі) мають
+    // дограти, а не мовчати цілу секунду.
+    const shouldSchedule = (left: number) => this.lastScheduledLeft == null || this.lastScheduledLeft > left;
+
+    if (leftNow <= 0) {
+      // Проспали й саму межу нуля разом з рештою — аларм негайно (той самий
+      // фолбек, що й завжди був), а не мовчки нічого.
+      this.commitAlarm(boundaryAudioTime(this.deadline, 0, nowMs, ctxNow));
+      this.timer = null;
+      return;
+    }
+
+    if (shouldSchedule(leftNow)) {
       const at = boundaryAudioTime(this.deadline, leftNow, nowMs, ctxNow);
       secondFrom(this.ctx, this.tickGate, at, plan(leftNow), ctxNow);
       this.lastScheduledLeft = leftNow;
     }
     const nextLeft = leftNow - 1;
-    if (nextLeft > 0 && nextLeft !== this.lastScheduledLeft) {
+    if (shouldSchedule(nextLeft)) {
       const at = boundaryAudioTime(this.deadline, nextLeft, nowMs, ctxNow);
       if ((at - ctxNow) * 1000 <= LOOKAHEAD_MS) {
-        secondFrom(this.ctx, this.tickGate, at, plan(nextLeft), ctxNow);
+        // issue B: left=0 — не тік, а межа аларму. Той самий лукахед-цикл,
+        // що й секунди, планує його звук наперед точно на межу, повз шину.
+        if (nextLeft === 0) this.commitAlarm(at);
+        else secondFrom(this.ctx, this.tickGate, at, plan(nextLeft), ctxNow);
         this.lastScheduledLeft = nextLeft;
       }
     }
@@ -295,16 +339,46 @@ export class CookAudioSession {
     this.timer = window.setTimeout(this.scheduleNext, delay);
   };
 
+  /**
+   * issue B: закомічує звук аларму РІВНО ОДИН РАЗ на дедлайн, на аудіо-час
+   * `at` (точна межа left=0, або «зараз», якщо межу проспали). Скасовний
+   * лише непрямо: доки цей метод ще не викликаний, пауза/«+1 хв»/зміна
+   * кроку йдуть через stopTicking → новий deadline/scheduleNext більше сюди
+   * не дійде для СТАРОЇ межі. Раз закомічено — як і з тіками, Web Audio не
+   * вміє відкликати вже заплановану ноту; це той самий прийнятий компроміс,
+   * що й для тіків (вікно ~120мс перед межею).
+   */
+  private commitAlarm(at: number): void {
+    if (this.alarmScheduled || !this.ctx || !this.master) return;
+    this.alarmScheduled = true;
+    if (!this.muted) alarm(this.ctx, this.master, Math.max(at, this.ctx.currentTime));
+  }
+
+  /**
+   * issue B: викликає Cook.tsx зі свого (неточного, 250мс) інтервалу на
+   * нулі поточного кроку. Якщо сесія вже сама заздалегідь закомітила звук
+   * на точну межу — нічого не робить (без дублю). Якщо ще ні (лукахед-вікно
+   * проспали цілком, наприклад дросельована вкладка) — грає негайно, той
+   * самий фолбек, що працював і раніше. Вібро/нотифікацію/стан Cook.tsx
+   * робить сам, незалежно від цього виклику.
+   */
+  ensureAlarm(): void {
+    if (this.alarmScheduled) return;
+    this.alarmScheduled = true;
+    if (this.muted) return;
+    const ctx = this.ensure();
+    if (!ctx || !this.master) return;
+    alarm(ctx, this.master, ctx.currentTime + 0.04);
+  }
+
   /** §5: пауза, зміна кроку, закриття кукінг-моду — шину глушимо ОДРАЗУ;
    *  заплановане в графі долунює нечутно, не «ще майже секунду». */
   stopTicking(): void {
     if (this.timer != null) { window.clearTimeout(this.timer); this.timer = null; }
     this.deadline = null;
     this.lastScheduledLeft = null;
-    if (this.ctx && this.tickGate) {
-      this.tickGate.gain.cancelScheduledValues(this.ctx.currentTime);
-      this.tickGate.gain.setValueAtTime(0, this.ctx.currentTime);
-    }
+    this.alarmScheduled = false;
+    this.applyGate(false);
   }
 
   /** §4.4/§2.1/§2.2/§2.3: аларм один раз — той самий звук для кроку, фону й закритого кукінг-моду. */
@@ -345,9 +419,25 @@ export function closeCookAudioSession(): void {
 }
 
 /**
- * Аларм + вібро + системна нотифікація — той самий виклик для кроку, що на
- * екрані (Cook.tsx), фонового кроку, і закритого кукінг-моду (cook-watch.tsx):
- * одне місце замість трьох копій тону 880 Гц, які були.
+ * Вібро + системна нотифікація, БЕЗ звуку. issue B: крок на екрані
+ * (Cook.tsx) звук більше не запускає звідси — сесія вже закомітила його
+ * заздалегідь, точно на межу (CookAudioSession.ensureAlarm). Це лишається
+ * для решти сигналу на тому самому (неточному, 250мс) переході секунди до
+ * нуля, який і був завжди.
+ */
+export function notifyOnly(title: string, opts: { onlyWhenHidden?: boolean } = {}): void {
+  try { navigator.vibrate?.([200, 100, 200]); } catch { /* desktop */ }
+  try {
+    const okToShow = 'Notification' in window && Notification.permission === 'granted' && (!opts.onlyWhenHidden || document.hidden);
+    if (okToShow) new Notification('Kitchen OS · таймер', { body: `${title} — час вийшов`, tag: 'kitchen-os-timer' });
+  } catch { /* нотифікації не критичні */ }
+}
+
+/**
+ * Аларм + вібро + системна нотифікація — фоновий крок і закритий кукінг-мод
+ * (cook-watch.tsx): там нема ритму, який синхронізувати, тож звук лишається
+ * реактивним, як і був (§5, issue B: тільки крок на екрані отримав
+ * прецизійне планування наперед — див. ensureAlarm/notifyOnly вище).
  *
  * `onlyWhenHidden` — та відмінність, яку не можна було стерти об'єднанням:
  * зсередини Cook Mode нотифікація зайва, поки вкладка видима (таймер і так
@@ -356,9 +446,5 @@ export function closeCookAudioSession(): void {
  */
 export function ringAlarm(session: CookAudioSession, title: string, opts: { onlyWhenHidden?: boolean } = {}): void {
   session.playAlarm();
-  try { navigator.vibrate?.([200, 100, 200]); } catch { /* desktop */ }
-  try {
-    const okToShow = 'Notification' in window && Notification.permission === 'granted' && (!opts.onlyWhenHidden || document.hidden);
-    if (okToShow) new Notification('Kitchen OS · таймер', { body: `${title} — час вийшов`, tag: 'kitchen-os-timer' });
-  } catch { /* нотифікації не критичні */ }
+  notifyOnly(title, opts);
 }

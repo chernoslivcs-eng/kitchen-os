@@ -57,10 +57,31 @@ describe('plan · §4.2 сценарій «Тихий пульс»', () => {
 // по 3 обертони, і т.д.), без реального звуку. Для перегляду 30.09 (issue #1)
 // currentTime — ГЕТТЕР, привʼязаний до Date.now() (fake timers рухають
 // обидва синхронно) — інакше «точність до мс» неможливо перевірити взагалі.
+// Перегляд 30.09, раунд 2 (issue A): у реальному Web Audio геттер .value НЕ
+// відображає щойно записане синхронно — воно «доганяє» аудіопотоком і
+// лишається старим ще ~300мс (виміряно на стенді). Мок раніше оновлював
+// .value синхронно — тому баг (syncGate читав застаріле value одразу після
+// stopTicking→startTicking в одному коміті React) не ловився ЖОДНИМ тестом.
+// STALE_MS імітує цю затримку; writes — хронологія НАМІРІВ (те, що реально
+// записали), яку й читають тести нижче замість .value.
+const STALE_MS = 300;
 class FakeParam {
-  value = 0;
-  setValueAtTime(v: number) { this.value = v; return this; }
-  exponentialRampToValueAtTime(v: number) { this.value = v; return this; }
+  private committed = 0;
+  private pending: { at: number; v: number } | null = null;
+  writes: number[] = [];
+  get value() {
+    if (this.pending && Date.now() - this.pending.at >= STALE_MS) {
+      this.committed = this.pending.v;
+      this.pending = null;
+    }
+    return this.committed;
+  }
+  // Пряме присвоєння (master.gain.value = ...) — на відміну від
+  // setValueAtTime, синхронне й у реальному Web Audio (початкове
+  // налаштування вузла одразу після createGain(), до якогось графа/жесту).
+  set value(v: number) { this.committed = v; this.pending = null; this.writes.push(v); }
+  setValueAtTime(v: number) { this.pending = { at: Date.now(), v }; this.writes.push(v); return this; }
+  exponentialRampToValueAtTime(v: number) { this.pending = { at: Date.now(), v }; this.writes.push(v); return this; }
   cancelScheduledValues() { return this; }
 }
 // Кожен вузол «зʼєднується» сам із собою — реальна маршрутизація тут не при
@@ -292,10 +313,12 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
     s.startTicking(Date.now() + 5000);
     await vi.advanceTimersByTimeAsync(10);
     const tickGate = gains[1]!; // master, tickGate — саме в цьому порядку в ensure()
-    expect(tickGate.value).toBe(1);
+    // issue A: перевіряємо НАМІР (writes), не .value — той у браузері (і
+    // тепер у моку) ще ~300мс показує старе значення після щойного запису.
+    expect(tickGate.writes.at(-1)).toBe(1);
     const before = counts.osc + counts.buf;
     s.stopTicking();
-    expect(tickGate.value).toBe(0); // синхронно, не з наступним тактом
+    expect(tickGate.writes.at(-1)).toBe(0); // запис синхронний, навіть якщо .value ще не встиг
     await vi.advanceTimersByTimeAsync(5000);
     expect(counts.osc + counts.buf).toBe(before);
   });
@@ -304,11 +327,11 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
     const s = new CookAudioSession();
     s.startTicking(Date.now() + 3000);
     const tickGate = gains[1]!;
-    expect(tickGate.value).toBe(1);
+    expect(tickGate.writes.at(-1)).toBe(1);
     s.setMuted(true);
-    expect(tickGate.value).toBe(0);
+    expect(tickGate.writes.at(-1)).toBe(0);
     s.setMuted(false);
-    expect(tickGate.value).toBe(1);
+    expect(tickGate.writes.at(-1)).toBe(1);
   });
 
   it('приглушено від старту — контекст живий (жест уже був), шина одразу на нулі', () => {
@@ -316,7 +339,28 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
     s.setMuted(true);
     s.startTicking(Date.now() + 3000);
     expect(ctxInstances).toBe(1);
-    expect(gains[1]!.value).toBe(0);
+    expect(gains[1]!.writes.at(-1)).toBe(0);
+  });
+
+  // Перегляд 30.09, раунд 2 (issue A): syncGate читав AudioParam.value для
+  // рішення «чи писати» — у браузері той ще ~300мс показує старе значення
+  // після щойного запису. Наслідок: stopTicking (пише 0) одразу за яким іде
+  // startTicking («+1 хв», stop→start в одному коміті React на зміні кроку)
+  // читав value===1 (застаріле) === want(1) і НІЧОГО не писав — шина
+  // лишалась німою до наступного природного пробудження (~0,9с). Фікс:
+  // рішення «чи писати» — проти this.gateOpen (звичайне поле, не
+  // AudioParam), а на старті — завжди примусово, без порівняння взагалі.
+  it('issue A: stop→start в одному такті («+1 хв», зміна кроку) — шина відкрита одразу, не залипає на 0', () => {
+    const s = new CookAudioSession();
+    s.startTicking(Date.now() + 3000);
+    const tickGate = gains[1]!;
+    expect(tickGate.writes.at(-1)).toBe(1);
+    // Без жодного просування часу між stop і start — саме так, як їх
+    // викликає Cook.tsx у ефекті зміни кроку/«+1 хв», і саме це давало
+    // AudioParam.value ще старе (=1) значення на момент застарілого читання.
+    s.stopTicking();
+    s.startTicking(Date.now() + 4000);
+    expect(tickGate.writes.at(-1)).toBe(1);
   });
 
   it('playAlarm — той самий алярм, що DSP (26 клаців), повз шину тіків', () => {
@@ -341,6 +385,92 @@ describe('CookAudioSession · §5 тікання наперед, скасува�
     const before = counts.osc + counts.buf;
     await vi.advanceTimersByTimeAsync(5000);
     expect(counts.osc + counts.buf).toBe(before);
+  });
+
+  // Перегляд 30.09, раунд 2 (issue B): аларм кроку на екрані раніше грав
+  // РЕАКТИВНО — з 250мс-інтервалу цифр + 0,04с пад у playAlarm, тобто на
+  // 40–290мс пізніше за межу, щоразу по-різному. Еталон, який власник слухав
+  // і затвердив, лягає рівно на межу. Фікс: сесія сама планує звук наперед,
+  // у тому самому лукахед-вікні (~120мс), що й тіки.
+  describe('issue B: аларм планується наперед, точно на межу left=0', () => {
+    it('стартує рівно на межу — з точністю до мс, не з реактивним зсувом', async () => {
+      const s = new CookAudioSession();
+      const deadline = Date.now() + 1000; // ctx-еквівалент межі: рівно 1.0с (годинник іще не рухали)
+      s.startTicking(deadline); // перший (частковий) такт left=1 — синхронно
+      const before = notes.length;
+      // Рубіж коміту (нульова межа заходить у 120мс-лукахед) настає за
+      // rearmDelayMs = 1000-0-120 = 880мс від старту.
+      await vi.advanceTimersByTimeAsync(890);
+      expect(notes.length).toBe(before + 107); // 26 клаців + 81 тон — і рівно один такий стрибок
+      const first = notes[before]!; // перша нота аларму — перший клац у alarm()
+      expect(first.at).toBeCloseTo(1.0, 3);
+    });
+
+    it('пауза (stopTicking) ДО коміту межі — аларму нема взагалі', async () => {
+      const s = new CookAudioSession();
+      const deadline = Date.now() + 1000;
+      s.startTicking(deadline);
+      await vi.advanceTimersByTimeAsync(500); // задовго до рубежу коміту (~880мс)
+      s.stopTicking(); // пауза/«+1 хв»/зміна кроку — той самий шлях
+      const before = notes.length;
+      await vi.advanceTimersByTimeAsync(1000); // минаємо межу — тікання вже не йде взагалі
+      expect(notes.length).toBe(before); // жодної нової ноти — ні тіку, ні аларму
+    });
+
+    it('рівно один аларм — ідемпотентно, навіть коли scheduleNext ще довго тупцює біля нуля', async () => {
+      const s = new CookAudioSession();
+      const deadline = Date.now() + 1000;
+      s.startTicking(deadline);
+      await vi.advanceTimersByTimeAsync(890); // застав коміт межі
+      const bufAfterCommit = counts.buf;
+      await vi.advanceTimersByTimeAsync(2000); // і саму межу, і довго після
+      expect(counts.buf).toBe(bufAfterCommit); // жодного нового клацу — ні другого аларму, ні тіків
+    });
+
+    it('ensureAlarm — no-op, якщо сесія вже сама закомітила (без дублю)', async () => {
+      const s = new CookAudioSession();
+      s.startTicking(Date.now() + 1000);
+      await vi.advanceTimersByTimeAsync(890);
+      const before = counts.buf;
+      s.ensureAlarm(); // Cook.tsx кличе це зі свого 250мс-інтервалу на нулі
+      expect(counts.buf).toBe(before); // уже зіграно наперед — жодного нового клацу
+    });
+
+    it('ensureAlarm — фолбек, якщо лукахед-вікно проспали цілком (сесія ще нічого не закомітила)', () => {
+      const s = new CookAudioSession();
+      s.ensureAlarm(); // жодного startTicking — «якщо вікно проспали — аларм одразу, як зараз»
+      expect(counts.buf).toBe(26);
+    });
+  });
+
+  // Перегляд 30.09, раунд 2 (issue C): «умова першого такту» (lastScheduledLeft
+  // == null) спрацьовувала лише на найпершому виклику — пробудження ПІЗНІШЕ за
+  // межу (дросельована вкладка) бачило lastScheduledLeft уже не-null і
+  // пропускало ноти поточної секунди ЦІЛКОМ, хоча частина з них (за offset)
+  // іще не минула. Фікс: «ще не планували САМЕ ЦЕ left» (lastScheduledLeft
+  // == null || lastScheduledLeft > left), не «лише перший виклик».
+  it('issue C: пробудження через 300мс після межі — недограні ноти цієї секунди все ж грають', () => {
+    const s = new CookAudioSession();
+    const deadline = Date.now() + 2000; // left стартує з 2
+    // Перехоплюємо ЛИШЕ наступний setTimeout (перепланування scheduleNext),
+    // щоб самим вирішити, коли він «спрацює» — fake timers завжди
+    // детерміновані й самі ніколи не запізнюються; дросель, що затримав
+    // виконання колбека відносно годинника, імітуємо вручну.
+    let captured: (() => void) | null = null;
+    const realSetTimeout = window.setTimeout.bind(window);
+    vi.stubGlobal('setTimeout', ((fn: () => void) => { captured = fn; return 0 as unknown as ReturnType<typeof setTimeout>; }) as typeof setTimeout);
+    s.startTicking(deadline); // перший (частковий) такт left=2 — синхронно
+    expect(captured).not.toBeNull();
+    const before = notes.length;
+    // Проспали: годинник — на 1300мс від старту (300мс усередину left=1,
+    // чия межа була о 1000мс), а колбек спрацьовує лише ТЕПЕР.
+    vi.setSystemTime(Date.now() + 1300);
+    vi.stubGlobal('setTimeout', realSetTimeout);
+    captured!();
+    // ГАЛОП (left=1): offsets [0,0.25,0.375,0.5,0.75,0.875]. Межа left=1
+    // була 1000мс тому; зараз — 300мс усередину неї. Перші дві ноти (0 і
+    // 0,25=250мс) уже минули; лишаються чотири: 0.375, 0.5, 0.75, 0.875.
+    expect(notes.length - before).toBe(2 * 4); // 4 тіки × (клац+тон)
   });
 
   describe('issue #3: getCookAudioSession/closeCookAudioSession — одна сесія на готування', () => {
