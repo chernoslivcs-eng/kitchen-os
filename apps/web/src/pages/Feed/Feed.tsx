@@ -20,9 +20,9 @@ import { HELP_TOPICS, type HelpTopicId } from '@kitchen/domain/help-topics';
 import { api, ApiError, type ProfileFieldV2, type AttachmentUploaded, type ChatResponse, type HouseholdProduct, type PantryBatch, type ShoppingItem } from '../../api';
 import { loadPantry } from '../../store/pantryList';
 import { Card, ShoppingListCard, RecipeStreamCard, traceState, appliedToast, LivePositions, type LivePosition, type RetailStatus } from './cards';
-import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff, survivingBatches, goneLabels } from './artifacts';
+import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, intakeSign } from './artifacts';
+import { movementLabel, movementSubtitle, visibleOps, type MoveOp } from './movement';
 import { BatchCard } from '../Pantry/BatchCard';
-import { formatQty } from '../../lib/units';
 import { useAuth } from '../../store/auth';
 import { greeting } from '../../lib/greeting';
 import { useSessionStore } from '../../store/session';
@@ -462,7 +462,7 @@ export function Feed() {
   // Список «сам не з'являється й сам не тримається» (V4): вкладка виникає
   // лише коли її відкрили — слідом дельти або з порожньої панелі.
   const [listOpen, setListOpen] = useState(false);
-  const artifacts = pickArtifacts(turns, listOpen ? shoppingItems.length : null, livePositions);
+  const artifacts = pickArtifacts(turns, listOpen ? shoppingItems.length : null);
   const artifactKeyOf = (t: Turn) => artifacts.find((a) => a.turn?.id === t.id)?.key;
   // Панель живе в каркасі (Shell → ArtifactPanel); Стрічка лише публікує в
   // неї свої артефакти. Активна вкладка, ширина, згорнутість — у сторі.
@@ -1683,51 +1683,16 @@ export function Feed() {
                 )}
               </div>
             )}
-            {isWriteOff(t) && t.applied && !t.undone && (() => {
-              /* П6-Т3. Списання буває двох родів, і слід у них різний.
-                 «Зʼїли все» лишається рядком тексту без стрілки: партії
-                 більше немає, артефакта в неї теж — пігулка вела б у
-                 порожнечу (живий репро 02.09, після карбонари).
-                 «Зʼїли половину» — інша річ: партія жива, з новим числом, і
-                 саме її людина йде перевіряти. Їй — звичайна пігулка зі
-                 стрілкою в картку позиції.
-                 Дельту не пишемо в жодному з них: у картці лежить нове
-                 значення, старого вона не несе, вигадувати «−200 г» не
-                 будемо. */
-              const alive = survivingBatches(t, livePositions);
-              const gone = goneLabels(t, livePositions);
-              return (
-                <>
-                  {alive.length > 0 && (
-                    <div className={styles['trace-wrap']}>
-                      <button
-                        type="button"
-                        className={`${styles.trace} ${shownArtifact?.key === `batch:${alive[0]!.id}` ? styles['trace-on'] : ''}`}
-                        onClick={() => openArtifact(`batch:${alive[0]!.id}`)}
-                      >
-                        <span className={styles['trace-icon']}><Icon name="sys.pantry" size={18} inherit decorative /></span>
-                        <span className={styles['trace-body']}>
-                          <span className={styles['trace-kind']}>
-                            Списано{alive.length > 1 ? ` · ${alive.length} ${plural(alive.length, ['позиція', 'позиції', 'позицій'])}` : ''}
-                          </span>
-                          <span className={styles['trace-value']}>
-                            {alive.map((b) => [b.label, formatQty(b.value, b.unit)].filter(Boolean).join(' ')).join(', ')}
-                          </span>
-                        </span>
-                        <span className={styles['trace-go']}><Icon name="sys.next" size={16} inherit decorative /></span>
-                      </button>
-                    </div>
-                  )}
-                  {gone.length > 0 && (
-                    <div className={styles['writeoff-line']}>Використали: {gone.join(', ')}</div>
-                  )}
-                </>
-              );
-            })()}
-            {isIntakeArtifact(t) && !isWriteOff(t) && (
-              /* Слід чека. Єдиний слід, що буває БУРШТИНОВИМ: поки чек не
-                 застосовано, він не стан, а рішення, якого чекають. Після
-                 «Застосувати» стає звичайним шавлієвим — стан як у всіх. */
+            {isIntakeArtifact(t) && (
+              /* Слід чека/комори/списання. Єдиний слід, що буває
+                 БУРШТИНОВИМ: поки чек не застосовано, він не стан, а
+                 рішення, якого чекають. Після «Застосувати» стає звичайним
+                 шавлієвим — стан як у всіх.
+                 Рішення власника 28.09 (скасовує 02.09): списання малює той
+                 самий слід і відкриває ту саму панель «Комора», що й
+                 наповнення — PR #234 показує зʼїдене рядком зі знаком «−»,
+                 тож панель більше не буває порожньою, і причина вести
+                 списання окремим текстовим рядком чи карткою партії зникла. */
               <button
                 type="button"
                 className={`${styles.trace} ${!t.applied && !t.undone ? styles['trace-pending'] : ''} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
@@ -1743,14 +1708,28 @@ export function Feed() {
                         пігулка бандла (знак · назва · підрядок · шеврон). */}
                     {/* Пакет 4 №5 (Р126), кадр «Чат · збірка»: «Чек Сільпо · 19» — магазин із
                         джерела, число без слова «позицій». */}
-                    {isReceiptSourced(t) ? `Чек${t.card?.source?.kind === 'retail_receipt' && t.card.source.shop ? ` ${t.card.source.shop}` : ''}` : 'У комору'} · {receiptLines(t)}
+                    {/* Уточнення власника 29.09: «Списано» різкіше від
+                        «У комору», ніж «З комори» — різниця додавання й
+                        списання має впадати в очі одразу, не після читання. */}
+                    {isReceiptSourced(t)
+                      ? `Чек${t.card?.source?.kind === 'retail_receipt' && t.card.source.shop ? ` ${t.card.source.shop}` : ''}`
+                      : movementLabel(intakeSign(t))} · {receiptLines(t)}
                   </span>
                   {(() => {
                     const st = traceState(t.applied, t.undone, t.outcome, t.card?.ops?.length);
                     // Підрядок за кадром: «чекає рішення · N не впевнений», N — рядки, яких каталог не впізнав (unmatched).
                     const src = t.card?.source;
                     const unsure = src?.kind === 'retail_receipt' ? src.unmatched.length : 0;
-                    const text = st.tone === 'pending' && src?.kind === 'retail_receipt' ? (unsure > 0 ? `чекає рішення · ${unsure} не впевнений` : 'чекає рішення') : st.text;
+                    // Частковий успіх («9 із 14 · 5 пропущено») — своя причина
+                    // недобору, traceState() уже порахував; агрегатний знак
+                    // тут ні до чого, st.text лишається як є.
+                    const partial = !!(t.outcome && t.outcome.applied < t.outcome.total);
+                    const text = st.tone === 'pending' && src?.kind === 'retail_receipt'
+                      ? (unsure > 0 ? `чекає рішення · ${unsure} не впевнений` : 'чекає рішення')
+                      // Спек 30.09 §3: слід і шапка панелі — та сама назва й
+                      // та сама формула підрядка за агрегатним знаком картки.
+                      : st.tone === 'applied' && !partial ? movementSubtitle(visibleOps((t.card?.ops ?? []) as MoveOp[]).length, intakeSign(t))
+                      : st.text;
                     return (
                       <span className={`${styles['trace-value']} ${st.tone === 'pending' ? styles['pending-pulse'] : ''}`} data-trace-tone={st.tone}>{text}</span>
                     );

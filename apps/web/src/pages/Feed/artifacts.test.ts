@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isIntakeArtifact, pickArtifacts, receiptLines, type ArtifactTurn, isWriteOff, survivingBatches, goneLabels, type LiveBatch } from './artifacts';
+import { isIntakeArtifact, pickArtifacts, receiptLines, type ArtifactTurn, intakeSign } from './artifacts';
 import type { ChatCard } from '../../api';
 
 const turn = (id: string, card: Partial<ChatCard> | null, cardId: string | null = id): ArtifactTurn =>
@@ -100,20 +100,26 @@ describe('pickArtifacts', () => {
     expect(got.map((a) => a.kind)).toEqual(['recipe', 'cart', 'receipt']);
   });
 
-  it('чек зветься «Чек», перелік без джерела — «Комора»', () => {
+  it('чек зветься «Чек», перелік без джерела — за знаком (§3): чисте додавання «У комору»', () => {
     const bare = { type: 'intake_diff', ops: [{ op: 'add' }, { op: 'add' }] } as Partial<ChatCard>;
-    expect(pickArtifacts([turn('a', bare)]).map((a) => a.label)).toEqual(['Комора']);
+    expect(pickArtifacts([turn('a', bare)]).map((a) => a.label)).toEqual(['У комору']);
     expect(pickArtifacts([turn('b', receiptCard(2, 0, 0))]).map((a) => a.label)).toEqual(['Чек']);
   });
 
-  // Межа: артефакт — те, що ДОДАЄ. Правка наявного і списання після
-  // готування це дії над уже наявним, а не документи; вони лишаються
-  // карткою у стрічці й вкладки не відкривають.
-  it('правка і списання артефактами не стають', () => {
+  it('мішана або лише-стан картка без джерела — «Комора»', () => {
+    const mixed = { type: 'intake_diff', ops: [{ op: 'add' }, { op: 'deplete' }] } as Partial<ChatCard>;
+    expect(pickArtifacts([turn('a', mixed)]).map((a) => a.label)).toEqual(['Комора']);
+  });
+
+  // Рішення власника 28.09 (скасовує 02.09): межа тепер за типом картки, не
+  // за вмістом ops — будь-яка intake_diff стає артефактом, включно з
+  // правкою й списанням. Панель завжди має що показати (PR #234: зʼїдене —
+  // рядок зі знаком «−», не хвіст), тож причина відсікати їх зникла.
+  it('правка і списання теж стають артефактами, тим самим родом', () => {
     const rename = { type: 'intake_diff', ops: [{ op: 'rename', label: 'хліб', to: 'батон' }] } as Partial<ChatCard>;
     const writeoff = { type: 'intake_diff', ops: [{ op: 'deplete' }, { op: 'deplete' }] } as Partial<ChatCard>;
-    expect(pickArtifacts([turn('a', rename)])).toEqual([]);
-    expect(pickArtifacts([turn('b', writeoff)])).toEqual([]);
+    expect(pickArtifacts([turn('a', rename)]).map((a) => a.kind)).toEqual(['receipt']);
+    expect(pickArtifacts([turn('b', writeoff)]).map((a) => a.kind)).toEqual(['receipt']);
   });
 
   it('кошик і чек без cardId не стають артефактами', () => {
@@ -147,124 +153,67 @@ describe('список як артефакт', () => {
   });
 });
 
-// Списання після готування. Живий репро 02.09: після карбонари в стрічці
-// стояла пігулка «У КОМОРУ · 4 ПОЗИЦІЇ / 4 у комору →», і вона:
-//   · брехала словами — картка ЗАБИРАЄ з комори, а казала «у комору»;
-//   · не натискалась — артефакта в неї немає (нічого не додалось), тож
-//     стрілка «→» вела в порожнечу.
-// Причина спільна: isIntakeArtifact віддавав true на будь-який intake_diff,
-// не розрізняючи наповнення й списання.
-describe('isWriteOff — списання це подія, а не річ', () => {
-  const card = (ops: { op: string; label: string }[]) => ({ id: 't', card: { type: 'intake_diff', ops } });
+// Спек 30.09 §3: intakeSign рахує ту саму формулу, що й рядки картки
+// (movement.ts) — трейс/лейбл читають це, щоб сказати «Списано» проти
+// «У комору» проти «Комора». isWriteOff («є хоч один add?») скасовано: він
+// плутав «немає add» зі «списанням» — correct із value > before (net-плюс
+// правка) під ним фальшиво ставав «Списано». Різниця знаку більше не
+// вирішує, чи БУДЕ артефакт (рішення власника 28.09, скасовує 02.09: раніше
+// isWriteOff-картка не ставала артефактом, слід малювався пігулкою в
+// порожнечу — живий репро після карбонари).
+describe('intakeSign — агрегатний знак картки (для лейбла сліду)', () => {
+  const card = (ops: Record<string, unknown>[]) => ({ id: 't', card: { type: 'intake_diff', ops } });
 
-  it('ops без жодного add — це списання', () => {
-    expect(isWriteOff(card([
-      { op: 'correct', label: 'спагеті Barilla' },
-      { op: 'deplete', label: 'бекон нарізка' },
-    ]) as never)).toBe(true);
+  it('усі рядки «−» (deplete/correct-менше) — списання', () => {
+    expect(intakeSign(card([
+      { op: 'deplete', label: 'бекон нарізка', before: { value: 200, unit: 'g' } },
+      { op: 'correct', label: 'спагеті Barilla', value: 100, unit: 'g', before: { value: 300, unit: 'g' } },
+    ]) as never)).toBe('−');
   });
 
-  it('є хоч один add — це наповнення, не списання', () => {
-    expect(isWriteOff(card([
-      { op: 'add', label: 'молоко' },
-      { op: 'correct', label: 'хліб' },
-    ]) as never)).toBe(false);
+  it('є хоч один add серед списання — мішане, не «Списано»', () => {
+    expect(intakeSign(card([
+      { op: 'add', label: 'молоко', value: 1, unit: 'l' },
+      { op: 'deplete', label: 'бекон нарізка', before: { value: 200, unit: 'g' } },
+    ]) as never)).toBe(null);
   });
 
-  it('порожні ops не роблять картку списанням', () => {
-    // Малформлена картка моделі не має міняти вигляд сліду.
-    expect(isWriteOff(card([]) as never)).toBe(false);
+  it('порожні ops — null, не «−» (vacuous truth пастка .every на [])', () => {
+    expect(intakeSign(card([]) as never)).toBe(null);
   });
 
-  it('інші типи карток списанням не бувають', () => {
-    expect(isWriteOff({ id: 't', card: { type: 'shopping', items: [] } } as never)).toBe(false);
-    expect(isWriteOff({ id: 't', card: null } as never)).toBe(false);
+  it('інші типи карток — null', () => {
+    expect(intakeSign({ id: 't', card: { type: 'shopping', items: [] } } as never)).toBe(null);
+    expect(intakeSign({ id: 't', card: null } as never)).toBe(null);
   });
 
-  it('списання НЕ стає артефактом, наповнення стає', () => {
-    // Саме ця різниця й лишала стрілку без цілі: слід малювався, артефакт ні.
-    const wo = { id: 'a', cardId: 'a', card: { type: 'intake_diff', ops: [{ op: 'correct', label: 'x' }] } };
+  it('і списання, і наповнення стають артефактом — тим самим родом', () => {
+    const wo = { id: 'a', cardId: 'a', card: { type: 'intake_diff', ops: [{ op: 'deplete', label: 'x', before: { value: 1, unit: 'pcs' } }] } };
     const fill = { id: 'b', cardId: 'b', card: { type: 'intake_diff', ops: [{ op: 'add', label: 'y' }] } };
-    expect(pickArtifacts([wo] as never).length, 'списання не артефакт').toBe(0);
-    expect(pickArtifacts([fill] as never).length, 'наповнення артефакт').toBe(1);
-  });
-});
-
-// П6-Т3. Списання досі малювалось одним способом на два різні випадки.
-// Після «зʼїли все» партії немає — рядок тексту без стрілки правильний.
-// Після «зʼїли половину» партія ЖИВА з новим числом, і сховати її за тим
-// самим рядком означає не показати єдине, що людина хоче побачити.
-describe('survivingBatches — часткове списання лишає що показати', () => {
-  const live = (...ids: string[]): Map<string, LiveBatch> =>
-    new Map(ids.map((id) => [id, { label: `позиція ${id}`, value: 250, unit: 'g' }]));
-  const wo = (ops: unknown[], extra: Partial<ArtifactTurn> = {}): ArtifactTurn =>
-    ({ id: 't', cardId: 't', card: { type: 'intake_diff', ops } as never, applied: true, ...extra });
-
-  it('партія лишилась у живих — її й показуємо', () => {
-    const t = wo([{ op: 'correct', label: 'томати', batch_id: 'b1', value: 250 }]);
-    expect(survivingBatches(t, live('b1'))).toEqual([{ id: 'b1', label: 'позиція b1', value: 250, unit: 'g' }]);
-    expect(goneLabels(t, live('b1')), 'жива позиція в текстовий рядок не йде').toEqual([]);
+    expect(pickArtifacts([wo] as never).map((a) => a.kind)).toEqual(['receipt']);
+    expect(pickArtifacts([fill] as never).map((a) => a.kind)).toEqual(['receipt']);
   });
 
-  it('повне списання: партії в живих немає — показувати нема чого', () => {
-    const t = wo([{ op: 'deplete', label: 'томати', batch_id: 'b1' }]);
-    expect(survivingBatches(t, live())).toEqual([]);
-    expect(goneLabels(t, live())).toEqual(['томати']);
+  it('лейбл артефакта — «Списано» для чистого списання', () => {
+    const wo = { id: 'a', cardId: 'a', card: { type: 'intake_diff', ops: [{ op: 'deplete', label: 'x', before: { value: 1, unit: 'pcs' } }] } };
+    expect(pickArtifacts([wo] as never).map((a) => a.label)).toEqual(['Списано']);
   });
 
-  it('мішана картка: жива йде в слід, зʼїдена — в рядок тексту', () => {
-    const t = wo([
-      { op: 'correct', label: 'спагеті', batch_id: 'b1', value: 100 },
-      { op: 'deplete', label: 'бекон', batch_id: 'b2' },
-    ]);
-    expect(survivingBatches(t, live('b1')).map((b) => b.id)).toEqual(['b1']);
-    expect(goneLabels(t, live('b1'))).toEqual(['бекон']);
-  });
-
-  it('без batch_id адресувати нічого: слід лишається текстом', () => {
-    // Старі картки в історії (до того, як сервер став ставити вказівник на
-    // правках) — і саме тому назву тут за ключ не беремо: findBatchByLabel
-    // повертає ПЕРШИЙ збіг, і при двох однойменних відкрилась би не та.
-    const t = wo([{ op: 'correct', label: 'томати', value: 250 }]);
-    expect(survivingBatches(t, live('b1'))).toEqual([]);
-    expect(goneLabels(t, live('b1'))).toEqual(['томати']);
-  });
-
-  it('незастосована й скасована картка партії не міняли', () => {
-    const ops = [{ op: 'correct', label: 'томати', batch_id: 'b1', value: 250 }];
-    expect(survivingBatches(wo(ops, { applied: false }), live('b1'))).toEqual([]);
-    expect(survivingBatches(wo(ops, { undone: true }), live('b1'))).toEqual([]);
-  });
-
-  it('наповнення слідом списання не стає', () => {
-    const t = wo([{ op: 'add', label: 'томати', batch_id: 'b1' }]);
-    expect(survivingBatches(t, live('b1'))).toEqual([]);
-    expect(goneLabels(t, live('b1'))).toEqual([]);
-  });
-});
-
-describe('pickArtifacts — жива партія стає вкладкою batch', () => {
-  const live = new Map<string, LiveBatch>([['b1', { label: 'томати', value: 250, unit: 'g' }]]);
-
-  it('часткове списання відкриває вкладку позиції, повне — ні', () => {
-    const partial = { id: 'a', cardId: 'a', applied: true, card: { type: 'intake_diff', ops: [{ op: 'correct', label: 'томати', batch_id: 'b1', value: 250 }] } };
-    const full = { id: 'c', cardId: 'c', applied: true, card: { type: 'intake_diff', ops: [{ op: 'deplete', label: 'бекон', batch_id: 'b9' }] } };
-    expect(pickArtifacts([partial] as never, null, live)).toEqual([
-      { key: 'batch:b1', kind: 'batch', label: 'томати', meta: '', turn: partial },
-    ]);
-    expect(pickArtifacts([full] as never, null, live)).toEqual([]);
-  });
-
-  it('без мапи живих партій екран лишається таким, як був', () => {
-    const partial = { id: 'a', cardId: 'a', applied: true, card: { type: 'intake_diff', ops: [{ op: 'correct', label: 'томати', batch_id: 'b1' }] } };
-    expect(pickArtifacts([partial] as never)).toEqual([]);
-  });
-
-  it('два списання тієї самої партії — одна вкладка, не дві', () => {
-    // Партія — це стан, а не документ ходу: другий обід із тих самих томатів
-    // не заводить другої картки позиції.
-    const one = { id: 'a', cardId: 'a', applied: true, card: { type: 'intake_diff', ops: [{ op: 'correct', label: 'томати', batch_id: 'b1' }] } };
-    const two = { id: 'b', cardId: 'b', applied: true, card: { type: 'intake_diff', ops: [{ op: 'correct', label: 'томати', batch_id: 'b1' }] } };
-    expect(pickArtifacts([one, two] as never, null, live).map((a) => a.key)).toEqual(['batch:b1']);
+  // §2а (коміт 7f142dfe): пара «пачка + залишок» — TELEGRAM BOT застеріг, що
+  // без приховування remainder цей рід картки (correct + add) читався б як
+  // мішане «Комора · 2»; з ним лишається один мінус-рядок — «Списано · 1».
+  it('§2а: пара пачка+залишок (correct із used + add remainder) — «Списано · 1», meta «1»', () => {
+    const pack = {
+      id: 'a', cardId: 'a', card: {
+        type: 'intake_diff',
+        ops: [
+          { op: 'correct', label: 'Гречка', value: 1, unit: 'pcs', before: { value: 2, unit: 'pcs' }, used: { value: 250, unit: 'g' } },
+          { op: 'add', label: 'Гречка', value: 250, unit: 'g', state: 'opened', remainder: true },
+        ],
+      },
+    };
+    const got = pickArtifacts([pack] as never);
+    expect(got.map((a) => a.label)).toEqual(['Списано']);
+    expect(got.map((a) => a.meta)).toEqual(['1']);
   });
 });

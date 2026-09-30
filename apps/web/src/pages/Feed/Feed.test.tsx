@@ -725,3 +725,73 @@ describe('M13-C1 · підключення Сільпо з панелі «Спи
     expect([...host!.querySelectorAll('button')].find((b) => b.textContent === 'Зібрати кошик у Сільпо →')).toBeFalsy();
   });
 });
+
+// Рішення власника 28.09 (скасовує 02.09) і уточнення 29.09: чисте списання
+// («зʼїли йогурт і допили молоко») малює той самий слід-пігулку, що й
+// наповнення, і відкриває ту саму панель — тепер підписану «Списано», а не
+// «Комора» (панель) / «З комори» (слід). Спек 30.09 §2/§3: знак приклеєний
+// до числа праворуч (.op-qty), колонки .op-sign ліворуч більше нема; ці ops
+// — deplete БЕЗ before (стара картка до PR #235) — рядок показує голий «−»
+// (movement.ts), не порожнечу.
+describe('М13-C2 · списання малює той самий слід і панель, що наповнення', () => {
+  it('слід клікабельний «Списано · 2», панель — 2 рядки «−» праворуч, без лівої колонки знаків', async () => {
+    todayMessages = [{
+      id: 'm1', session_id: 's1', role: 'assistant', text: null, applied: 2,
+      created_at: '2026-09-28T09:00:05Z',
+      card: {
+        type: 'intake_diff',
+        ops: [
+          { op: 'deplete', label: 'Йогурт', batch_id: 'b1' },
+          { op: 'deplete', label: 'Молоко', batch_id: 'b2' },
+        ],
+      },
+    }];
+    await mount();
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+
+    const trace = host!.querySelector<HTMLButtonElement>('[data-trace="intake"]')!;
+    expect(trace).toBeTruthy();
+    expect(trace.tagName).toBe('BUTTON');
+    expect(trace.textContent).toContain('Списано');
+    expect(trace.textContent).toContain('2 з комори');
+    expect(host!.textContent).not.toContain('Використали:');
+
+    await act(async () => { trace.click(); await new Promise((r) => setTimeout(r, 0)); });
+
+    // Інлайновий доккард лишається в DOM (artifact-in-feed: display:none,
+    // jsdom його не вирізає) — рядки шукаємо саме в панелі (<aside>), не по
+    // всьому host, інакше кожен рядок знайдеться двічі.
+    const panel = host!.querySelector('aside')!;
+    const labels = [...panel.querySelectorAll<HTMLElement>('[class*="op-label"]')].map((el) => el.textContent);
+    expect(labels).toEqual(['Йогурт', 'Молоко']);
+    expect(panel.querySelector('[class*="op-sign"]')).toBeNull();
+    const qty = [...panel.querySelectorAll<HTMLElement>('[class*="op-qty"]')];
+    expect(qty.map((el) => el.textContent)).toEqual(['−', '−']);
+    expect(qty.every((el) => el.className.includes('op-move-minus'))).toBe(true);
+  });
+
+  it('мішана картка (add + deplete) — «+» і «−» в одному списку, лейбл «Комора» (спек 30.09 §3: мішане — не напрям)', async () => {
+    todayMessages = [{
+      id: 'm1', session_id: 's1', role: 'assistant', text: null, applied: 2,
+      created_at: '2026-09-28T09:00:05Z',
+      card: {
+        type: 'intake_diff',
+        ops: [
+          { op: 'add', label: 'Хліб', value: 1, unit: 'pcs', batch_id: 'b1' },
+          { op: 'deplete', label: 'Молоко', batch_id: 'b2' },
+        ],
+      },
+    }];
+    await mount();
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    const trace = host!.querySelector<HTMLButtonElement>('[data-trace="intake"]')!;
+    expect(trace.textContent).toContain('Комора');
+    expect(trace.textContent).not.toContain('У комору · 2');
+    await act(async () => { trace.click(); await new Promise((r) => setTimeout(r, 0)); });
+    const panel = host!.querySelector('aside')!;
+    const qty = [...panel.querySelectorAll<HTMLElement>('[class*="op-qty"]')];
+    expect(qty.map((el) => el.textContent)).toEqual(['+1 шт', '−']);
+    expect(qty[0]!.className).toContain('op-move-plus');
+    expect(qty[1]!.className).toContain('op-move-minus');
+  });
+});

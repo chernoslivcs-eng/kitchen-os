@@ -207,6 +207,10 @@
   font-size: 13px;
   color: var(--muted);
 }
+/* Спек 30.09 §2: знак приклеєний до числа праворуч — «+» шавлією, «−» і
+   числа списання основним кольором тексту (не muted — це рух, не стан). */
+.op-move-plus { color: var(--sage); }
+.op-move-minus { color: var(--ink); }
 
 .card-actions { display: flex; gap: 10px; margin-top: 4px; }
 .card-actions > :first-child { flex: 1; }
@@ -1180,6 +1184,10 @@ a.att-chip:hover { border-color: var(--sage); }
   color: var(--muted);
   text-align: right;
 }
+/* Спек 30.09 §2: знак приклеєний до числа праворуч — «+» шавлією, «−» і
+   числа списання основним кольором тексту (не muted — це рух, не стан). */
+.rrow-move-plus { color: var(--sage); }
+.rrow-move-minus { color: var(--ink); }
 /* Шапка документа, підвал і невпізнаний рядок чека. */
 .rc-head { display: flex; align-items: baseline; gap: 8px; min-height: 28px; }
 .rc-title { font-size: 15px; font-weight: 600; color: var(--ink); }
@@ -1298,25 +1306,12 @@ a.att-chip:hover { border-color: var(--sage); }
    зникає разом із класом, щойно панель відкрили. */
 
 
-/* Тихий хвіст під списком позицій: скільки з них уже зʼїли. Чекова книжка
-   показує лише те, що лишилось, але порожній чек виглядав би зламаним —
-   тому число називаємо, а рядки не малюємо. */
-.rgroup-tail,
-.op-gone-tail {
+/* Тихий хвіст під списком позицій групи — для тексту, який сама ReceiptGroup
+   ще може передати (спек 30.09 §7 прибрав хвіст-лічильник зʼїденого). */
+.rgroup-tail {
   padding: 6px 12px 2px;
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--muted);
-}
-
-/* Списання після готування — подія, а не артефакт: рядок тексту замість
-   пігулки зі стрілкою, яка вела в порожнечу (нічого не додалось — нема чого
-   відкривати). */
-.writeoff-line {
-  margin: 2px 0 6px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1.5;
   color: var(--muted);
 }
 
