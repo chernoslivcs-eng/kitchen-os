@@ -30,8 +30,10 @@ describe('buildWriteoffOps · штучне у грамах', () => {
     const id = await seed();
     const ops = await buildWriteoffOps(repo, h, { t: 'Паста', sv: 2, ing: [{ p: id, n: 'спагеті', v: 200, u: 'g' }], st: [] } as never);
     expect(ops).toEqual([
-      { op: 'correct', label: 'спагеті Barilla', batch_id: id, value: 3, unit: 'pcs' },
-      expect.objectContaining({ op: 'add', label: 'спагеті Barilla', state: 'opened', value: 200, unit: 'g', product: 'спагеті', brand: 'Barilla' }),
+      // `used` (спек §2а): рядок читається як «−200 г», а не «−1 шт»; сама
+      // партія лишається в штуках, це не міняється.
+      { op: 'correct', label: 'спагеті Barilla', batch_id: id, value: 3, unit: 'pcs', used: { value: 200, unit: 'g' } },
+      expect.objectContaining({ op: 'add', label: 'спагеті Barilla', state: 'opened', value: 200, unit: 'g', product: 'спагеті', brand: 'Barilla', remainder: true }),
     ]);
     await run(ops);
     const bs = await live();
@@ -69,13 +71,13 @@ describe('buildWriteoffOps · штучне у грамах', () => {
 
   it('(г) остання одиниця вжита цілком (1 шт × 400 − 400) → deplete, без відкритого залишку; більше за партію — теж deplete', async () => {
     const id = await seed({ value: 1 });
-    expect(await buildWriteoffOps(repo, h, { t: 'x', sv: 2, ing: [{ p: id, n: 'спагеті', v: 400, u: 'g' }], st: [] } as never)).toEqual([{ op: 'deplete', label: 'спагеті Barilla', batch_id: id }]);
+    expect(await buildWriteoffOps(repo, h, { t: 'x', sv: 2, ing: [{ p: id, n: 'спагеті', v: 400, u: 'g' }], st: [] } as never)).toEqual([{ op: 'deplete', label: 'спагеті Barilla', batch_id: id, used: { value: 400, unit: 'g' } }]);
   });
 
   it('(б) вагова партія — як досі: correct на залишок, партія відкривається цілком', async () => {
     const id = await seed({ label: 'сало', value: 1000, unit: 'g', product_id: null });
     const ops = await buildWriteoffOps(repo, h, { t: 'x', sv: 2, ing: [{ p: id, n: 'сало', v: 300, u: 'g' }], st: [] } as never);
-    expect(ops).toEqual([{ op: 'correct', label: 'сало', batch_id: id, value: 700, unit: 'g' }]);
+    expect(ops).toEqual([{ op: 'correct', label: 'сало', batch_id: id, value: 700, unit: 'g', used: { value: 300, unit: 'g' } }]);
     await run(ops);
     const b = await repo.getBatch(id);
     expect(b!.state).toBe('opened'); expect(b!.value).toBe(700);
