@@ -7,10 +7,9 @@
 // відкритим.
 import './env.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { Bot } from 'grammy';
 import { pickRepo } from './server.js';
 import { pickMailer } from './mailer.js';
-import { telegramFetch, botInfoFor } from './telegram-bot.js';
+import { makeTelegramNotify } from './telegram-notify.js';
 import { runBillingCron } from './billing-cron.js';
 import { lazyBillingProvider } from './billing/pick-provider.js';
 
@@ -21,17 +20,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   const t0 = Date.now();
   try {
     const repo = await pickRepo();
-    const token = process.env.TELEGRAM_BOT_TOKEN;
     // Акаунти без пошти отримують той самий текст у бот. Немає токена —
-    // немає каналу; стани міняються однаково (спек §7).
-    const telegramNotify = token
-      ? async (user_id: string, text: string) => {
-        const acc = await repo.getTelegramByUser(user_id);
-        if (!acc || acc.revoked_at || acc.chat_id == null) return;
-        const bot = new Bot(token, { botInfo: botInfoFor(token, process.env.TELEGRAM_BOT_USERNAME), client: { fetch: telegramFetch as never } });
-        await bot.api.sendMessage(acc.chat_id, text);
-      }
-      : undefined;
+    // немає каналу; стани міняються однаково (спек §7). Будівник спільний із
+    // разовими скриптами: правило «кому слати» мусить бути одне.
+    const telegramNotify = makeTelegramNotify(repo);
     const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
     const summary = await runBillingCron({
       repo, mailer: pickMailer(), appUrl, telegramNotify, billing: lazyBillingProvider(appUrl),
