@@ -90,6 +90,20 @@ export function buildApp(
   opts: BuildAppOpts = {},
 ): FastifyInstance {
   const app = Fastify({
+    /**
+     * Справжня адреса клієнта з-за проксі Vercel. Без цього `req.ip` і
+     * колонка `auth_challenge.ip` були `127.0.0.1` у ВСІХ рядків — саме тому
+     * 3 374 запити бота 30.09 виглядали як один і той самий «клієнт», і
+     * лімітувати не було чого.
+     *
+     * Один хоп, а не `true`. `true` бере ЛІВИЙ запис x-forwarded-for, а його
+     * клієнт надсилає сам: достатньо підставити чужий заголовок, і межа по IP
+     * обходиться з одного вузла. Функція нижче каже «довіряю лише найближчому
+     * проксі» (hop 0 — сам Vercel), тож адресою стає те, що дописав ВІН, —
+     * справжній пірінг. Число 1 тут зробило б те саме, але типи Fastify 5
+     * числа не приймають: boolean | string | string[] | TrustProxyFunction.
+     */
+    trustProxy: (_address: string, hop: number) => hop === 0,
     // П2a: тест може дати свій логер (потік) — щоб перевірити warn-маркери
     // маршруту (period-card-dropped) там, де їх побачить прод.
     logger: opts.logger ?? (process.env.NODE_ENV === 'test' ? false

@@ -16,6 +16,8 @@ import { requestChallenge, verifyChallenge, verifyEmailAttach, resolveSession, l
 import type { Mailer } from '../mailer.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 import { tooMany } from '../too-many.js';
+import { checkAuthFlood } from '../auth-flood.js';
+import { captureIncident } from '../sentry.js';
 
 export const COOKIE_NAME = 'kos';
 
@@ -64,6 +66,23 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
       // повернеться туди, звідки пішов авторизуватись, а не зʼїде на дефолт /app.
       const nextRaw = req.body?.next;
       const next = nextRaw && nextRaw.startsWith('/') && !nextRaw.startsWith('//') ? nextRaw : null;
+      // Інцидент 30.09: бот заливав цей маршрут вигаданими адресами, поки не
+      // скінчилась денна квота Resend. Перевірка ДО створення челенджу й
+      // листа; відмова виглядає як успіх, щоб скрипт не вчився її обходити.
+      const flood = await checkAuthFlood({ repo, email, ip: req.ip ?? null, delivers: mailer.delivers });
+      if (!flood.ok) {
+        // Пошту в лог не кладемо: вона й так у базі, а в логах це зайві
+        // персональні дані на кожен запит бота.
+        req.log.warn({ reason: flood.reason, ip: req.ip }, 'auth-request-dropped');
+        if (flood.reason === 'global' || flood.reason === 'global_day') {
+          // Глобальна межа — це вже не «конкретний бот», а стан застосунку: у
+          // цю хвилину НІХТО не може увійти поштою. Мовчати про таке не можна.
+          // Добова окремим ім'ям: вона означає, що бюджет листів на день уже
+          // витрачено, і до ранку сама не відпустить.
+          captureIncident('guard', flood.reason === 'global' ? 'auth-global-limit-hit' : 'auth-daily-limit-hit', { ip: req.ip });
+        }
+        return reply.code(202).send({ ok: true });
+      }
       const { raw_token } = await requestChallenge(repo, {
         email,
         ip: req.ip,

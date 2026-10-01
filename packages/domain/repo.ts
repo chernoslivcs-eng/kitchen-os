@@ -562,6 +562,21 @@ export interface Repo {
   // Дом-membership і запрошення
   isMember(household_id: string, user_id: string): Promise<boolean>;
   addMember(household_id: string, user_id: string, role: HouseholdRole): Promise<void>;
+  /**
+   * Скільки запитів магічного лінка створено з моменту `since`. Фільтри
+   * складаються (обидва — AND); без фільтрів — глобально.
+   *
+   * Рахуємо по таблиці, а не в памʼяті: на Vercel кожен холодний старт — свій
+   * інстанс, тож лічильник у процесі не бачить попередніх запитів. Саме через
+   * це бот 30.09 зробив 3 374 запити й вичерпав денну квоту Resend.
+   */
+  /**
+   * Скільки рядків auth_challenge народилось від `since`. Межі заливання
+   * (services/api/src/auth-flood.ts) рахують по базі, а не в памʼяті процесу:
+   * на Vercel кожен холодний старт — новий інстанс зі своїм нулем.
+   * `kind` звіряється з дефолтом колонки: рядок без kind — 'email'.
+   */
+  countChallengesSince(since: Date, filter?: { ip?: string; email?: string; kind?: AuthChallenge['kind'] }): Promise<number>;
   saveInvite(inv: HouseholdInvite): Promise<void>;
   getInviteByHash(token_hash: string): Promise<HouseholdInvite | null>;
   getInvite(id: string): Promise<HouseholdInvite | null>;

@@ -677,6 +677,48 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
     // Знімок «що було» лежить усередині JSON-картки, тобто міграції не
     // потребує, — але саме тому варто переконатись, що він доживає до бази й
     // назад, а не гине в маперах.
+    // Лічильник запитів магічного лінка (інцидент 30.09). У памʼяті рахувати
+    // не можна — на Vercel кожен холодний старт свій, — тож рахуємо по
+    // таблиці, і це мусить працювати однаково в обох репозиторіях.
+    it('countChallengesSince: вікно, IP, пошта і kind', async () => {
+      const { repo } = ctx;
+      const now = Date.now();
+      const mk = async (mins: number, ip: string, email: string, kind?: string) => {
+        await repo.saveChallenge({
+          id: randomUUID(), email, token_hash: randomUUID(),
+          ...(kind ? { kind } : {}),
+          created_at: new Date(now - mins * 60_000).toISOString(),
+          expires_at: new Date(now + 900_000).toISOString(),
+          consumed_at: null, ip, user_agent: null,
+        } as never);
+      };
+      const tag = randomUUID().slice(0, 8);
+      await mk(2, '9.9.9.1', `a-${tag}@mail.test`);
+      await mk(5, '9.9.9.1', `b-${tag}@mail.test`);
+      await mk(40, '9.9.9.1', `c-${tag}@mail.test`);   // поза 15-хвилинним вікном
+      await mk(3, '9.9.9.2', `a-${tag}@mail.test`);
+
+      const since15 = new Date(now - 15 * 60_000);
+      expect(await repo.countChallengesSince(since15, { ip: '9.9.9.1' })).toBe(2);
+      expect(await repo.countChallengesSince(since15, { email: `a-${tag}@mail.test` })).toBe(2);
+      // Вікно рахується від since, а не «усе підряд».
+      expect(await repo.countChallengesSince(new Date(now - 60 * 60_000), { ip: '9.9.9.1' })).toBe(3);
+      // Фільтри складаються.
+      expect(await repo.countChallengesSince(since15, { ip: '9.9.9.2', email: `a-${tag}@mail.test` })).toBe(1);
+
+      // kind: вхід через бота листів не шле, тому межі заливання його не рахують.
+      // Головне тут — що рядок, збережений БЕЗ kind, обидва репозиторії вважають
+      // магік-лінком: у Постгресі колонка NOT NULL DEFAULT 'email' (0036), у
+      // памʼяті те саме доводиться робити руками.
+      await mk(2, '9.9.9.3', `d-${tag}@mail.test`, 'tg_login');
+      await mk(2, '9.9.9.3', `e-${tag}@mail.test`, 'telegram');
+      await mk(2, '9.9.9.3', `f-${tag}@mail.test`, 'email');
+      await mk(2, '9.9.9.3', `g-${tag}@mail.test`);                  // без kind — теж 'email'
+      expect(await repo.countChallengesSince(since15, { ip: '9.9.9.3' })).toBe(4);
+      expect(await repo.countChallengesSince(since15, { ip: '9.9.9.3', kind: 'email' })).toBe(2);
+      expect(await repo.countChallengesSince(since15, { ip: '9.9.9.3', kind: 'tg_login' })).toBe(1);
+    });
+
     it('updateMessageCard: before в операції переживає перезавантаження', async () => {
       const { repo, user_id } = ctx;
       const session = await repo.getOrCreateSessionForDay(user_id, '2026-09-02');
