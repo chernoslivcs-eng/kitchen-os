@@ -21,7 +21,7 @@ import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { PLANS } from '../Landing/copy';
 import { PLAN_NAME, PLAN_PRICE_UAH } from '@kitchen/domain/plans';
 // Глибокий шлях, не барел: барел тягне node:crypto й ламає vite.
-import { bankNotice, MERCHANT_LEGAL_NAME } from '@kitchen/domain/paywall';
+import { bankNotice } from '@kitchen/domain/paywall';
 import { fmtDate } from './summary';
 import styles from './Subscription.module.css';
 
@@ -125,22 +125,14 @@ export function SubscriptionPage() {
   }, []);
 
   // Уточнення сервера 01.10: нових пробних більше нема взагалі (ні прапорця
-  // бети, ні звичайного) — `trial_available` завжди false. Гілка «перше
-  // списання буде {дата}» у bankNotice() стала мертвою, лишається тільки
-  // «протягом доби».
-  //
-  // Рішення власника 01.10 (правка з живого перегляду): для demo — свій
-  // рядок без слова «пробний» (демо — не пробний, людині це слово ні про
-  // що), той самий текст, що на лендінгу. Для lapsed/past_due лишається
-  // bankNotice() — там «пробний період уже використано» правда про
-  // конкретний дім.
-  const notice = (plan: Plan): { text: string; cta: string } => sub?.state === 'demo'
-    ? {
-        text: `monobank збереже картку і зараз нічого не спише. Перше списання ${PLAN_PRICE_UAH[plan]} ₴ — протягом доби. `
-          + `На сторінці банку отримувач — «${MERCHANT_LEGAL_NAME}», це ми.`,
-        cta: 'Оформити',
-      }
-    : bankNotice(PLAN_PRICE_UAH[plan]);
+  // бети, ні звичайного) — bankNotice() сама завжди каже «протягом доби»,
+  // без «пробний». Один виклик — одне джерело тексту (лендінг, тут). cta —
+  // рішення цього екрана, не домену: демо каже «Оформити», lapsed/past_due —
+  // «До банку» з bankNotice().
+  const notice = (plan: Plan): { text: string; cta: string } => {
+    const { text, cta } = bankNotice(PLAN_PRICE_UAH[plan]);
+    return { text, cta: sub?.state === 'demo' ? 'Оформити' : cta };
+  };
 
   async function checkout(plan: Plan) {
     if (busy) return;
