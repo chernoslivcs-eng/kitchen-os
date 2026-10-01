@@ -16,6 +16,7 @@ import { COOKIE_NAME } from './auth.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 import { tooMany } from '../too-many.js';
+import { isUndeliverable } from '../auth-flood.js';
 
 function isSecure(): boolean {
   return process.env.NODE_ENV === 'production';
@@ -57,6 +58,14 @@ export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, 
       }
       if (!(await repo.isMember(household_id, user_id))) {
         return reply.code(403).send({ error: 'not a member of this household' });
+      }
+      // Інцидент 30.09 (той самий): лист у нікуди палить ту саму квоту. Тут
+      // маршрут уже за сесією й має свій ліміт по user_id, тож лічильники по
+      // IP/пошті не потрібні — лишається відсікти недоставні домени.
+      // Відповідь як при успіху: запрошення просто не створюється.
+      if (mailer.delivers && isUndeliverable(email)) {
+        req.log.warn({ reason: 'undeliverable', user_id }, 'invite-dropped');
+        return reply.code(202).send({ ok: true, mail_sent: false });
       }
       const { invite, raw_token } = await createInvite(repo, {
         household_id, invited_by: user_id, email, role,

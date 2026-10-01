@@ -1239,6 +1239,13 @@ export class InMemoryRepo implements Repo {
     this.members.push({ household_id, user_id, role, joined_at: new Date().toISOString() });
   }
 
+  async countChallengesSince(since: Date, filter?: { ip?: string; email?: string }): Promise<number> {
+    const from = since.getTime();
+    return [...this.challenges.values()].filter((c) =>
+      new Date(c.created_at).getTime() >= from
+      && (filter?.ip == null || c.ip === filter.ip)
+      && (filter?.email == null || c.email === filter.email)).length;
+  }
   async saveInvite(inv: HouseholdInvite): Promise<void> {
     this.invites.set(inv.id, { ...inv });
     this.inviteByHash.set(inv.token_hash, inv.id);

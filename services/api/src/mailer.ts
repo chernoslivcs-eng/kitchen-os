@@ -26,9 +26,18 @@ export interface PlainMail {
 export interface Mailer {
   sendMagicLink(mail: MagicLinkMail): Promise<void>;
   sendPlain(mail: PlainMail): Promise<void>;
+  /**
+   * Чи йдуть листи назовні насправді. Від цього залежить, чи відсікати
+   * «вигадані» домени (.test, .invalid, example.com): їхня єдина шкода —
+   * спалена квота справжнього відправника. На стенді й у тестах шкоди немає,
+   * а наші ж тести й стенд живуть саме на таких адресах (@example.com — 451
+   * згадка, стенд — dev@local.test).
+   */
+  readonly delivers: boolean;
 }
 
 export class ConsoleMailer implements Mailer {
+  readonly delivers = false;
   public sent: MagicLinkMail[] = [];
   public plain: PlainMail[] = [];
 
@@ -77,6 +86,7 @@ export interface SmtpConfig {
 }
 
 export class SmtpMailer implements Mailer {
+  readonly delivers = true;
   private transporter: Transporter;
   private from: string;
 
