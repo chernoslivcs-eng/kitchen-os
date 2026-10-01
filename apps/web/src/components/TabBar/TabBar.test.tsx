@@ -135,6 +135,22 @@ describe('вкладеного скролу немає', () => {
     expect(main).toMatch(/min-height:\s*0/);
     expect(main).toMatch(/scrollbar-width:\s*thin/);
   });
+
+  // Хотфікс (01.10, прод iPhone/Chrome 390): .scroll мав лише overflow-y —
+  // без явної пари overflow-x за специфікацією рахується як auto, і шухляда
+  // (<768) гортається вбік дотиком на кілька px (жоден рядок геометрично не
+  // виходить за край — живцем на стенді scrollWidth > clientWidth без єдиного
+  // елемента, що це пояснює; round-off розкладки). overflow-x: hidden був
+  // лише в десктопному блоці (≥768). Перевірка — в БАЗОВОМУ правилі (усі
+  // ширини), а не лише в desktop-блоці, інакше регрес на мобільному мине
+  // непоміченим.
+  it('.scroll не гортається вбік на жодній ширині (overflow-x, touch-action)', () => {
+    const found = blocks('.scroll');
+    const main = found.find((b) => b.includes('overflow-y'))!;
+    expect(main).toBeTruthy();
+    expect(main).toMatch(/overflow-x:\s*hidden/);
+    expect(main).toMatch(/touch-action:\s*pan-y/);
+  });
 });
 
 // Етап 6a (11.09): одна навігація в чотирьох контейнерах — рейка 60 ⇄
