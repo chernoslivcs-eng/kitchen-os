@@ -4,7 +4,44 @@
 // цього тесту, щоб не переzavantaжувати модуль). PLANS = buildPlans(BETA_PLAN)
 // перевіряється окремо — фіксує, що прапорець зараз дійсно true.
 import { describe, it, expect } from 'vitest';
-import { buildPlans, BETA_PLAN, PLANS, PRICE } from './copy';
+import { buildPlans, BETA_PLAN, PLANS, PRICE, HERO, FOOTER } from './copy';
+
+// Рішення власника 30.09 (остаточний текст, ітерація 4): нове копі першого
+// екрана — гасло «Кухня, яка памʼятає» на паузі (не вживати в нових
+// матеріалах).
+describe('HERO · копі 30.09', () => {
+  it('a/b — остаточне гасло власника (довге тире в a)', () => {
+    expect(HERO.a).toBe('Готувати вдома — класно.');
+    expect(HERO.b).toBe('Швидко, повільно, за планом або як заманеться.');
+  });
+
+  it('lead і leadMobile — однакові', () => {
+    expect(HERO.lead).toBe('Готуй так, як тобі зручно. А рутину Kitchen OS візьме на себе.');
+    expect(HERO.leadMobile).toBe(HERO.lead);
+  });
+
+  it('стара слоган-фраза ніде в HERO/FOOTER не лишилась', () => {
+    expect(Object.values(HERO)).not.toContain('Кухня, яка памʼятає.');
+    expect(FOOTER.tagline).not.toBe('Кухня, яка памʼятає.');
+  });
+
+  // Фікс 30.09: на 390 рядок ламався перед тире («Готувати вдома / — класно.»)
+  // — байдужий до пробіла toBe() це не ловить, тому окремо перевіряємо саме
+  // код символу перед «—» в HERO.a і FOOTER.*.
+  it('перед тире в «вдома — класно» — нерозривний пробіл (U+00A0), не звичайний', () => {
+    const dashIndex = HERO.a.indexOf('—');
+    expect(HERO.a.charCodeAt(dashIndex - 1)).toBe(0x00a0);
+    expect(FOOTER.tagline.charCodeAt(FOOTER.tagline.indexOf('—') - 1)).toBe(0x00a0);
+    expect(FOOTER.taglineLong.charCodeAt(FOOTER.taglineLong.indexOf('—') - 1)).toBe(0x00a0);
+  });
+});
+
+describe('FOOTER · копі 30.09', () => {
+  it('tagline/taglineLong — те саме гасло, що HERO.a', () => {
+    expect(FOOTER.tagline).toBe('Готувати вдома — класно.');
+    expect(FOOTER.taglineLong).toBe('Готувати вдома — класно. Без реклами й проплачених пропозицій усередині.');
+  });
+});
 
 describe('buildPlans(false) — рівно PR #208, без слідів картки «Бета-тест»', () => {
   const plans = buildPlans(false);

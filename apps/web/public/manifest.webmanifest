@@ -1,7 +1,7 @@
 {
   "name": "Kitchen OS",
   "short_name": "Kitchen",
-  "description": "Кухня, що пам'ятає, що в тебе є",
+  "description": "Готуй так, як тобі зручно. А рутину Kitchen OS візьме на себе.",
   "start_url": "/app",
   "scope": "/",
   "display": "standalone",
