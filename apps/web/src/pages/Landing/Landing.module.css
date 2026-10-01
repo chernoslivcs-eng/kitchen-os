@@ -679,8 +679,13 @@
 /* Підпис перед переходом на сторінку банку (борг живого тесту 26.09): банк не
    показує ні суми, ні призначення, тож це єдине місце, де людина про них
    дізнається. Дрібний, але не сірий до невидимості — його мусять прочитати. */
+/* Бічні поля — ті самі 18px, що в .planList (PlanCard.module.css), щоб рядок
+ * починався під текстом переліку, а не з краю картки. padding, не margin:
+ * .bankNote лежить прямо в .plan (flex-колонка) поруч із кнопкою, і лише
+ * padding-bottom надійно дає проміжок до неї незалежно від порядку правил. */
 .bankNote {
-  margin: 0 0 12px;
+  margin: 0;
+  padding: 0 18px 12px;
   font-size: 13px;
   line-height: 1.45;
   color: var(--muted);
@@ -696,10 +701,13 @@
  * min-height панелі PlanCard (210 на .tab) вже не вистачає під два рядки
  * підзаголовка. */
 .tab .planGridThree { max-width: 1160px; }
+/* .planList на .tab/.mob звужується до 16px (PlanCard.module.css) — той самий бік тут. */
+.tab .bankNote { padding-left: 16px; padding-right: 16px; }
 .mob .price { padding: 80px 20px 0; gap: 16px; align-items: stretch; }
 .mob .priceP { font-size: 15px; line-height: 1.5; max-width: none; }
 /* На 390 — стовпчиком, не горизонтальний снап-скрол (§1.11: дві картки — не потребують снапу). */
 .mob .planGrid { grid-template-columns: 1fr; gap: 14px; max-width: none; padding-top: 12px; }
+.mob .bankNote { padding-left: 16px; padding-right: 16px; }
 
 /* ── фінал · 1920: 200/160/48, телефон 300 із маскою, h2 72 ≤1100, p 18 ≤640; 1024: 140/48/32, 52; 390: 96/20/32, 36 ── */
 .final { padding: 200px 160px 48px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 28px; }
