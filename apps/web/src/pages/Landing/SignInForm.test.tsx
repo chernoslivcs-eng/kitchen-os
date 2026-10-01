@@ -197,7 +197,7 @@ describe('SignInForm · «Реєстрація / Вхід» (AUTH-BRIEF-0915)', 
     expect(host!.textContent).not.toContain('Бета-тест');
     expect(host!.textContent).not.toContain('Тариф');
     expect(host!.textContent).not.toContain('або лінк на пошту');
-    expect(host!.textContent).toContain('Зараз безкоштовно, поки триває бета');
+    expect(host!.textContent).toContain('7 днів безкоштовно, без картки');
   });
 
   it('kos-had-session у localStorage — дефолт «Вхід»', async () => {
@@ -211,11 +211,11 @@ describe('SignInForm · «Реєстрація / Вхід» (AUTH-BRIEF-0915)', 
   it('перемикач міняє текст note між режимами', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/v1/auth/providers' ? providersOn() : json({}))));
     await mount();
-    expect(host!.textContent).toContain('Зараз безкоштовно, поки триває бета');
+    expect(host!.textContent).toContain('7 днів безкоштовно, без картки');
     await act(async () => { byText('Вхід')!.click(); });
     expect(host!.textContent).toContain('Тим способом, яким заходив раніше');
     await act(async () => { byText('Реєстрація')!.click(); });
-    expect(host!.textContent).toContain('Зараз безкоштовно, поки триває бета');
+    expect(host!.textContent).toContain('7 днів безкоштовно, без картки');
   });
 
   it('рядок згоди (умови/політика) видно і в «Реєстрація», і в «Вхід» (§2.5)', async () => {

@@ -41,14 +41,14 @@ afterEach(async () => {
 
 describe('SubscriptionBanner', () => {
   it('banner: null (active/beta/без рядка) — нічого не малює', async () => {
-    useAuth.setState({ me: meWith({ state: 'active', plan: 'self', entitlement: 'full', trial_ends_at: null, next_charge_at: null, access_until: null, card_mask: '4242', banner: null }) });
+    useAuth.setState({ me: meWith({ state: 'active', demo_ends_at: null, plan: 'self', entitlement: 'full', trial_ends_at: null, next_charge_at: null, access_until: null, card_mask: '4242', banner: null }) });
     await mount();
     expect(host!.querySelector('[role="status"]')).toBeNull();
     expect(host!.textContent).toBe('');
   });
 
   it('banner з кнопкою (lapsed) — текст і посилання', async () => {
-    useAuth.setState({ me: meWith({ state: 'lapsed', plan: null, entitlement: 'read_only', trial_ends_at: null, next_charge_at: null, access_until: null, card_mask: null, banner: { text: 'Підписка закінчилась — усе лишив як було.', cta: 'Продовжити', to: '/profile/subscription' } }) });
+    useAuth.setState({ me: meWith({ state: 'lapsed', demo_ends_at: null, plan: null, entitlement: 'read_only', trial_ends_at: null, next_charge_at: null, access_until: null, card_mask: null, banner: { text: 'Підписка закінчилась — усе лишив як було.', cta: 'Продовжити', to: '/profile/subscription' } }) });
     await mount();
     expect(host!.querySelector('[role="status"]')?.textContent).toContain('Підписка закінчилась — усе лишив як було.');
     const link = host!.querySelector<HTMLAnchorElement>('a[href="/profile/subscription"]');
@@ -56,14 +56,14 @@ describe('SubscriptionBanner', () => {
   });
 
   it('banner без кнопки (cancelled, немає to) — лише текст, посилання нема', async () => {
-    useAuth.setState({ me: meWith({ state: 'cancelled', plan: 'home', entitlement: 'full', trial_ends_at: null, next_charge_at: null, access_until: '2026-10-15T00:00:00Z', card_mask: '4242', banner: { text: 'До 15 жовтня все працює як завжди. Потім просто зробимо паузу.' } }) });
+    useAuth.setState({ me: meWith({ state: 'cancelled', demo_ends_at: null, plan: 'home', entitlement: 'full', trial_ends_at: null, next_charge_at: null, access_until: '2026-10-15T00:00:00Z', card_mask: '4242', banner: { text: 'До 15 жовтня все працює як завжди. Потім просто зробимо паузу.' } }) });
     await mount();
     expect(host!.querySelector('[role="status"]')?.textContent).toContain('До 15 жовтня');
     expect(host!.querySelector('a')).toBeNull();
   });
 
   it('past_due — бурштиновий клас', async () => {
-    useAuth.setState({ me: meWith({ state: 'past_due', plan: 'self', entitlement: 'full', trial_ends_at: null, next_charge_at: '2026-09-20T00:00:00Z', access_until: null, card_mask: '4242', banner: { text: 'Цього разу оплата не пройшла. Оновимо картку й продовжимо звідси.', cta: 'Оновити картку', to: '/profile/subscription' } }) });
+    useAuth.setState({ me: meWith({ state: 'past_due', demo_ends_at: null, plan: 'self', entitlement: 'full', trial_ends_at: null, next_charge_at: '2026-09-20T00:00:00Z', access_until: null, card_mask: '4242', banner: { text: 'Цього разу оплата не пройшла. Оновимо картку й продовжимо звідси.', cta: 'Оновити картку', to: '/profile/subscription' } }) });
     await mount();
     const bar = host!.querySelector('[role="status"]');
     // CSS-модулі у vitest — порожній обʼєкт; клас застосований, якщо є

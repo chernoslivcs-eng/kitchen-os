@@ -11,7 +11,7 @@ const sub = (household_id: string, p: Record<string, unknown>) => ({
   household_id, state: 'active', plan: 'self', trial_used_at: null, trial_ends_at: null,
   next_charge_at: null, access_until: null, provider_order_id: 'o', card_mask: '4242', card_token: null,
   paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null,
-  updated_at: '2026-09-01T00:00:00.000Z', ...p,
+  demo_ends_at: null, demo_mail_sent_at: null, updated_at: '2026-09-01T00:00:00.000Z', ...p,
 }) as never;
 
 const seen = (repo: InMemoryRepo, user_id: string, at: string) => repo.saveSession({
@@ -21,6 +21,55 @@ const seen = (repo: InMemoryRepo, user_id: string, at: string) => repo.saveSessi
 
 const at = (repo: InMemoryRepo, mailer: ConsoleMailer, d: string) =>
   ({ repo, mailer, appUrl: 'http://app.test', now: () => new Date(d) });
+
+describe('демо (спек 2026-10-01 §5)', () => {
+  // Дім у демо: кінець 8 жовтня.
+  const demoHouse = async (repo: InMemoryRepo) => {
+    const { household_id } = await repo.createUserWithHousehold(`${randomUUID()}@x.test`, 'Д');
+    await repo.saveSubscription(sub(household_id, {
+      state: 'demo', plan: null, provider_order_id: null, card_mask: null,
+      trial_used_at: '2026-10-01T09:00:00.000Z', demo_ends_at: '2026-10-08T09:00:00.000Z',
+    }));
+    return household_id;
+  };
+
+  it('за 2 дні до кінця — лист один раз, і тільки один', async () => {
+    const repo = new InMemoryRepo(); const mailer = new ConsoleMailer();
+    const household_id = await demoHouse(repo);
+    // За три дні ще рано: лист про кінець демо приходить за два.
+    expect((await runBillingCron(at(repo, mailer, '2026-10-05T03:30:00.000Z'))).demoMails).toBe(0);
+    expect(mailer.plain).toHaveLength(0);
+
+    const deps = at(repo, mailer, '2026-10-06T03:30:00.000Z');
+    expect((await runBillingCron(deps)).demoMails).toBe(1);
+    expect(mailer.plain.map((m) => m.subject)).toEqual(['Демо закінчується 8 жовтня']);
+    expect((await repo.getSubscription(household_id))?.demo_mail_sent_at).toBe('2026-10-06T03:30:00.000Z');
+
+    // Наступний день — той самий лист не повторюється.
+    await runBillingCron(at(repo, mailer, '2026-10-07T03:30:00.000Z'));
+    expect(mailer.plain).toHaveLength(1);
+  });
+
+  it('у день кінця — demo → lapsed, лист про читання, і «закінчується» вже не шлеться', async () => {
+    const repo = new InMemoryRepo(); const mailer = new ConsoleMailer();
+    const household_id = await demoHouse(repo);
+    const r = await runBillingCron(at(repo, mailer, '2026-10-08T09:00:01.000Z'));
+    expect(r).toMatchObject({ transitions: 1, lapsedMails: 1, demoMails: 0 });
+    expect((await repo.getSubscription(household_id))?.state).toBe('lapsed');
+    // Один лист за день, не два: «закінчується» і «закінчилось» разом звучали б
+    // як збій, а не як дві події.
+    expect(mailer.plain.map((m) => m.subject)).toEqual(['Підписка закінчилась — усе на місці']);
+  });
+
+  it('демо без дати крон не чіпає й листів не шле', async () => {
+    const repo = new InMemoryRepo(); const mailer = new ConsoleMailer();
+    const { household_id } = await repo.createUserWithHousehold('nodate@x.test', 'Н');
+    await repo.saveSubscription(sub(household_id, { state: 'demo', demo_ends_at: null }));
+    const r = await runBillingCron(at(repo, mailer, '2026-12-01T03:30:00.000Z'));
+    expect(r).toMatchObject({ transitions: 0, demoMails: 0 });
+    expect((await repo.getSubscription(household_id))?.state).toBe('demo');
+  });
+});
 
 describe('runBillingCron', () => {
   it('cancelled після дати → lapsed і лист один раз', async () => {

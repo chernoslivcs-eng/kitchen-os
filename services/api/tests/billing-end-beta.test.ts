@@ -1,10 +1,12 @@
-// Завершення бети (план 2026-09-25, Task 13): разова дія в день запуску оплат.
-// Усі доми, що жили безкоштовно, отримують 7 днів попередження й лист; далі їх
-// підхоплює щоденний крон і переводить у read_only.
+// Завершення бети (спек 2026-10-01 §3): разова дія в день деплою демо. Усі
+// доми, що жили безкоштовно, переходять у `demo` на 7 днів і отримують
+// стартове повідомлення; далі їх підхоплює щоденний крон і переводить у
+// read_only — тим самим кодом, що й решту станів.
 import { describe, it, expect } from 'vitest';
 import { InMemoryRepo } from '@kitchen/domain';
 import { ConsoleMailer } from '../src/mailer.js';
-import { planEndBeta, applyEndBeta, END_BETA_GRACE_DAYS } from '../src/billing-end-beta.js';
+import { planEndBeta, applyEndBeta } from '../src/billing-end-beta.js';
+import { DEMO_DAYS } from '@kitchen/domain/subscription';
 import { runBillingCron } from '../src/billing-cron.js';
 
 const NOW = new Date('2026-11-01T09:00:00.000Z');
@@ -17,7 +19,7 @@ async function two() {
   await repo.saveSubscription({
     household_id: b.household_id, state: 'beta', plan: null, trial_used_at: null, trial_ends_at: null,
     next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null, card_token: null, paid_by_user_id: null,
-    deletion_warned_at: null, trial_mail_sent_at: null, updated_at: NOW.toISOString(),
+    deletion_warned_at: null, trial_mail_sent_at: null, demo_ends_at: null, demo_mail_sent_at: null, updated_at: NOW.toISOString(),
   });
   return { repo, a, b };
 }
@@ -27,8 +29,8 @@ describe('planEndBeta', () => {
     const { repo, a, b } = await two();
     const plan = await planEndBeta(repo, NOW);
     expect(plan.map((p) => p.household_id).sort()).toEqual([a.household_id, b.household_id].sort());
-    expect(plan.every((p) => p.access_until === PLUS7)).toBe(true);
-    expect(END_BETA_GRACE_DAYS).toBe(7);
+    expect(plan.every((p) => p.demo_ends_at === PLUS7)).toBe(true);
+    expect(DEMO_DAYS).toBe(7);
   });
 
   it('не чіпає тих, хто вже платить', async () => {
@@ -40,18 +42,20 @@ describe('planEndBeta', () => {
 });
 
 describe('applyEndBeta', () => {
-  it('обидва доми → cancelled з доступом на 7 днів, по листу кожному', async () => {
+  it('обидва доми → demo на 7 днів, по листу кожному', async () => {
     const { repo, a, b } = await two();
     const mailer = new ConsoleMailer();
     const r = await applyEndBeta({ repo, mailer, appUrl: 'http://app.test', now: () => NOW });
     expect(r).toMatchObject({ households: 2, mails: 2 });
     for (const h of [a.household_id, b.household_id]) {
-      expect(await repo.getSubscription(h)).toMatchObject({ state: 'cancelled', plan: null, access_until: PLUS7 });
+      expect(await repo.getSubscription(h)).toMatchObject({
+        state: 'demo', plan: null, demo_ends_at: PLUS7,
+        // Демо = використаний пробний: ці доми вже не отримають 14 днів із
+        // карткою, і підписка в них створить active, а не trial.
+        trial_used_at: NOW.toISOString(),
+      });
     }
-    expect(mailer.plain.map((m) => m.subject)).toEqual([
-      'Через 7 днів у Kitchen OS запускається оплата',
-      'Через 7 днів у Kitchen OS запускається оплата',
-    ]);
+    expect(mailer.plain.map((m) => m.subject)).toEqual(['Демо до 8 листопада', 'Демо до 8 листопада']);
   });
 
   it('повторний запуск нічого не міняє й нікому не пише', async () => {
@@ -61,6 +65,16 @@ describe('applyEndBeta', () => {
     const again = await applyEndBeta({ repo, mailer, appUrl: 'http://app.test', now: () => NOW });
     expect(again).toMatchObject({ households: 0, mails: 0 });
     expect(mailer.plain).toHaveLength(2);
+  });
+
+  it('дім, якому демо вже дали, другого разу не отримує', async () => {
+    const { repo } = await two();
+    const mailer = new ConsoleMailer();
+    await applyEndBeta({ repo, mailer, appUrl: 'http://app.test', now: () => NOW });
+    // Через тиждень хтось запускає скрипт ще раз: доми вже в demo, і
+    // подовжувати їм демо не можна — інакше безкоштовне стає вічним.
+    const again = await planEndBeta(repo, new Date('2026-11-09T09:00:00.000Z'));
+    expect(again).toHaveLength(0);
   });
 
   it('через 7 днів щоденний крон доводить їх до read_only — без окремого коду', async () => {

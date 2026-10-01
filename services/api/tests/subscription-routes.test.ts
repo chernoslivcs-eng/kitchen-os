@@ -32,10 +32,37 @@ describe('/v1/subscription', () => {
     await repo.saveSubscription({
       household_id, state: 'lapsed', plan: null, trial_used_at: null, trial_ends_at: null,
       next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null, card_token: null,
-      paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null, updated_at: new Date().toISOString(),
+      paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null, demo_ends_at: null, demo_mail_sent_at: null, updated_at: new Date().toISOString(),
     });
     return { ...A, household_id };
   };
+
+  // Спек 2026-10-01 §4: головний шлях до грошей — не «демо скінчилось, тепер
+  // плати», а «оформлюю зараз, поки воно ще триває».
+  it('демо → checkout відкритий, без другого пробного; перше списання — найближчим кроном', async () => {
+    const A = await signIn(app, mailer, 'demo@example.com');
+    const household_id = (await repo.firstHouseholdOf(A.user_id))!;
+    expect((await repo.getSubscription(household_id))?.state).toBe('demo');
+
+    const r = await app.inject({ method: 'POST', url: '/v1/subscription/checkout', headers: { cookie: A.cookie }, payload: { plan: 'self' } });
+    expect(r.statusCode).toBe(200);
+    const saved = (await repo.getSubscription(household_id))!;
+    // Пробний витрачено демо — другого не буде, і дати кінця пробного немає.
+    expect(saved.trial_ends_at).toBeNull();
+    // Стан до події провайдера не міняється: демо триває, доступ не зникає.
+    expect(saved.state).toBe('demo');
+
+    const ev = await app.inject({
+      method: 'POST', url: '/v1/subscription/provider-event', headers: { 'x-billing-secret': SECRET },
+      payload: { kind: 'subscribed', order_id: saved.provider_order_id, household_id, plan: 'self', card_mask: '4242', card_token: 'tok', trial_ends_at: null, paid_by_user_id: A.user_id },
+    });
+    expect(ev.statusCode).toBe(200);
+    const after = (await repo.getSubscription(household_id))!;
+    expect(after).toMatchObject({ state: 'active', demo_ends_at: null });
+    // «Найближчим кроном» — це next_charge_at у минулому або зараз, і саме за
+    // ним listSubscriptionsDue забере дім у найближчий прохід.
+    expect(new Date(after.next_charge_at!).getTime()).toBeLessThanOrEqual(Date.now());
+  });
 
   it('GET віддає стан і порожню історію', async () => {
     const A = await lapsed('g@example.com');
@@ -57,25 +84,21 @@ describe('/v1/subscription', () => {
 
   // Спек біллінгу §9.1 у версії mono: дата живе ТІЛЬКИ в нас. Провайдер її
   // не знає й знати не може — списання робить наш крон, а не він.
-  it('checkout кладе trial_ends_at у підписку; провайдеру дати не віддаємо', async () => {
+  // Спек 2026-10-01 §2: нових пробних не створюється. Безкоштовні дні тепер
+  // роздає демо — без картки й до того, як людина взагалі думає про гроші.
+  it('checkout НЕ дає пробного нікому: ні тому, хто його мав, ні тому, хто ні', async () => {
     const A = await lapsed('c3@example.com');
-    const t0 = Date.now();
-    await app.inject({ method: 'POST', url: '/v1/subscription/checkout', headers: { cookie: A.cookie }, payload: { plan: 'self' } });
-    const saved = await repo.getSubscription(A.household_id);
-    const days = (new Date(saved!.trial_ends_at!).getTime() - t0) / 86_400_000;
-    expect(days).toBeGreaterThan(13.9);
-    expect(days).toBeLessThan(14.1);
-    expect(billing.calls[0]!.args).not.toHaveProperty('date_start');
-  });
-
-  it('пробний уже використаний → дати пробного нема; картку все одно беремо', async () => {
-    const A = await lapsed('c2@example.com');
-    const sub = (await repo.getSubscription(A.household_id))!;
-    await repo.saveSubscription({ ...sub, trial_used_at: '2026-01-01T00:00:00.000Z' });
     await app.inject({ method: 'POST', url: '/v1/subscription/checkout', headers: { cookie: A.cookie }, payload: { plan: 'self' } });
     expect((await repo.getSubscription(A.household_id))?.trial_ends_at).toBeNull();
+    expect(billing.calls[0]!.args).not.toHaveProperty('date_start');
     // Гаманець — дім: наступного разу провайдер упізнає ту саму картку.
     expect((billing.calls[0]!.args as { wallet_id: string }).wallet_id).toBe(A.household_id);
+  });
+
+  it('контракт для веба: trial_available завжди false — текст перед банком обіцяє «протягом доби»', async () => {
+    const A = await lapsed('c2@example.com');
+    const b = (await app.inject({ method: 'GET', url: '/v1/subscription', headers: { cookie: A.cookie } })).json();
+    expect(b.subscription.trial_available).toBe(false);
   });
 
   it('вже активний → 409, у провайдера нічого не питали', async () => {
@@ -113,13 +136,14 @@ describe('/v1/subscription', () => {
 
   // Подія приходить із самим order_id — дім і дата вже лежать у підписці,
   // яку записав checkout. Тому сценарій тут повний: спершу checkout.
-  it('подія провайдера: subscribed → trial, success двічі → один платіж', async () => {
+  it('подія провайдера: subscribed → active, success двічі → один платіж', async () => {
     const A = await lapsed('e@example.com');
     await app.inject({ method: 'POST', url: '/v1/subscription/checkout', headers: { cookie: A.cookie }, payload: { plan: 'self' } });
     const order_id = (await repo.getSubscription(A.household_id))!.provider_order_id!;
     const send = (body: unknown) => app.inject({ method: 'POST', url: '/v1/subscription/provider-event', headers: { 'x-billing-secret': SECRET }, payload: body as never });
     await send({ kind: 'subscribed', order_id, card_mask: '4242' });
-    expect(await repo.getSubscription(A.household_id)).toMatchObject({ state: 'trial', card_mask: '4242' });
+    // Без пробного — одразу active, і списання чекає найближчого крону.
+    expect(await repo.getSubscription(A.household_id)).toMatchObject({ state: 'active', card_mask: '4242' });
     await send({ kind: 'success', order_id, amount: 210, provider_payment_id: 'pay-9' });
     await send({ kind: 'success', order_id, amount: 210, provider_payment_id: 'pay-9' });
     expect((await repo.getSubscription(A.household_id))?.state).toBe('active');

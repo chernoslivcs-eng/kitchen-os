@@ -39,7 +39,7 @@ describe('намір → оплата → вхід → привʼязка', () =
     headers: { 'x-billing-secret': SECRET }, payload: body,
   });
 
-  it('дім отримує пробний з датою наміру; далі списує крон, а не провайдер', async () => {
+  it('дім отримує активну підписку, а списує її крон — не провайдер', async () => {
     // 1. Лендінг: наміру передують лише план і IP.
     const started = await app.inject({ method: 'POST', url: '/v1/billing/intent', payload: { plan: 'home' } });
     expect(started.statusCode).toBe(200);
@@ -48,9 +48,10 @@ describe('намір → оплата → вхід → привʼязка', () =
 
     const fresh = await repo.getIntent(order_id);
     expect(fresh).toMatchObject({ state: 'pending', household_id: null });
-    const trialEnds = fresh!.trial_ends_at!;
-    // Дата пробного рахується ОДИН раз — тут. Далі вона лише переноситься.
-    expect(new Date(trialEnds).getTime() - Date.now()).toBeGreaterThan(13 * DAY);
+    // Спек 2026-10-01 §2: пробних більше не створюється — ні тут, ні при
+    // привʼязці. Безкоштовні дні людина або вже прожила в демо, або свідомо
+    // їх проминула, натиснувши «Почати» на платній картці.
+    expect(fresh!.trial_ends_at).toBeNull();
 
     // 2. Провайдер підтвердив картку. Дому ще немає — подія лягає в намір.
     const paid = await event({ kind: 'subscribed', order_id, card_mask: '4242', card_token: 'tok-1' });
@@ -58,9 +59,9 @@ describe('намір → оплата → вхід → привʼязка', () =
     expect(paid.json()).toMatchObject({ result: { target: 'intent' } });
     expect(await repo.getIntent(order_id)).toMatchObject({ state: 'subscribed', card_mask: '4242', card_token: 'tok-1' });
 
-    // 3. Людина заходить уперше — дім народжується зараз.
+    // 3. Людина заходить уперше — дім народжується зараз, одразу в демо.
     const me = await signIn(app, mailer, 'newcomer@local.test');
-    expect(await repo.getSubscription(me.household_id)).toBeNull();
+    expect(await repo.getSubscription(me.household_id)).toMatchObject({ state: 'demo' });
 
     // 4. Привʼязка: єдине місце, де намір зустрічається з домом.
     const bound = await app.inject({
@@ -70,25 +71,22 @@ describe('намір → оплата → вхід → привʼязка', () =
 
     const sub = await repo.getSubscription(me.household_id);
     expect(sub).toMatchObject({
-      state: 'trial', plan: 'home', card_mask: '4242',
-      // Токен переїхав із наміру: саме ним крон спише через два тижні.
+      // Спек §4: оформлення закриває демо й починає підписку одразу.
+      state: 'active', plan: 'home', card_mask: '4242',
+      // Токен переїхав із наміру: саме ним крон спише найближчим проходом.
       card_token: 'tok-1',
       provider_order_id: order_id, paid_by_user_id: me.user_id,
-      // Дата з наміру, не перерахована наново: саме в неї крон спише.
-      // Розбіжність тут = лист бреше про списання.
-      trial_ends_at: trialEnds, next_charge_at: trialEnds,
+      trial_ends_at: null, demo_ends_at: null,
     });
+    // «Протягом доби» — це not null і вже в минулому відносно наступного крону.
+    expect(new Date(sub!.next_charge_at!).getTime()).toBeLessThanOrEqual(Date.now());
     expect(await repo.getIntent(order_id)).toMatchObject({ state: 'bound', household_id: me.household_id });
 
     // 5. Крон наміру більше не бачить: привʼязаний не прострочується.
-    const quiet = await runBillingCron({ repo, mailer, billing, appUrl: 'http://app.test', now: () => new Date(Date.now() + DAY) });
-    expect(quiet.intentsExpired).toBe(0);
+    //    І списує він одразу — перший же прохід після привʼязки.
+    const cron = await runBillingCron({ repo, mailer, billing, appUrl: 'http://app.test', now: () => new Date(Date.now() + DAY) });
+    expect(cron.intentsExpired).toBe(0);
     expect(billing.calls.filter((c) => c.op === 'delete-token')).toHaveLength(0);
-    // Пробний ще триває — грошей теж не чіпаємо.
-    expect(quiet.charged).toBe(0);
-
-    // 6. Настав кінець пробного: списує НАШ крон, не провайдер.
-    const cron = await runBillingCron({ repo, mailer, billing, appUrl: 'http://app.test', now: () => new Date(trialEnds) });
     expect(cron.charged).toBe(1);
     expect(billing.calls).toContainEqual({ op: 'charge', args: { card_token: 'tok-1', amount: PLAN_PRICE_UAH.home, reference: order_id } });
     expect(await repo.getSubscription(me.household_id)).toMatchObject({ state: 'active' });

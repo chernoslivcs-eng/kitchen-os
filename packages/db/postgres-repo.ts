@@ -123,6 +123,8 @@ function subRow(r: Row): HouseholdSubscription {
     paid_by_user_id: (r.paid_by_user_id as string | null) ?? null,
     deletion_warned_at: iso(r.deletion_warned_at),
     trial_mail_sent_at: iso(r.trial_mail_sent_at),
+    demo_ends_at: iso(r.demo_ends_at),
+    demo_mail_sent_at: iso(r.demo_mail_sent_at),
     updated_at: new Date(r.updated_at as string).toISOString(),
   };
 }
@@ -139,6 +141,23 @@ const INTENT_PATCH_FIELDS = ['state', 'card_mask', 'card_token', 'provider_invoi
 type MissingIntentField = Exclude<keyof IntentPatch, (typeof INTENT_PATCH_FIELDS)[number]>;
 type AssertNever<T extends never> = T;
 export type __IntentPatchCovered = AssertNever<MissingIntentField>;
+
+/**
+ * Поля підписки в тому порядку, у якому вони їдуть в INSERT. Список живе в
+ * рантаймі, а перевірка нижче не дає йому відстати від типу: нове поле
+ * HouseholdSubscription, забуте тут, НЕ ЗБЕРЕТЬСЯ.
+ *
+ * Доти колонки були виписані руками тричі в одному запиті — перелік, $-номери
+ * і DO UPDATE SET. Додати поле й забути одне з трьох було питанням часу, а
+ * локальні гейти Postgres не ганяють: розійшлося б це лише на проді.
+ */
+const SUB_FIELDS = [
+  'household_id', 'state', 'plan', 'trial_used_at', 'trial_ends_at', 'next_charge_at', 'access_until',
+  'provider_order_id', 'card_mask', 'card_token', 'paid_by_user_id', 'deletion_warned_at',
+  'trial_mail_sent_at', 'demo_ends_at', 'demo_mail_sent_at', 'updated_at',
+] as const;
+type MissingSubField = Exclude<keyof HouseholdSubscription, (typeof SUB_FIELDS)[number]>;
+export type __SubFieldsCovered = AssertNever<MissingSubField>;
 
 // Намір оплати (міграція 0047).
 function intentRow(r: Row): PaymentIntent {
@@ -1835,17 +1854,12 @@ export class PostgresRepo implements Repo {
   }
 
   async saveSubscription(s: HouseholdSubscription): Promise<void> {
+    const upd = SUB_FIELDS.filter((f) => f !== 'household_id').map((f) => `${f}=EXCLUDED.${f}`).join(', ');
     await this.pool.query(
-      `INSERT INTO household_subscription (household_id, state, plan, trial_used_at, trial_ends_at, next_charge_at, access_until, provider_order_id, card_mask, card_token, paid_by_user_id, deletion_warned_at, trial_mail_sent_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-       ON CONFLICT (household_id) DO UPDATE SET state=EXCLUDED.state, plan=EXCLUDED.plan,
-         trial_used_at=EXCLUDED.trial_used_at, trial_ends_at=EXCLUDED.trial_ends_at,
-         next_charge_at=EXCLUDED.next_charge_at, access_until=EXCLUDED.access_until,
-         provider_order_id=EXCLUDED.provider_order_id, card_mask=EXCLUDED.card_mask,
-         card_token=EXCLUDED.card_token, paid_by_user_id=EXCLUDED.paid_by_user_id, deletion_warned_at=EXCLUDED.deletion_warned_at,
-         trial_mail_sent_at=EXCLUDED.trial_mail_sent_at, updated_at=EXCLUDED.updated_at`,
-      [s.household_id, s.state, s.plan, s.trial_used_at, s.trial_ends_at, s.next_charge_at, s.access_until,
-        s.provider_order_id, s.card_mask, s.card_token, s.paid_by_user_id, s.deletion_warned_at, s.trial_mail_sent_at, s.updated_at],
+      `INSERT INTO household_subscription (${SUB_FIELDS.join(', ')})
+       VALUES (${SUB_FIELDS.map((_, i) => `$${i + 1}`).join(',')})
+       ON CONFLICT (household_id) DO UPDATE SET ${upd}`,
+      SUB_FIELDS.map((f) => s[f]),
     );
   }
 

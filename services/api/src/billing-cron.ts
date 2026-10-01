@@ -45,6 +45,8 @@ export interface BillingCronDeps {
 export interface BillingCronSummary {
   transitions: number;
   trialMails: number;
+  /** Скільки домів отримали лист «за 2 дні до кінця демо». */
+  demoMails: number;
   lapsedMails: number;
   warnings: number;
   deleted: number;
@@ -66,10 +68,12 @@ async function notifyHousehold(deps: BillingCronDeps, household_id: string, subj
 
 export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCronSummary> {
   const now = deps.now?.() ?? new Date();
-  const out: BillingCronSummary = { transitions: 0, trialMails: 0, lapsedMails: 0, warnings: 0, deleted: 0, intentsExpired: 0, charged: 0, chargeFailures: 0 };
+  const out: BillingCronSummary = { transitions: 0, trialMails: 0, demoMails: 0, lapsedMails: 0, warnings: 0, deleted: 0, intentsExpired: 0, charged: 0, chargeFailures: 0 };
 
   // 1. Переходи станів.
-  for (const sub of await deps.repo.listSubscriptionsByState(['trial', 'cancelled', 'past_due'])) {
+  // `demo` тут разом з рештою: демо закінчується тим самим переходом у
+  // `lapsed`, що й скасування, і лист про читання в них один (спек §5).
+  for (const sub of await deps.repo.listSubscriptionsByState(['demo', 'trial', 'cancelled', 'past_due'])) {
     const next = tick(sub, now);
     if (!next) continue;
     await deps.repo.saveSubscription(next);
@@ -90,6 +94,26 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     await notifyHousehold(deps, sub.household_id, m.subject, m.text);
     await deps.repo.saveSubscription({ ...sub, trial_mail_sent_at: now.toISOString() });
     out.trialMails++;
+  }
+
+  // 2б. Лист за 2 дні до кінця демо (спек 2026-10-01 §5) — один раз на дім.
+  // Слід у `demo_mail_sent_at`, а не «ми сьогодні вже бігали»: крон можуть
+  // запустити двічі, і людина не мусить це бачити.
+  //
+  // Порядок має значення: доми, у яких демо вже скінчилось, переведені в
+  // `lapsed` кроком 1 вище й сюди не потрапляють. Інакше дім отримав би
+  // одного дня і «закінчується», і «закінчилось».
+  for (const sub of await deps.repo.listSubscriptionsByState(['demo'])) {
+    if (!sub.demo_ends_at || sub.demo_mail_sent_at) continue;
+    // Цілими добами, не різницею позначок часу: демо починається тоді, коли
+    // людина створила дім (будь-яка година), а крон ходить о 03:30. Пряме
+    // порівняння з 2 × DAY відсікало б лист у домів, створених пізніше за
+    // третю ранку, — тобто майже в усіх.
+    if (Math.floor((new Date(sub.demo_ends_at).getTime() - now.getTime()) / DAY) > 2) continue;
+    const m = MAIL.demoEnding(fmt(sub.demo_ends_at));
+    await notifyHousehold(deps, sub.household_id, m.subject, m.text);
+    await deps.repo.saveSubscription({ ...sub, demo_mail_sent_at: now.toISOString() });
+    out.demoMails++;
   }
 
   // 3. Тихі доми: попередження, потім видалення.
@@ -117,10 +141,15 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
       out.deleted++;
       continue;
     }
-    // Відлік — від пізнішої з дат: кінець оплаченого доступу або останній вхід.
+    // Відлік — від пізнішої з дат: кінець доступу або останній вхід. Для дому,
+    // який прийшов із демо, кінцем доступу є `demo_ends_at`: `access_until` у
+    // нього порожній, і без цього доданка відлік почався б від нуля — тобто
+    // дім, що мовчав від народження, отримав би попередження про видалення в
+    // той самий день, коли демо скінчилось.
     const since = Math.max(
       seen ? new Date(seen).getTime() : 0,
       sub.access_until ? new Date(sub.access_until).getTime() : 0,
+      sub.demo_ends_at ? new Date(sub.demo_ends_at).getTime() : 0,
     );
     if ((now.getTime() - since) / DAY < QUIET_DAYS) continue;
     const m = MAIL.deletionWarning(`${deps.appUrl}/app`);

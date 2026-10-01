@@ -1,11 +1,13 @@
 // Постановка 2026-09-25 (режим без підписки), Task 12 — /profile/subscription:
 // єдине місце платіжних дій усередині акаунта (спек §4). Бачать і можуть
-// діяти всі члени дому. Шість станів дому: beta (без кнопок, до вимкнення
-// прапорця), trial, active, cancelled, past_due, lapsed (дві картки тарифів —
-// той самий PlanCard, що на лендінгу, без «Бета-тест»: макет
+// діяти всі члени дому. Сім станів дому (демо замість бети, рішення
+// власника 01.10, спек demo-instead-of-beta): demo й lapsed показують дві
+// картки тарифів — той самий PlanCard, що на лендінгу, без «Демо»: макет
 // (Kitchen OS - Subscription.dc.html) явно показує лише «Для себе»/«Для
 // дому» тут, «так само, як на лендінгу» читаємо як «той самий компонент
-// картки», не «та сама умова показу бета-картки»).
+// картки», не «та сама умова показу картки демо». beta лишається в юніоні
+// станів лише як транзитний технічний випадок (контракт 01.10 §«пастки») —
+// без кнопок, як і раніше, до вимкнення прапорця на сервері.
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, ApiError, type Me, type Payment } from '../../api';
@@ -27,10 +29,9 @@ type Sub = NonNullable<Me['subscription']>;
 type Plan = 'self' | 'home';
 
 // Дві картки тарифів у стані lapsed — той самий PlanCard, що на лендінгу,
-// без «Бета-тест» (PLANS[0] може бути карткою «Бета-тест», коли BETA_PLAN —
-// прибираємо за key, не за прапорцем: тут завжди дім, який уже пройшов повз
-// бету, реальний вибір лише між двома тарифами).
-const TARIFF_CARDS = PLANS.filter((p) => p.key !== 'beta');
+// без картки «Демо» (тут завжди дім, який уже пройшов повз демо/читання,
+// реальний вибір лише між двома тарифами).
+const TARIFF_CARDS = PLANS.filter((p) => p.key !== 'demo');
 
 const POLL_MS = 3000;
 const POLL_TOTAL_MS = 30_000;
@@ -42,6 +43,15 @@ function StatusDot({ tone }: { tone: 'sage' | 'amber' | 'dim' }) {
 /** Верхній рядок стану — тексти дослівно зі спека §4, дата DD.MM (бандл). */
 function statusFor(sub: Sub): { tone: 'sage' | 'amber' | 'dim'; title: string } {
   switch (sub.state) {
+    // Рішення власника 01.10 (спек demo-instead-of-beta §4/§6, правка з
+    // живого перегляду): банер зверху й заголовок картки тут показували два
+    // різних формати дати — беремо рівно той самий рядок, що сервер кладе в
+    // banner (готовий, той самий на обох кадрах), не рахуємо вдруге.
+    case 'demo':
+      return { tone: 'sage', title: sub.banner?.text ?? 'Демо' };
+    // Пастка контракту (01.10): 'beta' лишається можливим у вікні між
+    // деплоєм і запуском end-beta.mts — переживаємо, не падаємо, текст не
+    // чіпаємо (транзитний технічний стан, не постійний).
     case 'beta':
       return { tone: 'sage', title: 'Бета-тест · усе безкоштовно' };
     case 'trial': {
@@ -114,10 +124,15 @@ export function SubscriptionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Пробний дає лише НОВЕ оформлення й лише тим, хто його не витрачав. Сервер
-  // каже про це `trial_available` (та сама умова, що в checkout), і без цього
-  // поля обіцянка про перше списання була б вигадкою.
-  const notice = (plan: Plan) => bankNotice(PLAN_PRICE_UAH[plan], sub?.trial_available !== false);
+  // Уточнення сервера 01.10: нових пробних більше нема взагалі (ні прапорця
+  // бети, ні звичайного) — bankNotice() сама завжди каже «протягом доби»,
+  // без «пробний». Один виклик — одне джерело тексту (лендінг, тут). cta —
+  // рішення цього екрана, не домену: демо каже «Оформити», lapsed/past_due —
+  // «До банку» з bankNotice().
+  const notice = (plan: Plan): { text: string; cta: string } => {
+    const { text, cta } = bankNotice(PLAN_PRICE_UAH[plan]);
+    return { text, cta: sub?.state === 'demo' ? 'Оформити' : cta };
+  };
 
   async function checkout(plan: Plan) {
     if (busy) return;
@@ -212,14 +227,15 @@ export function SubscriptionPage() {
 
       {error && <p className={styles.error}>{error}</p>}
 
-      {sub.state === 'lapsed' && (
+      {(sub.state === 'lapsed' || sub.state === 'demo') && (
         <div className={styles.tariffGrid}>
           {TARIFF_CARDS.map((p) => (
             <PlanCard key={p.key} data={p} bp={bp} soonLabel="скоро" reveal={undefined}>
               {/*
                 Борг живого тесту 26.09: сторінка mono не показує ні суми, ні
                 слова «верифікація» — лише «Оплата для {ФОП}». Підпис стоїть над
-                кнопкою, а кнопка називається «До банку»: окремий аркуш додав би
+                кнопкою, а кнопка називається «До банку» (lapsed) або «Оформити»
+                (demo, спек demo-instead-of-beta §6) — окремий аркуш додав би
                 зайвий тап на мобайлі.
               */}
               <p className={styles.bankNote}>{notice(p.key === 'solo' ? 'self' : 'home').text}</p>
@@ -227,7 +243,7 @@ export function SubscriptionPage() {
                 type="button" className={planCardStyles.planBtn} disabled={busy}
                 onClick={() => void checkout(p.key === 'solo' ? 'self' : 'home')}
               >
-                {notice(p.key === 'solo' ? 'self' : 'home').cta}<Icon name="sys.go" size={16} inherit decorative />
+                {sub.state === 'demo' ? 'Оформити' : notice(p.key === 'solo' ? 'self' : 'home').cta}<Icon name="sys.go" size={16} inherit decorative />
               </button>
             </PlanCard>
           ))}
@@ -258,7 +274,7 @@ export function SubscriptionPage() {
         </section>
       )}
 
-      {sheet === 'cancel' && sub.state !== 'lapsed' && sub.state !== 'beta' && (
+      {sheet === 'cancel' && sub.state !== 'lapsed' && sub.state !== 'beta' && sub.state !== 'demo' && (
         <CancelSheet
           date={sub.next_charge_at ?? sub.trial_ends_at}
           busy={busy}

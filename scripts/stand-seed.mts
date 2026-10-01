@@ -210,9 +210,9 @@ const retailStub = {
 //
 //   STAND_SUBSCRIPTION=trial npx tsx scripts/stand-seed.mts
 //
-// Без змінної підписки немає зовсім — це дім бети, як і було досі.
-const SUB_STATES: SubscriptionState[] = ['beta', 'trial', 'active', 'cancelled', 'past_due', 'lapsed'];
-const subState = process.env.STAND_SUBSCRIPTION as SubscriptionState | undefined;
+// Без змінної дім отримує `demo` — те саме, що на проді дає перший вхід.
+const SUB_STATES: SubscriptionState[] = ['beta', 'demo', 'trial', 'active', 'cancelled', 'past_due', 'lapsed'];
+const subState = (process.env.STAND_SUBSCRIPTION as SubscriptionState | undefined) ?? 'demo';
 if (subState) {
   if (!SUB_STATES.includes(subState)) {
     console.error(`stand-seed: STAND_SUBSCRIPTION=${subState} — не стан підписки. Є: ${SUB_STATES.join(', ')}`);
@@ -223,11 +223,14 @@ if (subState) {
     next_charge_at: null, access_until: null, provider_order_id: 'stand-order', card_mask: '4242',
     // Токен фейковий: провайдер на стенді теж фейковий, у мережу ніхто не йде.
     card_token: 'stand-token', paid_by_user_id: user_id, deletion_warned_at: null,
-    trial_mail_sent_at: null, updated_at: iso(0),
+    trial_mail_sent_at: null, demo_ends_at: null, demo_mail_sent_at: null, updated_at: iso(0),
   };
   const byState: Record<SubscriptionState, Partial<HouseholdSubscription>> = {
     // Бета: платіжних даних ще нема взагалі, інакше екран показує чужу картку.
     beta: { plan: null, provider_order_id: null, card_mask: null, card_token: null, paid_by_user_id: null },
+    // Демо: картки нема й бути не може — її і не просили. Кінець через три
+    // дні, щоб банер і лист «за 2 дні» було видно на тому ж кадрі.
+    demo: { plan: null, trial_used_at: iso(-4), demo_ends_at: iso(3), provider_order_id: null, card_mask: null, card_token: null, paid_by_user_id: null },
     trial: { trial_used_at: iso(-11), trial_ends_at: iso(3), next_charge_at: iso(3) },
     active: { trial_used_at: iso(-45), next_charge_at: iso(20) },
     cancelled: { trial_used_at: iso(-60), access_until: iso(10) },

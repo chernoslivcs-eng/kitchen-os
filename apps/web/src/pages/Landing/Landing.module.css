@@ -664,20 +664,13 @@
 .priceH2 { max-width: 1000px; text-wrap: balance; }
 .priceP { font-size: 18px; line-height: 1.55; color: var(--muted); max-width: 720px; }
 
-/* Пробний період — одна обіцянка над картками, не властивість тарифу
- * (бриф 24.09 §1: варіант A — не повторювати «14 днів» у кожній панелі). */
-.trial { display: flex; align-items: center; justify-content: center; gap: 12px; padding-top: 12px; }
-.trialTitle { font-size: 36px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: proportional-nums; color: var(--ink); }
-.trialBadge { height: 28px; padding: 0 12px; border-radius: 999px; background: var(--sage-bg); color: var(--sage); display: inline-flex; align-items: center; font-size: 13px; font-weight: 600; white-space: nowrap; }
-.trialSub { font-size: 14px; color: var(--muted); margin-top: -8px; }
-
 /* Дві картки-вітрини (§1.4): білий корпус, тонована панель із ціною вгорі —
  * без темної planHome, без avatars: секція показує, не обирає. */
 .planGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; width: 100%; max-width: 920px; text-align: left; padding-top: 16px; }
-/* Постановка 25.09 (BETA_PLAN): третя картка «Бета-тест» — три рівні
- * колонки, як було з трьома доларовими (той самий max-width-принцип, лише
- * піднятий під 3×340+gap). .mob .planGrid (нижче) лишається одноколонковим
- * незалежно — вища специфічність (.mob .planGrid) виграє в обох випадках. */
+/* Три картки (демо + два тарифи, завжди, рішення 01.10) — три рівні колонки
+ * (той самий max-width-принцип, що з трьома доларовими, 3×340+gap).
+ * .mob .planGrid (нижче) лишається одноколонковим незалежно — вища
+ * специфічність (.mob .planGrid) виграє в обох випадках. */
 .planGridThree { grid-template-columns: repeat(3, 1fr); max-width: 1160px; }
 /* Сама картка (.plan, .planPanel, .planList, a/button.planBtn, …) — постановка
  * 2026-09-25 (екран «Підписка»): винесено в components/PlanCard, спільна з
@@ -686,8 +679,13 @@
 /* Підпис перед переходом на сторінку банку (борг живого тесту 26.09): банк не
    показує ні суми, ні призначення, тож це єдине місце, де людина про них
    дізнається. Дрібний, але не сірий до невидимості — його мусять прочитати. */
+/* Бічні поля — ті самі 18px, що в .planList (PlanCard.module.css), щоб рядок
+ * починався під текстом переліку, а не з краю картки. padding, не margin:
+ * .bankNote лежить прямо в .plan (flex-колонка) поруч із кнопкою, і лише
+ * padding-bottom надійно дає проміжок до неї незалежно від порядку правил. */
 .bankNote {
-  margin: 0 0 12px;
+  margin: 0;
+  padding: 0 18px 12px;
   font-size: 13px;
   line-height: 1.45;
   color: var(--muted);
@@ -697,20 +695,19 @@
 .tab .price { padding: 120px 48px 0; gap: 16px; }
 .tab .priceH2 { max-width: 760px; }
 .tab .priceP { font-size: 16px; max-width: 600px; }
-.tab .trialTitle { font-size: 32px; }
 .tab .planGrid { gap: 16px; max-width: 720px; padding-top: 12px; }
-/* BETA_PLAN: три колонки не влазять у 720 (рахований на два тарифи #208) —
- * та сама ширина, що на .desk (1160), інакше картки звужуються до ~230px і
+/* Три колонки не влазять у 720 (рахований на два тарифи #208) — та сама
+ * ширина, що на .desk (1160), інакше картки звужуються до ~230px і
  * min-height панелі PlanCard (210 на .tab) вже не вистачає під два рядки
  * підзаголовка. */
 .tab .planGridThree { max-width: 1160px; }
+/* .planList на .tab/.mob звужується до 16px (PlanCard.module.css) — той самий бік тут. */
+.tab .bankNote { padding-left: 16px; padding-right: 16px; }
 .mob .price { padding: 80px 20px 0; gap: 16px; align-items: stretch; }
 .mob .priceP { font-size: 15px; line-height: 1.5; max-width: none; }
-.mob .trial { flex-wrap: wrap; gap: 10px; }
-.mob .trialTitle { font-size: 26px; }
-.mob .trialSub { margin-top: -4px; }
 /* На 390 — стовпчиком, не горизонтальний снап-скрол (§1.11: дві картки — не потребують снапу). */
 .mob .planGrid { grid-template-columns: 1fr; gap: 14px; max-width: none; padding-top: 12px; }
+.mob .bankNote { padding-left: 16px; padding-right: 16px; }
 
 /* ── фінал · 1920: 200/160/48, телефон 300 із маскою, h2 72 ≤1100, p 18 ≤640; 1024: 140/48/32, 52; 390: 96/20/32, 36 ── */
 .final { padding: 200px 160px 48px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 28px; }

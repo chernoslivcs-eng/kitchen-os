@@ -47,8 +47,9 @@ describe('/v1/billing', () => {
       expect(r.json().url).toContain('/fake-checkout');
       const intent = await repo.getIntent(order_id);
       expect(intent).toMatchObject({ plan: 'self', state: 'pending' });
-      // Дата пробного нікуди не їде: списує наш крон, провайдер її не знає.
-      expect(intent!.trial_ends_at).not.toBeNull();
+      // Спек 2026-10-01 §2: намір пробного не несе — нових пробних немає.
+      // Безкоштовні дні роздає демо, без картки.
+      expect(intent!.trial_ends_at).toBeNull();
       expect(billing.calls[0]!.args).not.toHaveProperty('date_start');
       expect((billing.calls[0]!.args as { household_id: string | null }).household_id).toBeNull();
       // Дому ще немає — гаманцем служить сам намір.
@@ -82,19 +83,24 @@ describe('/v1/billing', () => {
       expect(r.json()).toMatchObject({ status: 'pending' });
     });
 
-    it('subscribed → підписка дому з датою НАМІРУ, намір bound', async () => {
+    it('subscribed → підписка дому active, списання найближчим кроном, намір bound', async () => {
       const A = await signIn(app, mailer, 'b3@example.com');
       const { order_id } = await makeIntent('home');
       await subscribed(order_id, '7777');
+      const t0 = Date.now();
       const r = await bind(A.cookie, order_id);
       expect(r.statusCode).toBe(200);
       const household_id = (await repo.firstHouseholdOf(A.user_id))!;
-      const intent = await repo.getIntent(order_id);
-      expect(await repo.getSubscription(household_id)).toMatchObject({
-        state: 'trial', plan: 'home', card_mask: '7777',
-        trial_ends_at: intent!.trial_ends_at, provider_order_id: order_id, paid_by_user_id: A.user_id,
+      const sub = (await repo.getSubscription(household_id))!;
+      expect(sub).toMatchObject({
+        // Спек §4: демо для такого дому не триває — оформлення його закриває.
+        state: 'active', plan: 'home', card_mask: '7777',
+        trial_ends_at: null, demo_ends_at: null, provider_order_id: order_id, paid_by_user_id: A.user_id,
       });
-      expect(intent).toMatchObject({ state: 'bound', household_id });
+      // «Перше списання — найближчим кроном»: дата вже настала.
+      expect(new Date(sub.next_charge_at!).getTime()).toBeGreaterThanOrEqual(t0);
+      expect(new Date(sub.next_charge_at!).getTime()).toBeLessThanOrEqual(Date.now());
+      expect(await repo.getIntent(order_id)).toMatchObject({ state: 'bound', household_id });
     });
 
     it('той самий намір удруге — 409 already_bound', async () => {
@@ -113,7 +119,7 @@ describe('/v1/billing', () => {
       await repo.saveSubscription({
         household_id, state: 'active', plan: 'self', trial_used_at: null, trial_ends_at: null,
         next_charge_at: '2026-12-01T00:00:00.000Z', access_until: null, provider_order_id: 'старий',
-        card_mask: null, card_token: null, paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null,
+        card_mask: null, card_token: null, paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null, demo_ends_at: null, demo_mail_sent_at: null,
         updated_at: new Date().toISOString(),
       });
       const { order_id } = await makeIntent();

@@ -1,20 +1,27 @@
 import { describe, it, expect } from 'vitest';
-import { INTENT_TTL_DAYS, TRIAL_DAYS, applyProviderEvent, entitlementOf, tick, trialEndsFrom, type HouseholdSubscription } from './subscription.js';
+import { DEMO_DAYS, INTENT_TTL_DAYS, TRIAL_DAYS, applyProviderEvent, entitlementOf, startDemo, tick, trialEndsFrom, type HouseholdSubscription } from './subscription.js';
 
 const base = (p: Partial<HouseholdSubscription>): HouseholdSubscription => ({
   household_id: 'h1', state: 'active', plan: 'self', trial_used_at: null, trial_ends_at: null,
   next_charge_at: null, access_until: null, provider_order_id: null, card_mask: null, card_token: null,
-  paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null, updated_at: '2026-09-25T00:00:00Z', ...p,
+  paid_by_user_id: null, deletion_warned_at: null, trial_mail_sent_at: null, demo_ends_at: null,
+  demo_mail_sent_at: null, updated_at: '2026-09-25T00:00:00Z', ...p,
 });
 const now = new Date('2026-10-01T12:00:00Z');
 
 describe('entitlementOf', () => {
-  it('без рядка: full у бету, read_only без бети', () => {
-    expect(entitlementOf(null, now, { beta: true })).toBe('full');
-    expect(entitlementOf(null, now, { beta: false })).toBe('read_only');
+  // Рядка немає тільки в дому, старшого за деплой демо: новий дім отримує
+  // рядок у момент створення, старим його ставить end-beta того ж дня.
+  // Замкнути такий дім тихо — гірше, ніж дати йому зайвий день доступу.
+  it('без рядка: full — це старий дім, якого end-beta ще не торкнувся', () => {
+    expect(entitlementOf(null, now)).toBe('full');
   });
   it.each([
     ['beta', {}, 'full'],
+    ['demo', { demo_ends_at: '2026-10-08T00:00:00Z' }, 'full'],
+    ['demo', { demo_ends_at: '2026-09-30T00:00:00Z' }, 'read_only'],
+    // Демо без дати — не «вічне демо»: права немає.
+    ['demo', {}, 'read_only'],
     ['active', {}, 'full'],
     ['past_due', {}, 'full'],
     ['lapsed', {}, 'read_only'],
@@ -23,7 +30,43 @@ describe('entitlementOf', () => {
     ['cancelled', { access_until: '2026-10-15T00:00:00Z' }, 'full'],
     ['cancelled', { access_until: '2026-09-30T00:00:00Z' }, 'read_only'],
   ] as const)('%s %o → %s', (state, extra, want) => {
-    expect(entitlementOf(base({ state, ...extra }), now, { beta: false })).toBe(want);
+    expect(entitlementOf(base({ state, ...extra }), now)).toBe(want);
+  });
+});
+
+describe('startDemo', () => {
+  it('7 днів від створення; демо одразу списується як використаний пробний', () => {
+    const sub = startDemo('h9', now);
+    expect(sub).toMatchObject({
+      household_id: 'h9', state: 'demo', plan: null,
+      demo_ends_at: new Date(now.getTime() + DEMO_DAYS * 86_400_000).toISOString(),
+      // Другого безкоштовного періоду немає (спек §2): саме це поле робить
+      // trialAvailable false і змушує підписку створювати active, не trial.
+      trial_used_at: now.toISOString(),
+      trial_ends_at: null, next_charge_at: null, access_until: null, card_token: null,
+    });
+    expect(entitlementOf(sub, now)).toBe('full');
+  });
+
+  it('у день кінця демо право вже read_only, а крон переводить у lapsed', () => {
+    const sub = startDemo('h9', now);
+    const after = new Date(now.getTime() + DEMO_DAYS * 86_400_000);
+    expect(entitlementOf(sub, after)).toBe('read_only');
+    expect(tick(sub, after)).toMatchObject({ state: 'lapsed' });
+    // За день до кінця крон не чіпає.
+    expect(tick(sub, new Date(after.getTime() - 86_400_000))).toBeNull();
+  });
+
+  it('підписка з демо → active і списання найближчим кроном, без другого пробного', () => {
+    const demo = startDemo('h9', now);
+    const later = new Date('2026-10-05T09:00:00Z');
+    // trial_ends_at: null — саме це приносить checkout, бо пробний витрачено.
+    const r = applyProviderEvent(demo, { kind: 'subscribed', household_id: 'h9', order_id: 'o9', plan: 'home', card_mask: '42', card_token: 't9', trial_ends_at: null, paid_by_user_id: 'u9' }, later);
+    expect(r.sub.state).toBe('active');
+    expect(r.sub.next_charge_at).toBe(later.toISOString());
+    expect(r.sub.trial_used_at).toBe(now.toISOString());
+    // Демо скінчилось оформленням — дата більше нічого не означає.
+    expect(r.sub.demo_ends_at).toBeNull();
   });
 });
 

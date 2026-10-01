@@ -26,7 +26,7 @@ import { FRAGS, FRAGS_M } from './Fragments';
 import { useLandingVideo, VideoBubble, VideoBlock, VideoPlayerOverlay } from './LandingVideo';
 import {
   NAV, HERO, SIGNIN, PAINS, PAINS_H2, HOME_IMG, ROWS, TURN, KNOWS_HEAD, KNOWS, LEDGER_HEAD, LEDGER, GUESS_CHIP,
-  HOME, RULES_H2, RULES, RULE_2, RULE_3_CHIP, PRICE, PLANS, BETA_PLAN, FINAL, FOOTER,
+  HOME, RULES_H2, RULES, RULE_2, RULE_3_CHIP, PRICE, PLANS, FINAL, FOOTER,
 } from './copy';
 import { useBreakpoint, useFrameZoom, useReveal, useGloss, useLiveStart, useScrollScene, reducedMotion } from './useLandingMotion';
 import styles from './Landing.module.css';
@@ -68,16 +68,18 @@ export function Landing() {
     t.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
   };
 
-  // Постановка 2026-09-25 (біллінг LiqPay) §2, §5: !BETA_PLAN — картки
-  // тарифів ведуть на checkout, не на #l3-signin. order_id іде в
-  // localStorage ДО редиректу (див. lib/billing-intent.ts), бо сторінка тут
-  // закінчується — вебхук і повернення прийдуть пізніше, можливо в іншій
-  // вкладці. checkingOut — щоб подвійний клік не бив по ліміту 10/год.
+  // Постановка 2026-09-25 (біллінг LiqPay) §2, §5: платні картки тарифів
+  // ведуть на checkout, не на #l3-signin. order_id іде в localStorage ДО
+  // редиректу (див. lib/billing-intent.ts), бо сторінка тут закінчується —
+  // вебхук і повернення прийдуть пізніше, можливо в іншій вкладці.
+  // checkingOut — щоб подвійний клік не бив по ліміту 10/год.
   const [checkingOut, setCheckingOut] = useState<'self' | 'home' | null>(null);
-  // З лендінга пробний отримує КОЖЕН: наміру ще нема кому належати, і сервер
-  // ставить trial_ends_at = сьогодні + TRIAL_DAYS. Дату рахує сам bankNotice —
-  // щоб на двох поверхнях вона не розʼїхалась у вигляді.
-  const notice = (plan: 'self' | 'home') => bankNotice(PLAN_PRICE_UAH[plan], true);
+  // Рішення власника 01.10 (спек demo-instead-of-beta §4, правка з живого
+  // перегляду): з лендінга більше нема окремого «пробного» — хто оформлює
+  // платно, одразу активний, перше списання найближчим кроном (до доби).
+  // Уточнення сервера 01.10: bankNotice() тепер сама завжди каже «протягом
+  // доби», без «пробний» — одне джерело тексту з екраном «Підписка».
+  const notice = (plan: 'self' | 'home') => bankNotice(PLAN_PRICE_UAH[plan]).text;
   async function checkout(plan: 'self' | 'home') {
     if (checkingOut) return;
     setCheckingOut(plan);
@@ -230,19 +232,10 @@ export function Landing() {
       <section id="l3-price" data-reveal="0" className={s.price}>
         <h2 className={`${s.h2} ${s.priceH2}`}>{PRICE.h2}</h2>
         <p className={s.priceP}>{PRICE.p}</p>
-        {!BETA_PLAN && (
-          <div className={s.trial}>
-            <span className={s.trialTitle}>{PRICE.trialTitle}</span>
-            <span className={s.trialBadge}>{PRICE.trialBadge}</span>
-          </div>
-        )}
-        {!BETA_PLAN && <p className={s.trialSub}>{PRICE.trialSub}</p>}
-        <div className={`${s.planGrid} ${BETA_PLAN ? s.planGridThree : ''}`}>
+        <div className={`${s.planGrid} ${s.planGridThree}`}>
           {PLANS.map((p, i) => (
             <PlanCard key={p.key} data={p} bp={bp} soonLabel={PRICE.soon} reveal={i === 0 ? '0' : '120'}>
-              {!p.cta ? (
-                <span className={planCardStyles.planBtnAfter}>{PRICE.afterBeta}</span>
-              ) : p.key === 'beta' ? (
+              {p.key === 'demo' ? (
                 <a href="#l3-signin" className={planCardStyles.planBtn} onClick={go}>{PRICE.cta}<Icon name="sys.go" size={16} inherit decorative /></a>
               ) : (
                 <>
@@ -250,16 +243,16 @@ export function Landing() {
                     Борг живого тесту 26.09: сторінка mono не показує ні суми,
                     ні слова «верифікація» — лише «Оплата для {ФОП}». Тобто
                     людина бачить «Оплата» без числа й чуже прізвище. Сказати
-                    це мусимо ми, і саме ТУТ, над кнопкою: окремий екран або
-                    аркуш додав би зайвий тап на мобайлі, а сама кнопка вже
-                    називається «До банку», тож підпис пояснює саме її.
+                    це мусимо ми, і саме ТУТ, над кнопкою — кнопка тепер
+                    називається «Почати» (01.10), тому підпис пояснює, куди
+                    саме вона веде.
                   */}
-                  <p className={s.bankNote}>{notice(p.key === 'solo' ? 'self' : 'home').text}</p>
+                  <p className={s.bankNote}>{notice(p.key === 'solo' ? 'self' : 'home')}</p>
                   <button
                     type="button" className={planCardStyles.planBtn} disabled={checkingOut !== null}
                     onClick={() => void checkout(p.key === 'solo' ? 'self' : 'home')}
                   >
-                    {notice(p.key === 'solo' ? 'self' : 'home').cta}<Icon name="sys.go" size={16} inherit decorative />
+                    {PRICE.cta}<Icon name="sys.go" size={16} inherit decorative />
                   </button>
                 </>
               )}

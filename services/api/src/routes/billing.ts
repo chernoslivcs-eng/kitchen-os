@@ -8,7 +8,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { Repo } from '@kitchen/domain';
-import { INTENT_TTL_DAYS, applyProviderEvent, trialEndsFrom, type Plan } from '@kitchen/domain/subscription';
+import { INTENT_TTL_DAYS, applyProviderEvent, type Plan } from '@kitchen/domain/subscription';
 import { PLAN_PRICE_UAH } from '@kitchen/domain/plans';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter } from '../rate-limit.js';
@@ -28,7 +28,11 @@ export function billingRoutes(app: FastifyInstance, repo: Repo, billing: Billing
     }
     const now = new Date();
     const order_id = randomUUID();
-    const trial_ends_at = trialEndsFrom(now);
+    // Спек 2026-10-01 §2: нових пробних не створюється. Безкоштовні 7 днів —
+    // це демо, і людина з лендінга їх уже або прожила, або свідомо пропустила,
+    // натиснувши «Почати» на платній картці. Тому намір дати не несе, і після
+    // привʼязки дім одразу active зі списанням найближчим кроном (§4).
+    const trial_ends_at = null;
     // Намір пишеться ДО походу в провайдера з тієї ж причини, що й order_id у
     // checkout: вебхук повертається раніше, ніж людина бачить сторінку.
     await repo.insertIntent({

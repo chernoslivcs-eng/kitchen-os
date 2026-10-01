@@ -14,6 +14,8 @@ export const fmtDate = (iso: string): string => {
 export function subscriptionRowSummary(sub: Me['subscription']): string {
   if (!sub) return '';
   switch (sub.state) {
+    // Рішення власника 01.10 (demo-instead-of-beta §6).
+    case 'demo': return sub.demo_ends_at ? `Демо до ${fmtDate(sub.demo_ends_at)}` : 'Демо';
     case 'beta': return 'Бета-тест';
     case 'trial': return sub.trial_ends_at ? `Пробний до ${fmtDate(sub.trial_ends_at)}` : 'Пробний';
     case 'active': return sub.plan ? PLAN_NAME[sub.plan] : 'Активна';

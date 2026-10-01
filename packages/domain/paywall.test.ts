@@ -10,7 +10,7 @@ describe('paywall copy', () => {
   // нічого, картка лише перевіряється. Обіцянка «за 1 ₴» жила в плані до
   // цього рішення й одного разу вже протекла в лист — хай тепер падає тест.
   it('жоден текст не обіцяє списання 1 ₴', () => {
-    expect(JSON.stringify({ PAYWALL, MAIL: { ...MAIL, endBeta: MAIL.endBeta('1 січня'), trialEnds: MAIL.trialEnds('1 січня', '4242', 210, 'l'), deletionWarning: MAIL.deletionWarning('l') } })).not.toMatch(/1\s*₴/);
+    expect(JSON.stringify({ PAYWALL, MAIL: { ...MAIL, demoStarted: MAIL.demoStarted('1 січня'), demoEnding: MAIL.demoEnding('1 січня'), trialEnds: MAIL.trialEnds('1 січня', '4242', 210, 'l'), deletionWarning: MAIL.deletionWarning('l') } })).not.toMatch(/1\s*₴/);
   });
   it('тіло 402 має kind, текст і двері', () => {
     expect(paywallBody('lapsed')).toEqual({ kind: 'paywall', state: 'lapsed', text: PAYWALL.chat.text, cta: { label: 'Продовжити', to: '/profile/subscription' } });
@@ -21,5 +21,15 @@ describe('paywall copy', () => {
     expect(bannerFor({ state: 'trial', trial_ends_at: '2026-10-03T00:00:00Z', plan: 'self' } as never, now)?.text).toContain('далі 210 ₴/міс');
     expect(bannerFor({ state: 'trial', trial_ends_at: '2026-10-20T00:00:00Z', plan: 'self' } as never, now)).toBeNull();
     expect(bannerFor({ state: 'active' } as never, now)).toBeNull();
+    const demo = bannerFor({ state: 'demo', demo_ends_at: '2026-10-08T00:00:00Z' } as never, now);
+    expect(demo).toMatchObject({ text: 'Демо до 8 жовтня · далі від 210 ₴/міс', cta: 'Оформити', to: '/profile/subscription' });
+    // Демо без дати банера не малює — краще нічого, ніж «Демо до Invalid Date».
+    expect(bannerFor({ state: 'demo', demo_ends_at: null } as never, now)).toBeNull();
+  });
+
+  // Спек §5 забороняє підганяти: ні «встигни», ні лічильників «лишилось N».
+  it('тексти демо нікого не підганяють', () => {
+    const texts = [MAIL.demoStarted('8 жовтня').text, MAIL.demoEnding('8 жовтня').text, PAYWALL.banner.demo('8 жовтня').text].join(' ');
+    expect(texts).not.toMatch(/встигн|лишилось|залишилось|поспіш|останній шанс/i);
   });
 });

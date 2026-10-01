@@ -1,21 +1,14 @@
 // @vitest-environment jsdom
-// Постановка 2026-09-25 (біллінг LiqPay) Task 7: секція «Ціна» при
-// !BETA_PLAN — кнопка картки тарифу викликає POST /v1/billing/intent і
-// редиректить на checkout, зберігши order_id у localStorage ДО того.
-// BETA_PLAN — літерал у copy.ts, не env: мокаємо модуль на buildPlans(false)
-// (той самий прийом, що copy.test.ts використовує напряму, тут — через
-// vi.mock, бо перевіряємо саму сторінку, не PLANS-шейп).
+// Постановка 2026-09-25 (біллінг LiqPay) Task 7, оновлено 01.10 (демо замість
+// бети): кнопка «Почати» на платних картках тарифу викликає
+// POST /v1/billing/intent і редиректить на checkout, зберігши order_id у
+// localStorage ДО того. Картки тепер завжди активні (без BETA_PLAN/
+// buildPlans) — мокати модуль більше не треба, перевіряємо сам PLANS.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
-
-vi.mock('./copy', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./copy')>();
-  return { ...actual, BETA_PLAN: false, PLANS: actual.buildPlans(false) };
-});
-
-const { Landing } = await import('./Landing');
+import { Landing } from './Landing';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -63,10 +56,10 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-describe('Landing · checkout з картки тарифу (!BETA_PLAN)', () => {
-  it('клік на «До банку» — intent({plan}), order_id у localStorage, редирект на url', async () => {
+describe('Landing · checkout з картки тарифу (демо замість бети, 01.10)', () => {
+  it('клік на «Почати» (платна картка) — intent({plan}), order_id у localStorage, редирект на url', async () => {
     await mount();
-    const buttons = [...host!.querySelectorAll('button')].filter((b) => b.textContent?.includes('До банку'));
+    const buttons = [...host!.querySelectorAll('button')].filter((b) => b.textContent?.includes('Почати'));
     expect(buttons.length).toBeGreaterThan(0);
 
     await act(async () => { buttons[0]!.click(); });
@@ -78,9 +71,23 @@ describe('Landing · checkout з картки тарифу (!BETA_PLAN)', () => 
     expect(window.location.assign).toHaveBeenCalledWith('https://www.liqpay.ua/api/3/checkout?data=x&signature=y');
   });
 
-  it('нема карток «Бета-тест» і сірих пігулок «після бети» — усі кнопки активні', async () => {
+  it('нема картки «Бета-тест» і сірих пігулок «після бети» — усі кнопки активні, картка «Демо» на місці', async () => {
     await mount();
     expect(host!.textContent).not.toContain('Бета-тест');
     expect(host!.textContent).not.toContain('після бети');
+    expect(host!.textContent).toContain('Демо');
+    expect(host!.textContent).toContain('7 днів · без картки');
+  });
+
+  // Правка з живого перегляду 01.10: підпис над кнопкою «Почати» на платних
+  // картках — свій рядок без слова «пробний» (новий відвідувач лендінга
+  // нічого не використовував, bankNotice() з packages/domain тут неправда).
+  it('підпис над «Почати» — без «пробний», «kitchen-os» і «протягом доби» на місці', async () => {
+    await mount();
+    expect(host!.textContent).not.toContain('пробний');
+    expect(host!.textContent).toContain('протягом доби');
+    expect(host!.textContent).toContain('kitchen-os');
+    expect(host!.textContent).toContain('210 ₴');
+    expect(host!.textContent).toContain('290 ₴');
   });
 });

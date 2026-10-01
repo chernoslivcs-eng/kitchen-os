@@ -3,6 +3,7 @@ import { buildApp } from '../src/server.js';
 import { InMemoryRepo } from '@kitchen/domain';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
+import { MAIL } from '@kitchen/domain/paywall';
 import { handleTelegramText, resetSeenUpdates, COPY } from '../src/telegram.js';
 import { resetBotUsernameCache } from '../src/telegram.js';
 
@@ -35,6 +36,19 @@ describe('PR 2-бот · вхід із Telegram', () => {
     const r2 = await handleTelegramText(deps(), upd(900, '/start'));
     expect(r2?.messages[0]).toBe(COPY.hello('Олена'));
     expect((await repo.getUserByTelegramId(900))?.id).toBe(u!.id);
+  });
+
+  // Спек 2026-10-01 §6: привітання так само про 7 днів. Текст — той самий, що
+  // в листі старту демо: один стан людина не мусить читати двома голосами.
+  it('/start новому: другим абзацом — демо до дати; старому — ні', async () => {
+    const r1 = await handleTelegramText(deps(), upd(905, '/start'));
+    const sub = await repo.getSubscription((await repo.firstHouseholdOf((await repo.getUserByTelegramId(905))!.id))!);
+    expect(sub?.state).toBe('demo');
+    const date = new Date(sub!.demo_ends_at!).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
+    expect(r1?.messages).toContain(MAIL.demoStarted(date).text);
+    // Повторний /start — це не новий дім, і про демо вдруге не розповідаємо.
+    const r2 = await handleTelegramText(deps(), upd(905, '/start'));
+    expect(r2?.messages.some((m) => m.startsWith('Демо до'))).toBe(false);
   });
 
   it('/start із битим токеном з профілю — не плодить акаунт, каже натиснути «Підключити» ще раз', async () => {
