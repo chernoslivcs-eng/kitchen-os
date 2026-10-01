@@ -124,9 +124,10 @@ export function SubscriptionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Пробний дає лише НОВЕ оформлення й лише тим, хто його не витрачав. Сервер
-  // каже про це `trial_available` (та сама умова, що в checkout), і без цього
-  // поля обіцянка про перше списання була б вигадкою.
+  // Уточнення сервера 01.10: нових пробних більше нема взагалі (ні прапорця
+  // бети, ні звичайного) — `trial_available` завжди false. Гілка «перше
+  // списання буде {дата}» у bankNotice() стала мертвою, лишається тільки
+  // «протягом доби».
   //
   // Рішення власника 01.10 (правка з живого перегляду): для demo — свій
   // рядок без слова «пробний» (демо — не пробний, людині це слово ні про
@@ -139,7 +140,7 @@ export function SubscriptionPage() {
           + `На сторінці банку отримувач — «${MERCHANT_LEGAL_NAME}», це ми.`,
         cta: 'Оформити',
       }
-    : bankNotice(PLAN_PRICE_UAH[plan], sub?.trial_available !== false);
+    : bankNotice(PLAN_PRICE_UAH[plan], false);
 
   async function checkout(plan: Plan) {
     if (busy) return;
