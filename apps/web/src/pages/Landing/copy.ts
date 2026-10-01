@@ -234,6 +234,16 @@ export function buildPlans(betaPlan: boolean): PlanCard[] {
 }
 export const PLANS: PlanCard[] = buildPlans(BETA_PLAN);
 
+// Бриф LANDING-VIDEO-BRIEF-0930 (рішення власника 30.09): бульбашка (≥1024),
+// блок у «Як це працює» (<1024), спільний плеєр — §«Тексти».
+export const VIDEO = {
+  caption: 'Як це працює',
+  duration: '1:19',
+  watch: 'Дивитись',
+  openAria: 'Відкрити відео про Kitchen OS',
+  closeAria: 'Закрити відео',
+};
+
 export const FINAL = {
   h2: 'Що на вечерю — з того, що вже є.',
   p: 'Покажи кілька продуктів фото, чеком або словами. Не треба згадувати весь холодильник одразу. Kitchen OS почне з того, що вже є.',

@@ -43,3 +43,7 @@ docs/superpowers/**/*.gif
 docs/superpowers/**/*.mp4
 
 out/.eslintcache
+
+# LANDING-VIDEO-BRIEF-0930: тимчасові файли стенда, перекодовані локально з
+# майстра showreel — фінальні йдуть на Vercel Blob (video-assets.ts).
+apps/web/public/video/

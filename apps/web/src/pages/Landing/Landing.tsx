@@ -23,6 +23,7 @@ import { SignInForm } from './SignInForm';
 import { LiveSession } from './LiveSession';
 import { PhoneMock } from './PhoneMock';
 import { FRAGS, FRAGS_M } from './Fragments';
+import { useLandingVideo, VideoBubble, VideoBlock, VideoPlayerOverlay } from './LandingVideo';
 import {
   NAV, HERO, SIGNIN, PAINS, PAINS_H2, HOME_IMG, ROWS, TURN, KNOWS_HEAD, KNOWS, LEDGER_HEAD, LEDGER, GUESS_CHIP,
   HOME, RULES_H2, RULES, RULE_2, RULE_3_CHIP, PRICE, PLANS, BETA_PLAN, FINAL, FOOTER,
@@ -54,6 +55,8 @@ export function Landing() {
   useGloss(root, bp);
   useLiveStart(root, bp);
   const { active, heroRef, headerRef, illRef } = useScrollScene(root, desk);
+  const footerRef = useRef<HTMLElement>(null);
+  const video = useLandingVideo();
 
   const go = (e: MouseEvent<HTMLAnchorElement>) => {
     const href = e.currentTarget.getAttribute('href');
@@ -123,6 +126,7 @@ export function Landing() {
       </div>
 
       <section id="l3-how" data-reveal="0" className={s.pains}>
+        {!video.isDesktop && <VideoBlock onOpen={video.openPlayer} />}
         <h2 className={s.h2}>{PAINS_H2}</h2>
         <div className={s.painGrid}>
           {PAINS.map((p) => (
@@ -269,7 +273,7 @@ export function Landing() {
         <h2 className={s.finalH2}>{FINAL.h2}</h2>
         <p className={s.finalP}>{FINAL.p}</p>
         <SignInForm className={s.signinFinal} />
-        <footer className={s.footer}>
+        <footer ref={footerRef} className={s.footer}>
           <span className={s.footerBrand}>
             <Mark className={s.markSm} /><span className={s.footerName}>{FOOTER.brand}</span>
             <span className={s.footerTag}>{mob ? FOOTER.taglineLong : `· ${tab ? FOOTER.tagline : FOOTER.taglineLong}`}</span>
@@ -283,6 +287,11 @@ export function Landing() {
           </span>
         </footer>
       </section>
+
+      {video.isDesktop && !video.bubbleDismissed && (
+        <VideoBubble onOpen={video.openPlayer} onDismiss={video.dismissBubble} footerRef={footerRef} />
+      )}
+      {video.playerOpen && <VideoPlayerOverlay onClose={video.closePlayer} />}
     </div>
   );
 }
