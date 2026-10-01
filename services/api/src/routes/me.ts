@@ -7,7 +7,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Repo } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { COOKIE_NAME } from './auth.js';
-import { betaFlag, entitlementOf } from '@kitchen/domain/subscription';
+import { entitlementOf } from '@kitchen/domain/subscription';
 import { bannerFor } from '@kitchen/domain/paywall';
 
 export function meRoute(app: FastifyInstance, repo: Repo) {
@@ -43,18 +43,24 @@ export function meRoute(app: FastifyInstance, repo: Repo) {
       // (`entitlement`), і готовий текст банера. Клієнт лише малює — інакше
       // дві половини розійдуться в тому, що людина зараз може.
       subscription: {
-        state: sub?.state ?? (betaFlag() ? 'beta' : 'lapsed'),
+        // Рядка немає — це дім, старший за деплой демо, якому стан поставить
+        // end-beta того ж дня (спек §7). Віддаємо 'beta' чесно, як є: web
+        // мусить переживати цей стан, а не вгадувати.
+        state: sub?.state ?? 'beta',
         plan: sub?.plan ?? null,
-        entitlement: entitlementOf(sub, now, { beta: betaFlag() }),
+        entitlement: entitlementOf(sub, now),
+        demo_ends_at: sub?.demo_ends_at ?? null,
         trial_ends_at: sub?.trial_ends_at ?? null,
         /**
-         * Чи дасть НОВЕ оформлення пробний період. Та сама умова, що в
-         * checkout (`sub?.trial_used_at ? null : …`), і клієнту вона потрібна
-         * не для краси: текст перед сторінкою банку обіцяє або «перше списання
-         * {дата}», або «протягом доби». Без цього поля екран «Підписка» не
-         * може відрізнити ці випадки й обіцяв би людині не те.
+         * Чи дасть НОВЕ оформлення пробний період. Від 01.10 — ніколи (спек
+         * §2: безкоштовні дні тепер роздає демо, без картки), тож текст перед
+         * сторінкою банку завжди обіцяє списання «протягом доби».
+         *
+         * Поле лишається в контракті замість того, щоб зникнути: веб читає
+         * саме його, щоб обрати текст, і краще хай читає чесне false, ніж
+         * вгадує за станом.
          */
-        trial_available: !sub?.trial_used_at,
+        trial_available: false,
         next_charge_at: sub?.next_charge_at ?? null,
         access_until: sub?.access_until ?? null,
         card_mask: sub?.card_mask ?? null,

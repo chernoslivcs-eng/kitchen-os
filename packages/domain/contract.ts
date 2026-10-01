@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
 import type { HouseholdSubscription, PaymentIntent } from './subscription.js';
+import { startDemo } from './subscription.js';
 import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard, AdminOccasionRow, PeriodCard, Card } from './types.js';
 import { noteHash, type ProfileNote, type VetoRow } from './profile-text.js';
 import { createPending, applyCard, undoCard, dismissCard } from './apply.js';
@@ -1665,7 +1666,8 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         trial_used_at: '2026-10-01T00:00:00.000Z', trial_ends_at: '2026-10-15T00:00:00.000Z',
         next_charge_at: '2026-10-15T00:00:00.000Z', access_until: null,
         provider_order_id: 'ord-1', card_mask: '4242', card_token: 'tok-1', paid_by_user_id: null,
-        deletion_warned_at: null, trial_mail_sent_at: null, updated_at: '2026-10-01T00:00:00.000Z',
+        deletion_warned_at: null, trial_mail_sent_at: null,
+        demo_ends_at: null, demo_mail_sent_at: null, updated_at: '2026-10-01T00:00:00.000Z',
       });
 
       it('save/get/findByOrder/listByState', async () => {
@@ -1689,6 +1691,26 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         expect((await ctx.repo.getSubscription(household_id))?.card_token).toBe('tok-1');
         await ctx.repo.saveSubscription({ ...subOf(household_id), provider_order_id: ord, card_token: null });
         expect((await ctx.repo.getSubscription(household_id))?.card_token).toBeNull();
+      });
+
+      // Демо (спек 2026-10-01 §2). Окремо від решти полів з тієї ж причини, що
+      // card_token: колонка нова, мапер правлять руками, а локальні гейти
+      // Postgres не ганяють — розійшлося б це лише на проді, і тихо: дім
+      // лишився б із demo_ends_at null, тобто без права писати з першої хвилини.
+      it('demo_ends_at і demo_mail_sent_at переживають save/get; listByState бачить demo', async () => {
+        const { household_id } = await ctx.repo.createUserWithHousehold(`demo-${randomUUID()}@x.test`, 'D');
+        const sub = startDemo(household_id, new Date('2026-10-01T09:00:00.000Z'));
+        await ctx.repo.saveSubscription(sub);
+        expect(await ctx.repo.getSubscription(household_id)).toMatchObject({
+          state: 'demo',
+          demo_ends_at: '2026-10-08T09:00:00.000Z',
+          trial_used_at: '2026-10-01T09:00:00.000Z',
+          demo_mail_sent_at: null,
+          plan: null,
+        });
+        expect((await ctx.repo.listSubscriptionsByState(['demo'])).map((x) => x.household_id)).toContain(household_id);
+        await ctx.repo.saveSubscription({ ...sub, demo_mail_sent_at: '2026-10-06T03:30:00.000Z' });
+        expect((await ctx.repo.getSubscription(household_id))?.demo_mail_sent_at).toBe('2026-10-06T03:30:00.000Z');
       });
 
       it('saveSubscription — upsert, а не другий рядок', async () => {

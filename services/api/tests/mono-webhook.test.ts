@@ -100,7 +100,7 @@ describe('POST /v1/billing/mono', () => {
       household_id, state: 'trial', plan: 'home', trial_used_at: '2026-10-01T00:00:00.000Z',
       trial_ends_at: '2026-10-15T00:00:00.000Z', next_charge_at: '2026-10-15T00:00:00.000Z',
       access_until: null, provider_order_id: 'ord-m', card_mask: '1902', card_token: 'tok-c',
-      paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null,
+      paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null, demo_ends_at: null, demo_mail_sent_at: null,
       updated_at: '2026-10-01T00:00:00.000Z',
     });
     const r = await hook({ invoiceId: 'inv-9', status: 'success', amount: 29000, reference: 'ord-m' });

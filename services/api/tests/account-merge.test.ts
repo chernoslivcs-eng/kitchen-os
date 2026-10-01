@@ -35,7 +35,9 @@ describe('злиття акаунтів', () => {
 
   it('бот: /start без лінка — другим абзацом «уже є акаунт на сайті?»', async () => {
     const r = await handleTelegramText(deps(), upd(1, '/start'));
-    expect(r?.messages).toHaveLength(2);
+    // Третім абзацом — про демо (спек 2026-10-01 §6); порядок саме такий:
+    // привітання, «уже є акаунт?», і лише потім про строк.
+    expect(r?.messages).toHaveLength(3);
     expect(r?.messages[1]).toBe(COPY.helloHasAccount);
   });
 

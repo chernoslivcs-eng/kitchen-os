@@ -5,7 +5,13 @@
 // має право робити зараз (`entitlementOf`), як стан міняють події провайдера
 // (`applyProviderEvent`) і що з ним робить щоденний крон (`tick`).
 // Ні репозиторію, ні дат «зараз» усередині — усе приходить параметром.
-export type SubscriptionState = 'beta' | 'trial' | 'active' | 'cancelled' | 'past_due' | 'lapsed';
+/**
+ * Стани (спек 2026-10-01-demo-instead-of-beta §2). `demo` — 7 днів повного
+ * доступу без картки, які отримує КОЖЕН новий дім. `beta` лишився тільки для
+ * читання старих рядків: нові його не набувають, а прапорця `SUBSCRIPTION_BETA`
+ * більше немає — безстрокового безкоштовного доступу в системі не існує.
+ */
+export type SubscriptionState = 'beta' | 'demo' | 'trial' | 'active' | 'cancelled' | 'past_due' | 'lapsed';
 export type Plan = 'self' | 'home';
 export type Entitlement = 'full' | 'read_only';
 
@@ -29,23 +35,37 @@ export interface HouseholdSubscription {
   deletion_warned_at: string | null;
   /** Лист «за 3 дні до кінця пробного» надіслано — щоб крон не слав двічі. */
   trial_mail_sent_at: string | null;
+  /** Кінець демо. Не null лише у стані `demo`. */
+  demo_ends_at: string | null;
+  /**
+   * Лист «за 2 дні до кінця демо» надіслано. Окреме поле, а не повторне
+   * використання `trial_mail_sent_at`: демо-дім пробного вже не отримає
+   * ніколи, і зустріти в базі рядок демо зі слідом «лист про пробний»
+   * означало б щоразу згадувати, що це той самий лист під чужим іменем.
+   */
+  demo_mail_sent_at: string | null;
   updated_at: string;
 }
 
-/** Рахується на кожен запит, без кешу: оплата з іншого пристрою вмикає все негайно. */
-export function entitlementOf(sub: HouseholdSubscription | null, now: Date, opts: { beta: boolean }): Entitlement {
-  if (!sub) return opts.beta ? 'full' : 'read_only';
+/**
+ * Рахується на кожен запит, без кешу: оплата з іншого пристрою вмикає все негайно.
+ *
+ * Рядка немає — `full`. Це не «безкоштовно для всіх»: рядок з'являється в
+ * момент створення дому, тож його відсутність означає дім, старший за деплой
+ * демо, якому стан поставить `end-beta` того самого дня (спек §7). Поки він не
+ * пройшов, такі доми працюють як працювали. Протилежний дефолт замкнув би
+ * кожен наявний дім у ту саму хвилину, коли деплой доїде, — і ми дізналися б
+ * про це від людей, а не з логів.
+ */
+export function entitlementOf(sub: HouseholdSubscription | null, now: Date): Entitlement {
+  if (!sub) return 'full';
   switch (sub.state) {
     case 'beta': case 'active': case 'past_due': return 'full';
     case 'lapsed': return 'read_only';
+    case 'demo': return sub.demo_ends_at && now < new Date(sub.demo_ends_at) ? 'full' : 'read_only';
     case 'trial': return sub.trial_ends_at && now < new Date(sub.trial_ends_at) ? 'full' : 'read_only';
     case 'cancelled': return sub.access_until && now < new Date(sub.access_until) ? 'full' : 'read_only';
   }
-}
-
-/** Прапорець бети — з env, один на процес. Поки він стоїть, усі доми мають full. */
-export function betaFlag(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.SUBSCRIPTION_BETA !== '0';
 }
 
 /**
@@ -62,10 +82,36 @@ export const TRIAL_DAYS = 14;
  */
 export const INTENT_TTL_DAYS = 7;
 export const PAST_DUE_GRACE_DAYS = 7;
+/** Демо (спек §1): 7 днів повного доступу без картки, один раз на дім. */
+export const DEMO_DAYS = 7;
 const DAY = 86_400_000;
 const addDays = (iso: string | Date, d: number) => new Date(new Date(iso).getTime() + d * DAY).toISOString();
 /** Дата кінця пробного — рахується ОДИН раз, у checkout або при створенні наміру. */
 export const trialEndsFrom = (now: Date): string => addDays(now, TRIAL_DAYS);
+/** Кінець демо — рахується один раз, у момент створення дому. */
+export const demoEndsFrom = (now: Date): string => addDays(now, DEMO_DAYS);
+
+/**
+ * Рядок підписки для нового дому. Чиста функція: хто створив дім, той і пише
+ * її через `repo.saveSubscription` — на всіх трьох шляхах входу (пошта, Google,
+ * Telegram), щоб жоден дім не народився без стану.
+ *
+ * `trial_used_at` ставиться ОДРАЗУ: демо і є пробний період цього дому, і
+ * другого безкоштовного не буде (спек §2). Саме з цього поля рахується
+ * `trial_available`, тому підписка з демо створює `active`, а не `trial`.
+ */
+export function startDemo(household_id: string, now: Date): HouseholdSubscription {
+  const at = now.toISOString();
+  return {
+    household_id, state: 'demo', plan: null,
+    trial_used_at: at, trial_ends_at: null,
+    next_charge_at: null, access_until: null,
+    provider_order_id: null, card_mask: null, card_token: null, paid_by_user_id: null,
+    deletion_warned_at: null, trial_mail_sent_at: null,
+    demo_ends_at: demoEndsFrom(now), demo_mail_sent_at: null,
+    updated_at: at,
+  };
+}
 const addMonth = (iso: string | Date) => { const x = new Date(iso); x.setUTCMonth(x.getUTCMonth() + 1); return x.toISOString(); };
 
 export type ProviderEvent =
@@ -110,6 +156,9 @@ export function applyProviderEvent(sub: HouseholdSubscription | null, ev: Provid
       provider_order_id: ev.order_id, card_mask: ev.card_mask, card_token: ev.card_token, paid_by_user_id: ev.paid_by_user_id,
       // Нове оформлення — новий цикл: попередження про кінець пробного
       // рахується від цього trial_ends_at, старий слід тут тільки заважав би.
+      // Демо скінчилось оформленням: дата більше нічого не вирішує, і лист
+      // «за 2 дні» цьому дому вже не потрібен.
+      demo_ends_at: null, demo_mail_sent_at: null,
       deletion_warned_at: null, trial_mail_sent_at: null, updated_at: at,
     } };
   }
@@ -129,6 +178,9 @@ export function applyProviderEvent(sub: HouseholdSubscription | null, ev: Provid
 /** Що крон робить із рядком сьогодні; null — нічого. */
 export function tick(sub: HouseholdSubscription, now: Date): HouseholdSubscription | null {
   const at = now.toISOString();
+  // Демо → читання тим самим кодом, що скасування: окремої механіки немає
+  // (спек §2), просто інша дата на тому ж рядку.
+  if (sub.state === 'demo' && sub.demo_ends_at && now >= new Date(sub.demo_ends_at)) return { ...sub, state: 'lapsed', updated_at: at };
   if (sub.state === 'cancelled' && sub.access_until && now >= new Date(sub.access_until)) return { ...sub, state: 'lapsed', updated_at: at };
   if (sub.state === 'past_due' && sub.next_charge_at && now >= new Date(addDays(sub.next_charge_at, PAST_DUE_GRACE_DAYS))) return { ...sub, state: 'lapsed', updated_at: at };
   if (sub.state === 'trial' && sub.trial_ends_at && now >= new Date(addDays(sub.trial_ends_at, 1))) return { ...sub, state: 'past_due', updated_at: at };

@@ -4,6 +4,7 @@
 import { randomBytes, createHash, randomUUID } from 'node:crypto';
 import type { Repo, UserRow } from './repo.js';
 import type { AuthChallenge, AuthSession, UserContext } from './types.js';
+import { startDemo } from './subscription.js';
 
 const CHALLENGE_TTL_MIN = 15;
 const SESSION_TTL_DAYS = 30;
@@ -139,6 +140,23 @@ export interface TelegramSignIn {
   username?: string | null;
 }
 
+/**
+ * Демо для щойно створеного дому (спек 2026-10-01 §3). Викликається РЯДОМ зі
+ * створенням, на кожному шляху входу: пошта й Google (`signInWithVerifiedEmail`),
+ * бот (`signInWithTelegram`).
+ *
+ * Чому не всередині `repo.createUserWithHousehold`: це політика, а не
+ * збереження, і репозиторіїв два — правило мусить жити в одному місці, а не в
+ * обох реалізаціях.
+ *
+ * Помилка тут валить вхід, і це навмисно. Дім без рядка підписки читається як
+ * старий, тобто з повним доступом без кінця (`entitlementOf`), — краще, щоб
+ * людина спробувала увійти ще раз, ніж щоб ми тихо роздавали безкоштовні доми.
+ */
+export async function startHouseholdDemo(repo: Repo, household_id: string, now: Date = new Date()): Promise<void> {
+  await repo.saveSubscription(startDemo(household_id, now));
+}
+
 // PR 1 (TELEGRAM-AUTH-PAY-PLAN-0915): вхід за Telegram-id — дзеркало
 // signInWithVerifiedEmail. Знайти за telegram_account (без revoked) → інакше
 // створити user без пошти + дім + привʼязку. Привʼязка з профілю до акаунта з
@@ -164,6 +182,7 @@ export async function signInWithTelegram(
     const made = await repo.createUserFromTelegram({ telegram_user_id: tg.telegram_user_id, chat_id, name: tg.first_name });
     user = await repo.getUser(made.user_id);
     created = true;
+    await startHouseholdDemo(repo, made.household_id);
   } else if (chat_id != null) {
     // Вхід із віджета не знав chat_id — перший /start доповнює рядок.
     const acc = await repo.getTelegramByTelegramUser(tg.telegram_user_id);
@@ -292,6 +311,7 @@ export async function signInWithVerifiedEmail(
     const created = await repo.createUserWithHousehold(email, displayName);
     user_id = created.user_id;
     household_id = created.household_id;
+    await startHouseholdDemo(repo, household_id);
   }
 
   const { session, raw_cookie } = await openSession(repo, user_id, ip, user_agent);

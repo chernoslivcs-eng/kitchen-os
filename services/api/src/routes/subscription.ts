@@ -6,7 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { Repo } from '@kitchen/domain';
-import { applyProviderEvent, betaFlag, entitlementOf, trialEndsFrom, type Plan } from '@kitchen/domain/subscription';
+import { applyProviderEvent, entitlementOf, type Plan } from '@kitchen/domain/subscription';
 import { ingestProviderEvent, type InboundProviderEvent } from '../billing/ingest.js';
 import { PLAN_PRICE_UAH } from '@kitchen/domain/plans';
 import { bannerFor } from '@kitchen/domain/paywall';
@@ -20,9 +20,14 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
     const sub = await repo.getSubscription(household_id);
     const now = new Date();
     return {
-      state: sub?.state ?? (betaFlag() ? 'beta' : 'lapsed'),
+      // Як у /v1/me: рядка немає лише в дому, старшого за деплой демо.
+      state: sub?.state ?? 'beta',
       plan: sub?.plan ?? null,
-      entitlement: entitlementOf(sub, now, { beta: betaFlag() }),
+      entitlement: entitlementOf(sub, now),
+      demo_ends_at: sub?.demo_ends_at ?? null,
+      // Нових пробних немає (§2), тож текст перед банком завжди обіцяє
+      // списання «протягом доби». Поле лишається, щоб веб не вгадував.
+      trial_available: false,
       trial_ends_at: sub?.trial_ends_at ?? null,
       next_charge_at: sub?.next_charge_at ?? null,
       access_until: sub?.access_until ?? null,
@@ -43,22 +48,30 @@ export function subscriptionRoute(app: FastifyInstance, repo: Repo, billing: Bil
     const sub = await repo.getSubscription(household_id);
     // Спек §7: двоє з дому тиснуть «Оформити» одночасно — другий відсікається
     // ще до провайдера, щойно стан перестав бути «нема доступу».
-    const open = !sub ? !betaFlag() : ['lapsed', 'cancelled', 'past_due'].includes(sub.state);
+    // Спек 2026-10-01 §4: з демо підписку оформлюють, не чекаючи кінця, —
+    // це головний шлях, а не виняток. Рядка немає тільки в старого дому до
+    // end-beta; йому теж не замикаємо.
+    const open = !sub || ['demo', 'lapsed', 'cancelled', 'past_due'].includes(sub.state);
     if (!open) return reply.code(409).send({ error: 'already_active' });
     const order_id = randomUUID();
     const now = new Date();
-    // Дата кінця пробного рахується ТУТ і один раз: те саме число піде в
-    // провайдера як date_start і лишиться в нас. Інакше лист «пробний до
-    // {дата}» розійдеться зі справжнім списанням (спек біллінгу §9.1).
-    const trial_ends_at = sub?.trial_used_at ? null : trialEndsFrom(now);
+    // Спек 2026-10-01 §2: нових пробних не створюється — ні тим, хто прожив
+    // демо, ні старому дому без рядка. Підписка починається одразу активною,
+    // перше списання робить найближчий крон (§4).
+    const trial_ends_at = null;
     // Записуємо order_id ДО походу в провайдера: інакше вебхук повернеться
     // раніше за нас і не знайде, якому дому він належить.
     await repo.saveSubscription({
-      household_id, state: sub?.state ?? 'lapsed', plan,
+      household_id,
+      // Стан не міняємо: його поставить подія провайдера. Для дому без рядка
+      // (старий, до end-beta) пишемо 'beta' — це його справжній стан, і
+      // доступ мусить дожити до кінця оплати, а не впасти на сторінці банку.
+      state: sub?.state ?? 'beta', plan,
       trial_used_at: sub?.trial_used_at ?? null, trial_ends_at,
       next_charge_at: sub?.next_charge_at ?? null, access_until: sub?.access_until ?? null,
       provider_order_id: order_id, card_mask: sub?.card_mask ?? null, card_token: sub?.card_token ?? null, paid_by_user_id: user_id,
       deletion_warned_at: null, trial_mail_sent_at: sub?.trial_mail_sent_at ?? null,
+      demo_ends_at: sub?.demo_ends_at ?? null, demo_mail_sent_at: sub?.demo_mail_sent_at ?? null,
       updated_at: now.toISOString(),
     });
     const { url } = await billing.checkoutUrl({

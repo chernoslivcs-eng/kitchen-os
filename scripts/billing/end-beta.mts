@@ -1,6 +1,7 @@
 #!/usr/bin/env npx tsx
-// Завершення бети — РАЗОВИЙ скрипт, запускати лише в день запуску оплат і
-// лише за словом власника. Він змінює стан УСІХ безкоштовних домів одразу.
+// Завершення бети — РАЗОВИЙ скрипт, запускати лише в день деплою демо і лише
+// за словом власника. Він змінює стан УСІХ безкоштовних домів одразу:
+// кожен отримує `demo` на 7 днів і стартове повідомлення (спек 2026-10-01 §3).
 //
 //   npx tsx scripts/billing/end-beta.mts --dry-run   # лише список, нічого не пише
 //   npx tsx scripts/billing/end-beta.mts             # виконує й шле листи
@@ -14,7 +15,8 @@
 import { createInterface } from 'node:readline/promises';
 import { pickRepo } from '../../services/api/src/server.ts';
 import { pickMailer } from '../../services/api/src/mailer.ts';
-import { planEndBeta, applyEndBeta, END_BETA_GRACE_DAYS } from '../../services/api/src/billing-end-beta.ts';
+import { planEndBeta, applyEndBeta } from '../../services/api/src/billing-end-beta.ts';
+import { DEMO_DAYS } from '../../packages/domain/subscription.ts';
 
 const dryRun = process.argv.includes('--dry-run');
 
@@ -30,7 +32,7 @@ const now = new Date();
 
 const plan = await planEndBeta(repo, now);
 console.log(`Домів, які зараз живуть безкоштовно: ${plan.length}`);
-console.log(`Після запуску: стан cancelled, доступ до ${plan[0]?.access_until ?? '—'} (${END_BETA_GRACE_DAYS} днів).`);
+console.log(`Після запуску: стан demo, доступ до ${plan[0]?.demo_ends_at ?? '—'} (${DEMO_DAYS} днів).`);
 for (const a of plan) console.log(`  ${a.household_id}  (було: ${a.from ?? 'рядка нема'})`);
 
 if (dryRun) {
@@ -47,4 +49,4 @@ if (answer !== String(plan.length)) { console.log('Скасовано.'); proces
 const mailer = pickMailer();
 const r = await applyEndBeta({ repo, mailer, appUrl: process.env.APP_URL ?? 'http://localhost:5173', now: () => now });
 console.log(`\nГотово: домів ${r.households}, листів ${r.mails}, повідомлень у бот ${r.notes}.`);
-console.log(`Далі щоденний крон переведе їх у read_only у дату доступу — окремо запускати нічого не треба.`);
+console.log(`Далі щоденний крон сам: за 2 дні до кінця — лист, у дату кінця — read_only. Окремо запускати нічого не треба.`);

@@ -12,7 +12,7 @@ const sub = (household_id: string, order_id: string, over: Record<string, unknow
   household_id, state: 'trial', plan: 'self', trial_used_at: '2026-10-01T00:00:00.000Z',
   trial_ends_at: '2026-10-15T00:00:00.000Z', next_charge_at: '2026-10-15T00:00:00.000Z',
   access_until: null, provider_order_id: order_id, card_mask: '4242', card_token: null, paid_by_user_id: null,
-  deletion_warned_at: null, trial_mail_sent_at: null, updated_at: NOW.toISOString(), ...over,
+  deletion_warned_at: null, trial_mail_sent_at: null, demo_ends_at: null, demo_mail_sent_at: null, updated_at: NOW.toISOString(), ...over,
 }) as never;
 
 const intent = (order_id: string, over: Record<string, unknown> = {}) => ({
@@ -97,7 +97,7 @@ describe('ingestProviderEvent · card_token', () => {
     await repo.saveSubscription({
       household_id, state: 'lapsed', plan: 'home', trial_used_at: null, trial_ends_at: null,
       next_charge_at: null, access_until: null, provider_order_id: 'ord-tok', card_mask: null,
-      card_token: null, paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null,
+      card_token: null, paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null, demo_ends_at: null, demo_mail_sent_at: null,
       updated_at: NOW.toISOString(),
     });
     await ingestProviderEvent(repo, { kind: 'subscribed', order_id: 'ord-tok', card_mask: '4242', card_token: 'tok-8' }, NOW, log);
@@ -119,7 +119,7 @@ describe('ingestProviderEvent · повтори й запізнілі події
       household_id, state: 'trial', plan: 'home', trial_used_at: '2026-10-01T00:00:00.000Z',
       trial_ends_at: '2026-10-15T00:00:00.000Z', next_charge_at: '2026-10-15T00:00:00.000Z',
       access_until: null, provider_order_id: 'ord-r', card_mask: '1902', card_token: 'tok-r',
-      paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null,
+      paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null, demo_ends_at: null, demo_mail_sent_at: null,
       updated_at: '2026-10-01T00:00:00.000Z',
     });
     return { repo, household_id };
@@ -181,7 +181,7 @@ describe('ingestProviderEvent · комісія доживає до бази', (
       household_id, state: 'trial', plan: 'home', trial_used_at: null,
       trial_ends_at: '2026-10-15T00:00:00.000Z', next_charge_at: '2026-10-15T00:00:00.000Z',
       access_until: null, provider_order_id: 'ord-f', card_mask: '42', card_token: 'tok-f',
-      paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null,
+      paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null, demo_ends_at: null, demo_mail_sent_at: null,
       updated_at: NOW.toISOString(),
     });
 
@@ -203,7 +203,7 @@ describe('ingestProviderEvent · комісія доживає до бази', (
       household_id, state: 'trial', plan: 'home', trial_used_at: null,
       trial_ends_at: '2026-10-15T00:00:00.000Z', next_charge_at: '2026-10-15T00:00:00.000Z',
       access_until: null, provider_order_id: 'ord-k', card_mask: '42', card_token: 'tok-k',
-      paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null,
+      paid_by_user_id: user_id, deletion_warned_at: null, trial_mail_sent_at: null, demo_ends_at: null, demo_mail_sent_at: null,
       updated_at: NOW.toISOString(),
     });
     await ingestProviderEvent(repo, { kind: 'success', order_id: 'ord-k', amount: 290, fee: 3.77, provider_payment_id: 'inv-k' }, NOW, log);

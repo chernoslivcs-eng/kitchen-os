@@ -95,7 +95,7 @@ describe('радіус відмови без MONO_TOKEN у проді', () => {
       household_id: A.household_id, state: 'lapsed', plan: null, trial_used_at: null,
       trial_ends_at: null, next_charge_at: null, access_until: null, provider_order_id: null,
       card_mask: null, card_token: null, paid_by_user_id: null, deletion_warned_at: null,
-      trial_mail_sent_at: null, updated_at: '2026-09-01T00:00:00.000Z',
+      trial_mail_sent_at: null, demo_ends_at: null, demo_mail_sent_at: null, updated_at: '2026-09-01T00:00:00.000Z',
     });
     const r = await app.inject({
       method: 'POST', url: '/v1/subscription/checkout',
@@ -115,7 +115,7 @@ describe('радіус відмови без MONO_TOKEN у проді', () => {
       household_id, state: 'active', plan: 'home', trial_used_at: null, trial_ends_at: null,
       next_charge_at: '2026-10-01T00:00:00.000Z', access_until: null, provider_order_id: 'ord-c',
       card_mask: '4242', card_token: 'tok-c', paid_by_user_id: null, deletion_warned_at: null,
-      trial_mail_sent_at: null, updated_at: '2026-09-01T00:00:00.000Z',
+      trial_mail_sent_at: null, demo_ends_at: null, demo_mail_sent_at: null, updated_at: '2026-09-01T00:00:00.000Z',
     });
     await expect(runBillingCron({
       repo, mailer, billing: lazyBillingProvider('https://kitchen-os.app'),

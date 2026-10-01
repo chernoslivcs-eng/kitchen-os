@@ -15,7 +15,7 @@ import { mergeAttachmentCalls } from './attachment-merge.js';
 import { detectRepeat, repeatReply } from './repeat-guard.js';
 import { recipeStaleByNotes } from './recipe-dedup.js';
 import { subscribedRows, periodVetoRows } from '@kitchen/domain';
-import { betaFlag, entitlementOf } from '@kitchen/domain/subscription';
+import { entitlementOf } from '@kitchen/domain/subscription';
 import { paywallBody } from '@kitchen/domain/paywall';
 import { PROFILE_SUMMARY_REQUEST, acceptAssistantNote, helpTopicFor, helpTopicById, type HelpTopic } from '@kitchen/domain';
 import { createPending, applyCard, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow, type CookRunWithRecipe } from '@kitchen/domain';
@@ -123,7 +123,7 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     // не осяде в історії стіною без відповідей. Рахуємо на кожен хід, без
     // кешу — оплата з іншого пристрою вмикає все негайно.
     const subNow = await repo.getSubscription(household_id);
-    if (entitlementOf(subNow, new Date(), { beta: betaFlag() }) === 'read_only') {
+    if (entitlementOf(subNow, new Date()) === 'read_only') {
       throw new ChatTurnHttpError(402, paywallBody(subNow?.state ?? 'lapsed'));
     }
     const { attachments, session_id: clientSessionId, action } = input;

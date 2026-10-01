@@ -25,8 +25,8 @@ import { createPending } from '@kitchen/domain';
 import { localDay } from './local-day.js';
 import type { AttachmentStore } from './attachment-store.js';
 import { runChatTurn, ChatTurnHttpError, type ChatRouteOpts, type ChatTurnInput, type ChatTurnOutput } from './chat-turn.js';
-import { betaFlag, entitlementOf } from '@kitchen/domain/subscription';
-import { PAYWALL, SUBSCRIPTION_PATH } from '@kitchen/domain/paywall';
+import { entitlementOf } from '@kitchen/domain/subscription';
+import { MAIL, PAYWALL, SUBSCRIPTION_PATH } from '@kitchen/domain/paywall';
 import { settleTelemetry, type TelemetryHost } from './telemetry.js';
 import { flushSentry } from './sentry.js';
 import { makeRateLimiter } from './rate-limit.js';
@@ -393,7 +393,7 @@ async function paywallReply(deps: TelegramDeps, user_id: string): Promise<Telegr
 /** Чи дім зараз лише читає. Рахується на кожне звернення, як у вебі. */
 async function readOnlyHousehold(deps: TelegramDeps, household_id: string): Promise<boolean> {
   const sub = await deps.repo.getSubscription(household_id);
-  return entitlementOf(sub, deps.now?.() ?? new Date(), { beta: betaFlag() }) === 'read_only';
+  return entitlementOf(sub, deps.now?.() ?? new Date()) === 'read_only';
 }
 
 /** Власник 15.09: подія з бота → app_event (та сама таблиця й формат, що /v1/events/track).
@@ -695,7 +695,15 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
     const r = await signInWithTelegram(deps.repo, { telegram_user_id: u.telegram_user_id, chat_id: u.chat_id, first_name: (u.first_name ?? '').trim() || 'привіт', username: u.username ?? null }, null, null);
     await botEvent(deps, r.user.id, 'tg_start', { created: r.created });
     // HELP-CHIPS-TG-0915: під привітанням — шість довідок 2×3. Злиття (15.09): другим абзацом — «уже є акаунт на сайті?».
-    return { messages: [COPY.hello(r.user.name?.trim() || 'привіт'), COPY.helloHasAccount], html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD };
+    const messages = [COPY.hello(r.user.name?.trim() || 'привіт'), COPY.helloHasAccount];
+    // Спек 2026-10-01 §5, §6: новому дому — про демо, у тому ж привітанні й
+    // тими самими словами, що в листі. Тільки новому: повторний /start — це
+    // не новий дім, і другий раз розповідати про демо нема про що.
+    if (r.created) {
+      const sub = await deps.repo.getSubscription(r.household_id);
+      if (sub?.demo_ends_at) messages.push(MAIL.demoStarted(new Date(sub.demo_ends_at).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })).text);
+    }
+    return { messages, html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD };
   }
 
   const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
