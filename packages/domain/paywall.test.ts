@@ -22,7 +22,7 @@ describe('paywall copy', () => {
     expect(bannerFor({ state: 'trial', trial_ends_at: '2026-10-20T00:00:00Z', plan: 'self' } as never, now)).toBeNull();
     expect(bannerFor({ state: 'active' } as never, now)).toBeNull();
     const demo = bannerFor({ state: 'demo', demo_ends_at: '2026-10-08T00:00:00Z' } as never, now);
-    expect(demo).toMatchObject({ text: 'Демо до 8 жовтня · далі 210 ₴/міс або 290 ₴ для дому', cta: 'Оформити', to: '/profile/subscription' });
+    expect(demo).toMatchObject({ text: 'Демо до 8 жовтня · далі від 210 ₴/міс', cta: 'Оформити', to: '/profile/subscription' });
     // Демо без дати банера не малює — краще нічого, ніж «Демо до Invalid Date».
     expect(bannerFor({ state: 'demo', demo_ends_at: null } as never, now)).toBeNull();
   });
