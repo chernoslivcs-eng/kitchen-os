@@ -135,12 +135,24 @@
 .tab.active .tab-pill { background: var(--bg); color: var(--ink); }
 
 /* Одна скрольована стрічка між брендом і профілем (крок С1): цілі, «Розмови»,
-   сесії. flex: 1 притискає профіль донизу; min-height: 0 — щоб overflow працював. */
+   сесії. flex: 1 притискає профіль донизу; min-height: 0 — щоб overflow працював.
+   Хотфікс (01.10, прод iPhone/Chrome 390, шухляда ≤767): тут не стояв
+   explicit overflow-x — лише overflow-y, а без пари властивість за
+   специфікацією браузер рахує як overflow-x: auto. Живцем на 390: жоден
+   рядок геометрично не виходить за край (не про довгі назви — ellipsis на
+   .session-title й так працює), але scrollWidth все одно на кілька px
+   більший за clientWidth (round-off десь у розкладці рядка розмови) — досить,
+   щоб дотиком потягти вбік. overflow-x: hidden був лише в десктопному блоці
+   (≥768), на шухляді його не було зовсім. touch-action: pan-y — друга лінія
+   захисту специфічно для iOS WebKit: overflow: hidden сам по собі не завжди
+   блокує дотик там, де звичайний скрол це робить. */
 .scroll {
   flex: 1 1 auto;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y;
   display: flex;
   flex-direction: column;
   gap: inherit;
@@ -385,7 +397,9 @@
   .panel-btn { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity var(--dur-fast) var(--ease-standard), visibility 0s linear var(--dur-fast); }
   .brand { flex-direction: row; align-items: center; gap: 10px; height: 44px; min-height: 44px; max-height: 44px; padding: 0 7px 14px; overflow: hidden; }
   .brand-btn { width: 30px; height: 30px; margin: 0; flex: none; }
-  .scroll { scrollbar-gutter: auto; overflow-x: hidden; }
+  /* overflow-x: hidden тепер у базовому правилі (усі ширини) — тут лишається
+     тільки gutter: auto, бо в рейці/сайдбарі скролбар-жолоб не потрібен. */
+  .scroll { scrollbar-gutter: auto; }
   .tab {
     flex: 0 0 auto;
     width: auto;
