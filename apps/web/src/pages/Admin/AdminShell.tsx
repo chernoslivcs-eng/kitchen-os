@@ -136,11 +136,6 @@ export function AdminShell() {
             </NavLink>
           )}
 
-          <div className={styles.group}>БЕТА</div>
-          <NavLink to="/admin/beta" className={({ isActive }) => isActive ? `${styles.link} ${styles.on}` : styles.link}>
-            СІМ СПРАВ
-          </NavLink>
-
           <div className={styles.group}>ДОВІДНИКИ</div>
           <NavLink to="/admin/occasions" className={({ isActive }) => isActive ? `${styles.link} ${styles.on}` : styles.link}>
             ПРИВОДИ

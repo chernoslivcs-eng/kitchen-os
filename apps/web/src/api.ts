@@ -116,7 +116,12 @@ export interface Me {
    * Клієнт нічого не рахує сам: і право, і текст банера приходять готовими.
    */
   subscription?: {
-    state: 'beta' | 'trial' | 'active' | 'cancelled' | 'past_due' | 'lapsed';
+    // 'beta' лишається можливим значенням (дім без рядка підписки у вікні
+    // між деплоєм і запуском скрипта end-beta.mts, спек demo-instead-of-beta
+    // §7) — не видаляти з юніону, веб має це пережити, не падати.
+    state: 'demo' | 'beta' | 'trial' | 'active' | 'cancelled' | 'past_due' | 'lapsed';
+    /** ISO-рядок лише коли state === 'demo', інакше null. */
+    demo_ends_at: string | null;
     plan: 'self' | 'home' | null;
     entitlement: 'full' | 'read_only';
     trial_ends_at: string | null;
@@ -183,15 +188,6 @@ export interface PulseMember {
   /** 15.09: джерело акаунта і Telegram-id, якщо привʼязано. */
   source?: 'telegram' | 'email' | 'google';
   telegram_user_id?: number | null;
-}
-
-/** BETA-PLAN-0915: рядок таблиці «Бета» (GET /v1/admin/beta). */
-export interface AdminBetaRow {
-  user_id: string; name: string; email: string | null; household_id: string; household_name: string;
-  started_at: string; source: 'telegram' | 'email' | 'google'; telegram_user_id: number | null;
-  pantry: number; pantry_ok: boolean; profile_filled: number; profile_ok: boolean;
-  dinner_asks: number; cooks: number; feedback: number; periods: number; invites: number; silpo: boolean;
-  last_seen_at: string | null; last_channel: 'web' | 'telegram' | null; active_days_7: number;
 }
 
 export interface PulseMemberMoney extends PulseMember {
@@ -1038,8 +1034,6 @@ export const api = {
     // перевірка доступу, якою сторінка /admin/boom вирішує, показати 404 чи
     // впасти. Без прапорця той самий маршрут кидає справжній виняток.
     boomDry: () => req<{ ok: true }>('/v1/admin/boom?dry=1'),
-    // BETA-PLAN-0915: таблиця «Бета».
-    beta: () => req<{ rows: AdminBetaRow[]; thresholds: { pantry: number; profile: number } }>('/v1/admin/beta'),
   },
 
   shopping: {

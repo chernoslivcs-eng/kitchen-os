@@ -25,7 +25,7 @@ const ME: Me = {
 };
 
 function sub(over: Partial<NonNullable<Me['subscription']>>): NonNullable<Me['subscription']> {
-  return { state: 'active', plan: 'home', entitlement: 'full', trial_ends_at: null, next_charge_at: null, access_until: null, card_mask: null, banner: null, ...over };
+  return { state: 'active', demo_ends_at: null, plan: 'home', entitlement: 'full', trial_ends_at: null, next_charge_at: null, access_until: null, card_mask: null, banner: null, ...over };
 }
 
 let calls: { url: string; method: string; body: unknown }[];
@@ -68,7 +68,36 @@ afterEach(async () => {
 });
 
 describe('Екран «Підписка» — верхній рядок і кнопки за станом (спек §4)', () => {
-  it('beta — без кнопок', async () => {
+  // Рішення власника 01.10 (demo-instead-of-beta §4/§6, контракт 01.10):
+  // demo_ends_at → дата й «від {сума} ₴/міс» (plan ще null), дві картки
+  // тарифів із кнопкою «Оформити», trial_available:false → «протягом доби»
+  // в підписі над кнопкою (не конкретна дата).
+  it('demo — дата й «далі від», дві картки тарифів із «Оформити»', async () => {
+    getResponse = {
+      subscription: sub({ state: 'demo', plan: null, demo_ends_at: '2026-10-08T00:00:00Z', trial_available: false }),
+      payments: [],
+    };
+    await mount();
+    expect(host!.textContent).toContain('Демо до 08.10 · далі від 210 ₴/міс');
+    const btns = [...host!.querySelectorAll('button')].filter((b) => b.textContent?.includes('Оформити'));
+    expect(btns).toHaveLength(2);
+    expect(host!.textContent).not.toContain('До банку');
+    // Контракт 01.10: trial_available завжди false для демо-дому — перед
+    // банком «протягом доби», не обіцянка конкретної дати.
+    expect(host!.textContent).toContain('протягом доби');
+  });
+
+  it('demo без дати (контракт ще не підвезли) — заголовок «Демо», без падіння', async () => {
+    getResponse = { subscription: sub({ state: 'demo', plan: null, demo_ends_at: null }), payments: [] };
+    await mount();
+    expect(host!.textContent).toContain('Демо');
+    expect(host!.textContent).not.toContain('далі від');
+  });
+
+  // Пастка контракту 01.10: старий дім без рядка підписки може прийти з
+  // state:'beta' у вікні між деплоєм і запуском end-beta.mts — веб має
+  // пережити це, не впасти.
+  it('beta (транзитний технічний стан) — без кнопок, не падає', async () => {
     getResponse = { subscription: sub({ state: 'beta', plan: null }), payments: [] };
     await mount();
     expect(host!.textContent).toContain('Бета-тест · усе безкоштовно');

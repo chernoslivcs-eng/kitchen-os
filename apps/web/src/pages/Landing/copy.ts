@@ -5,7 +5,6 @@
 // «Що вміє» — шість рядків `rowsRaw`, які бандл РЕНДЕРИТЬ ({{ rows }} у трьох
 // артбордах); масив `feats` із восьми рядків у розмітку не входить (DEVIATIONS Р41).
 import type { IconName } from '../../components/Icon/icons';
-import { PLAN_OPTIONS } from '@kitchen/domain/plans';
 
 export const NAV: [string, string][] = [['#l3-how', 'Як це працює'], ['#l3-price', 'Ціна'], ['#l3-rules', 'Довіра']];
 
@@ -76,7 +75,8 @@ export const SIGNIN = {
 export const AUTH_MODE = {
   start: 'Реєстрація',
   login: 'Вхід',
-  noteStart: 'Зараз безкоштовно, поки триває бета. Пароля немає.',
+  // Рішення власника 01.10 (спек demo-instead-of-beta §6): «бета» → «демо».
+  noteStart: '7 днів безкоштовно, без картки. Пароля немає.',
   noteLogin: 'Тим способом, яким заходив раніше. Пароля немає.',
   // Невідомий ключ у режимі «Вхід» — той самий рядок-note (amber), слово під
   // спосіб; «Зареєструватись» — підкреслена дія, перемикає режим на «Реєстрація».
@@ -158,24 +158,10 @@ export const RULE_3_CHIP = 'креветки · алерген · Оля';
 export const PRICE = {
   h2: 'Платиш за продукт, а не за рекламу всередині.',
   p: 'У рекомендацію потрапляє те, що має сенс для твоєї кухні. Не те, кому дуже хотілось продати тобі ще один соус.',
-  trialTitle: '14 днів безкоштовно',
-  // Постановка 2026-09-25 (біллінг LiqPay) §5: «без картки» була правдою,
-  // поки оплат не було; тепер checkout LiqPay бере картку одразу (списання —
-  // лише через 14 днів, subscribe_date_start), тож рядок каже про це.
-  trialBadge: 'картка з першого дня',
-  trialSub: 'Далі — помісячно. Скасувати можна будь-коли.',
   soon: 'скоро',
-  // Постановка 25.09 (BETA_PLAN): сіра пігулка замість кнопки на «Для себе»/
-  // «Для дому», доки оплати нема — той самий текст, що «скоро» в рядку.
-  afterBeta: 'після бети',
   // Рішення власника 01.10: кнопка на картках тарифів — скрізь «Почати».
   cta: 'Почати',
 };
-
-// Постановка 25.09: поки оплати нема, тимчасова картка «Бета-тест» першою
-// в секції «Ціна» — рішення власника. Один прапорець: false повертає рівно
-// PR #208 (два тарифи, жодних слідів картки) без ручного відкату коду.
-export const BETA_PLAN = true;
 
 // PlanCardData/PlanLine — форма самої картки (панель, ціна, перелік), спільна
 // з /profile/subscription: канонічно визначена в components/PlanCard, тут
@@ -183,57 +169,54 @@ export const BETA_PLAN = true;
 export type { PlanLine } from '../../components/PlanCard/PlanCard';
 import type { PlanCardData } from '../../components/PlanCard/PlanCard';
 export interface PlanCard extends PlanCardData {
-  key: 'beta' | 'solo' | 'home';
-  /** false → сіра пігулка PRICE.afterBeta замість кнопки (§1.3). */
+  key: 'demo' | 'solo' | 'home';
   cta: boolean;
 }
-/** Винесено з PLANS заради тесту: перевіряє обидва стани прапорця без
- * перезавантаження модуля (BETA_PLAN — літерал, не env). PLANS нижче — це
- * рівно buildPlans(BETA_PLAN); false повертає рівно PR #208 (два тарифи,
- * cta:true в обох, жодних слідів картки «Бета-тест»). */
-export function buildPlans(betaPlan: boolean): PlanCard[] {
-  return [
-    ...(betaPlan ? [{
-      key: 'beta', tint: 'paper', headIcon: 'live.thinking', label: 'Бета-тест',
-      price: '0 ₴', per: 'поки триває бета',
-      // Той самий рядок, що вже є в packages/domain/plans.ts (PLAN_OPTIONS,
-      // id:'beta') — не дублюємо текст у другому місці.
-      blurb: PLAN_OPTIONS.find((p) => p.id === 'beta')!.blurb,
-      cta: true,
-      lines: [
-        { text: 'Усе, що є в тарифі «Для дому»', icon: 'sys.done' },
-        { text: 'Спільна комора, список і запрошення', icon: 'sys.pantry' },
-        { text: 'Після бети — обереш тариф у профілі', icon: 'sys.go' },
-      ],
-    } satisfies PlanCard] : []),
-    {
-      key: 'solo', tint: 'amber', headIcon: 'sys.profile', label: 'Для себе',
-      price: '210 ₴', per: '/ місяць', approx: '≈ $5', blurb: 'Для тих, хто вирішує свою вечерю сам.',
-      cta: !betaPlan,
-      lines: [
-        { text: 'Комора: чек, фото, полиця, голос', icon: 'sys.pantry' },
-        { text: 'Строки й рецепти з того, що вдома', icon: 'sys.recipes' },
-        { text: 'Кроки, таймери й журнал готувань', icon: 'cook.steps' },
-        { text: 'Календар, алергії й обмеження', icon: 'sys.calendar' },
-        { text: 'Список покупок і кошик у Сільпо', icon: 'sys.cart' },
-        { text: 'Telegram: фото, голос, нагадування', icon: 'sys.chat' },
-      ],
-    },
-    {
-      key: 'home', tint: 'sage', headIcon: 'live.household', label: 'Для дому',
-      price: '290 ₴', per: '/ місяць', approx: '≈ $7', blurb: 'Для кількох людей, які живуть з однією коморою.',
-      cta: !betaPlan,
-      lines: [
-        { text: 'Усе, що є в тарифі «Для себе»', icon: 'sys.done' },
-        { text: 'Спільна комора для всіх удома', icon: 'sys.pantry' },
-        { text: 'Спільний список покупок', icon: 'sys.list' },
-        { text: 'Запрошення в дім за посиланням', icon: 'sys.home' },
-        { text: 'Окремі смаки й обмеження', icon: 'cook.time', soon: true },
-      ],
-    },
-  ];
-}
-export const PLANS: PlanCard[] = buildPlans(BETA_PLAN);
+
+// Рішення власника 01.10 (спек demo-instead-of-beta §1/§6): безстрокова
+// «бета» (BETA_PLAN) зникає — кожен новий дім отримує 7 днів демо без
+// картки, платні тарифи активні одразу. Прапорця більше нема, три картки
+// завжди в такому вигляді. label/per розбиває фразу власника «Демо · 7
+// днів · без картки» на заголовок картки й підпис під ціною — той самий
+// слот, де раніше було «Бета-тест» / «поки триває бета».
+export const PLANS: PlanCard[] = [
+  {
+    key: 'demo', tint: 'paper', headIcon: 'live.thinking', label: 'Демо',
+    price: '0 ₴', per: '7 днів · без картки',
+    blurb: 'Повний доступ тиждень, картка не потрібна.',
+    cta: true,
+    lines: [
+      { text: 'Усе, що є в тарифі «Для дому»', icon: 'sys.done' },
+      { text: 'Спільна комора, список і запрошення', icon: 'sys.pantry' },
+      { text: 'Після демо — обереш тариф у профілі', icon: 'sys.go' },
+    ],
+  },
+  {
+    key: 'solo', tint: 'amber', headIcon: 'sys.profile', label: 'Для себе',
+    price: '210 ₴', per: '/ місяць', approx: '≈ $5', blurb: 'Для тих, хто вирішує свою вечерю сам.',
+    cta: true,
+    lines: [
+      { text: 'Комора: чек, фото, полиця, голос', icon: 'sys.pantry' },
+      { text: 'Строки й рецепти з того, що вдома', icon: 'sys.recipes' },
+      { text: 'Кроки, таймери й журнал готувань', icon: 'cook.steps' },
+      { text: 'Календар, алергії й обмеження', icon: 'sys.calendar' },
+      { text: 'Список покупок і кошик у Сільпо', icon: 'sys.cart' },
+      { text: 'Telegram: фото, голос, нагадування', icon: 'sys.chat' },
+    ],
+  },
+  {
+    key: 'home', tint: 'sage', headIcon: 'live.household', label: 'Для дому',
+    price: '290 ₴', per: '/ місяць', approx: '≈ $7', blurb: 'Для кількох людей, які живуть з однією коморою.',
+    cta: true,
+    lines: [
+      { text: 'Усе, що є в тарифі «Для себе»', icon: 'sys.done' },
+      { text: 'Спільна комора для всіх удома', icon: 'sys.pantry' },
+      { text: 'Спільний список покупок', icon: 'sys.list' },
+      { text: 'Запрошення в дім за посиланням', icon: 'sys.home' },
+      { text: 'Окремі смаки й обмеження', icon: 'cook.time', soon: true },
+    ],
+  },
+];
 
 // Бриф LANDING-VIDEO-BRIEF-0930 (рішення власника 30.09): бульбашка (≥1024),
 // блок у «Як це працює» (<1024), спільний плеєр — §«Тексти».
