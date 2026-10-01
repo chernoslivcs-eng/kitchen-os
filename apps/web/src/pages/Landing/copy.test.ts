@@ -11,7 +11,7 @@ import { buildPlans, BETA_PLAN, PLANS, PRICE, HERO, FOOTER } from './copy';
 // матеріалах).
 describe('HERO · копі 30.09', () => {
   it('a/b — остаточне гасло власника (довге тире в a)', () => {
-    expect(HERO.a).toBe('Готувати вдома — класно.');
+    expect(HERO.a).toBe('Готувати вдома — класно.');
     expect(HERO.b).toBe('Швидко, повільно, за планом або як заманеться.');
   });
 
@@ -24,12 +24,22 @@ describe('HERO · копі 30.09', () => {
     expect(Object.values(HERO)).not.toContain('Кухня, яка памʼятає.');
     expect(FOOTER.tagline).not.toBe('Кухня, яка памʼятає.');
   });
+
+  // Фікс 30.09: на 390 рядок ламався перед тире («Готувати вдома / — класно.»)
+  // — байдужий до пробіла toBe() це не ловить, тому окремо перевіряємо саме
+  // код символу перед «—» в HERO.a і FOOTER.*.
+  it('перед тире в «вдома — класно» — нерозривний пробіл (U+00A0), не звичайний', () => {
+    const dashIndex = HERO.a.indexOf('—');
+    expect(HERO.a.charCodeAt(dashIndex - 1)).toBe(0x00a0);
+    expect(FOOTER.tagline.charCodeAt(FOOTER.tagline.indexOf('—') - 1)).toBe(0x00a0);
+    expect(FOOTER.taglineLong.charCodeAt(FOOTER.taglineLong.indexOf('—') - 1)).toBe(0x00a0);
+  });
 });
 
 describe('FOOTER · копі 30.09', () => {
   it('tagline/taglineLong — те саме гасло, що HERO.a', () => {
-    expect(FOOTER.tagline).toBe('Готувати вдома — класно.');
-    expect(FOOTER.taglineLong).toBe('Готувати вдома — класно. Без реклами й проплачених пропозицій усередині.');
+    expect(FOOTER.tagline).toBe('Готувати вдома — класно.');
+    expect(FOOTER.taglineLong).toBe('Готувати вдома — класно. Без реклами й проплачених пропозицій усередині.');
   });
 });
 
