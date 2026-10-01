@@ -68,27 +68,31 @@ afterEach(async () => {
 });
 
 describe('Екран «Підписка» — верхній рядок і кнопки за станом (спек §4)', () => {
-  // Рішення власника 01.10 (demo-instead-of-beta §4/§6, контракт 01.10):
-  // demo_ends_at → дата й «від {сума} ₴/міс» (plan ще null), дві картки
-  // тарифів із кнопкою «Оформити», trial_available:false → «протягом доби»
-  // в підписі над кнопкою (не конкретна дата).
-  it('demo — дата й «далі від», дві картки тарифів із «Оформити»', async () => {
+  // Рішення власника 01.10 (demo-instead-of-beta §4/§6, контракт 01.10;
+  // правка з живого перегляду): заголовок картки статусу бере рівно той
+  // самий рядок, що сервер кладе в banner — не рахує дату вдруге, щоб банер
+  // зверху й заголовок тут ніколи не розʼїжджались форматом дати.
+  it('demo — заголовок = banner.text, дві картки тарифів із «Оформити», без слова «пробний»', async () => {
     getResponse = {
-      subscription: sub({ state: 'demo', plan: null, demo_ends_at: '2026-10-08T00:00:00Z', trial_available: false }),
+      subscription: sub({
+        state: 'demo', plan: null, demo_ends_at: '2026-10-08T00:00:00Z', trial_available: false,
+        banner: { text: 'Демо до 8 жовтня · далі від 210 ₴/міс', cta: 'Оформити', to: '/profile/subscription' },
+      }),
       payments: [],
     };
     await mount();
-    expect(host!.textContent).toContain('Демо до 08.10 · далі від 210 ₴/міс');
+    expect(host!.textContent).toContain('Демо до 8 жовтня · далі від 210 ₴/міс');
     const btns = [...host!.querySelectorAll('button')].filter((b) => b.textContent?.includes('Оформити'));
     expect(btns).toHaveLength(2);
     expect(host!.textContent).not.toContain('До банку');
-    // Контракт 01.10: trial_available завжди false для демо-дому — перед
-    // банком «протягом доби», не обіцянка конкретної дати.
+    // Контракт 01.10 + правка з живого перегляду: демо — не «пробний»,
+    // перед банком — рядок без цього слова, лише «протягом доби».
     expect(host!.textContent).toContain('протягом доби');
+    expect(host!.textContent).not.toContain('пробний');
   });
 
-  it('demo без дати (контракт ще не підвезли) — заголовок «Демо», без падіння', async () => {
-    getResponse = { subscription: sub({ state: 'demo', plan: null, demo_ends_at: null }), payments: [] };
+  it('demo без banner (контракт ще не підвезли) — заголовок «Демо», без падіння', async () => {
+    getResponse = { subscription: sub({ state: 'demo', plan: null, demo_ends_at: null, banner: null }), payments: [] };
     await mount();
     expect(host!.textContent).toContain('Демо');
     expect(host!.textContent).not.toContain('далі від');

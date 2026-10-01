@@ -78,4 +78,16 @@ describe('Landing · checkout з картки тарифу (демо заміс�
     expect(host!.textContent).toContain('Демо');
     expect(host!.textContent).toContain('7 днів · без картки');
   });
+
+  // Правка з живого перегляду 01.10: підпис над кнопкою «Почати» на платних
+  // картках — свій рядок без слова «пробний» (новий відвідувач лендінга
+  // нічого не використовував, bankNotice() з packages/domain тут неправда).
+  it('підпис над «Почати» — без «пробний», «kitchen-os» і «протягом доби» на місці', async () => {
+    await mount();
+    expect(host!.textContent).not.toContain('пробний');
+    expect(host!.textContent).toContain('протягом доби');
+    expect(host!.textContent).toContain('kitchen-os');
+    expect(host!.textContent).toContain('210 ₴');
+    expect(host!.textContent).toContain('290 ₴');
+  });
 });

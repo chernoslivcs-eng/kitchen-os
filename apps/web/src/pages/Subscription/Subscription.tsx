@@ -21,7 +21,7 @@ import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { PLANS } from '../Landing/copy';
 import { PLAN_NAME, PLAN_PRICE_UAH } from '@kitchen/domain/plans';
 // Глибокий шлях, не барел: барел тягне node:crypto й ламає vite.
-import { bankNotice } from '@kitchen/domain/paywall';
+import { bankNotice, MERCHANT_LEGAL_NAME } from '@kitchen/domain/paywall';
 import { fmtDate } from './summary';
 import styles from './Subscription.module.css';
 
@@ -43,16 +43,12 @@ function StatusDot({ tone }: { tone: 'sage' | 'amber' | 'dim' }) {
 /** Верхній рядок стану — тексти дослівно зі спека §4, дата DD.MM (бандл). */
 function statusFor(sub: Sub): { tone: 'sage' | 'amber' | 'dim'; title: string } {
   switch (sub.state) {
-    // Рішення власника 01.10 (спек demo-instead-of-beta §4/§6): план під час
-    // демо — null (не обраний), тому сума — орієнтир «від» наймолодшого
-    // тарифу, той самий текст, що сервер кладе в banner (контракт 01.10).
+    // Рішення власника 01.10 (спек demo-instead-of-beta §4/§6, правка з
+    // живого перегляду): банер зверху й заголовок картки тут показували два
+    // різних формати дати — беремо рівно той самий рядок, що сервер кладе в
+    // banner (готовий, той самий на обох кадрах), не рахуємо вдруге.
     case 'demo':
-      return {
-        tone: 'sage',
-        title: sub.demo_ends_at
-          ? `Демо до ${fmtDate(sub.demo_ends_at)} · далі від ${PLAN_PRICE_UAH.self} ₴/міс`
-          : 'Демо',
-      };
+      return { tone: 'sage', title: sub.banner?.text ?? 'Демо' };
     // Пастка контракту (01.10): 'beta' лишається можливим у вікні між
     // деплоєм і запуском end-beta.mts — переживаємо, не падаємо, текст не
     // чіпаємо (транзитний технічний стан, не постійний).
@@ -131,7 +127,19 @@ export function SubscriptionPage() {
   // Пробний дає лише НОВЕ оформлення й лише тим, хто його не витрачав. Сервер
   // каже про це `trial_available` (та сама умова, що в checkout), і без цього
   // поля обіцянка про перше списання була б вигадкою.
-  const notice = (plan: Plan) => bankNotice(PLAN_PRICE_UAH[plan], sub?.trial_available !== false);
+  //
+  // Рішення власника 01.10 (правка з живого перегляду): для demo — свій
+  // рядок без слова «пробний» (демо — не пробний, людині це слово ні про
+  // що), той самий текст, що на лендінгу. Для lapsed/past_due лишається
+  // bankNotice() — там «пробний період уже використано» правда про
+  // конкретний дім.
+  const notice = (plan: Plan): { text: string; cta: string } => sub?.state === 'demo'
+    ? {
+        text: `monobank збереже картку і зараз нічого не спише. Перше списання ${PLAN_PRICE_UAH[plan]} ₴ — протягом доби. `
+          + `На сторінці банку отримувач — «${MERCHANT_LEGAL_NAME}», це ми.`,
+        cta: 'Оформити',
+      }
+    : bankNotice(PLAN_PRICE_UAH[plan], sub?.trial_available !== false);
 
   async function checkout(plan: Plan) {
     if (busy) return;

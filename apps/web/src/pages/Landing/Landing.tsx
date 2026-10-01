@@ -14,7 +14,7 @@ import { useRef, useState, type MouseEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { api } from '../../api';
 import { setIntent } from '../../lib/billing-intent';
-import { bankNotice } from '@kitchen/domain/paywall';
+import { MERCHANT_LEGAL_NAME } from '@kitchen/domain/paywall';
 import { PLAN_PRICE_UAH } from '@kitchen/domain/plans';
 import { Icon } from '../../components/Icon/Icon';
 import { PlanCard } from '../../components/PlanCard/PlanCard';
@@ -74,11 +74,16 @@ export function Landing() {
   // вебхук і повернення прийдуть пізніше, можливо в іншій вкладці.
   // checkingOut — щоб подвійний клік не бив по ліміту 10/год.
   const [checkingOut, setCheckingOut] = useState<'self' | 'home' | null>(null);
-  // Рішення власника 01.10 (спек demo-instead-of-beta §4): з лендінга більше
-  // нема окремого «пробного» — хто оформлює платно, одразу активний,
-  // перше списання найближчим кроном (до доби). trialAvailable=false дає
-  // саме це формулювання в bankNotice, без обіцянки конкретної дати.
-  const notice = (plan: 'self' | 'home') => bankNotice(PLAN_PRICE_UAH[plan], false);
+  // Рішення власника 01.10 (спек demo-instead-of-beta §4, правка з живого
+  // перегляду): з лендінга більше нема окремого «пробного» — хто оформлює
+  // платно, одразу активний, перше списання найближчим кроном (до доби).
+  // Свій рядок, не bankNotice() з packages/domain: той каже «пробний період
+  // уже використано», що для нового відвідувача лендінга неправда (він
+  // нічого не використовував) — варіант лишається там, де це правда про
+  // конкретний дім (екран «Підписка»).
+  const notice = (plan: 'self' | 'home') =>
+    `monobank збереже картку і зараз нічого не спише. Перше списання ${PLAN_PRICE_UAH[plan]} ₴ — протягом доби. `
+    + `На сторінці банку отримувач — «${MERCHANT_LEGAL_NAME}», це ми.`;
   async function checkout(plan: 'self' | 'home') {
     if (checkingOut) return;
     setCheckingOut(plan);
@@ -246,7 +251,7 @@ export function Landing() {
                     називається «Почати» (01.10), тому підпис пояснює, куди
                     саме вона веде.
                   */}
-                  <p className={s.bankNote}>{notice(p.key === 'solo' ? 'self' : 'home').text}</p>
+                  <p className={s.bankNote}>{notice(p.key === 'solo' ? 'self' : 'home')}</p>
                   <button
                     type="button" className={planCardStyles.planBtn} disabled={checkingOut !== null}
                     onClick={() => void checkout(p.key === 'solo' ? 'self' : 'home')}
