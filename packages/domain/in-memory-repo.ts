@@ -1239,12 +1239,15 @@ export class InMemoryRepo implements Repo {
     this.members.push({ household_id, user_id, role, joined_at: new Date().toISOString() });
   }
 
-  async countChallengesSince(since: Date, filter?: { ip?: string; email?: string }): Promise<number> {
+  async countChallengesSince(since: Date, filter?: { ip?: string; email?: string; kind?: AuthChallenge['kind'] }): Promise<number> {
     const from = since.getTime();
     return [...this.challenges.values()].filter((c) =>
       new Date(c.created_at).getTime() >= from
       && (filter?.ip == null || c.ip === filter.ip)
-      && (filter?.email == null || c.email === filter.email)).length;
+      && (filter?.email == null || c.email === filter.email)
+      // Як у Постгресі: колонка kind — NOT NULL DEFAULT 'email' (0036), тож
+      // рядок, збережений без kind, це магік-лінк.
+      && (filter?.kind == null || (c.kind ?? 'email') === filter.kind)).length;
   }
   async saveInvite(inv: HouseholdInvite): Promise<void> {
     this.invites.set(inv.id, { ...inv });

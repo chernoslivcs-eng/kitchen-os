@@ -2364,11 +2364,13 @@ export class PostgresRepo implements Repo {
     );
   }
 
-  async countChallengesSince(since: Date, filter?: { ip?: string; email?: string }): Promise<number> {
+  async countChallengesSince(since: Date, filter?: { ip?: string; email?: string; kind?: AuthChallenge['kind'] }): Promise<number> {
     const where = ['created_at >= $1'];
     const vals: unknown[] = [since.toISOString()];
     if (filter?.ip != null) { vals.push(filter.ip); where.push(`ip = $${vals.length}`); }
     if (filter?.email != null) { vals.push(filter.email); where.push(`email = $${vals.length}`); }
+    // Колонка NOT NULL DEFAULT 'email' (0036) — зайвого IS NULL не потрібно.
+    if (filter?.kind != null) { vals.push(filter.kind); where.push(`kind = $${vals.length}`); }
     const { rows } = await this.pool.query(`SELECT count(*)::int AS n FROM auth_challenge WHERE ${where.join(' AND ')}`, vals);
     return (rows[0]?.n as number) ?? 0;
   }

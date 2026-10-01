@@ -29,10 +29,11 @@ describe('checkAuthFlood', () => {
   const NOW = new Date('2026-10-01T12:00:00.000Z');
   beforeEach(() => { repo = new InMemoryRepo(); });
 
-  const seed = async (n: number, over: { ip?: string; email?: string; minsAgo?: number } = {}) => {
+  const seed = async (n: number, over: { ip?: string; email?: string; minsAgo?: number; kind?: string } = {}) => {
     for (let i = 0; i < n; i += 1) {
       await repo.saveChallenge({
         id: `c${i}-${Math.random()}`, email: over.email ?? `x${i}@mail.ua`, token_hash: `h${i}-${Math.random()}`,
+        kind: over.kind ?? 'email',
         created_at: new Date(NOW.getTime() - (over.minsAgo ?? 1) * 60_000).toISOString(),
         expires_at: new Date(NOW.getTime() + 900_000).toISOString(),
         consumed_at: null, ip: over.ip ?? '1.1.1.1', user_agent: null,
@@ -70,6 +71,41 @@ describe('checkAuthFlood', () => {
       await seed(1, { email: `bot${i}@mail.ua`, ip: `3.3.3.${i}` });
     }
     expect(await check('real-person@mail.ua', '5.5.5.5')).toEqual({ ok: false, reason: 'global' });
+  });
+
+  it('добова межа: 80 листів за 24 години, навіть коли по годинах розмазано', async () => {
+    // Усі — поза годинним вікном (3 год 20 хв тому), тож годинна межа не при чому.
+    for (let i = 0; i < FLOOD_LIMITS.globalDay.max; i += 1) {
+      await seed(1, { email: `wave${i}@mail.ua`, ip: `4.4.${i >> 8}.${i & 255}`, minsAgo: 200 });
+    }
+    expect(await check('real-person@mail.ua', '5.5.5.5')).toEqual({ ok: false, reason: 'global_day' });
+  });
+
+  it('на один лист менше за добову межу — ще пускаємо', async () => {
+    for (let i = 0; i < FLOOD_LIMITS.globalDay.max - 1; i += 1) {
+      await seed(1, { email: `wave${i}@mail.ua`, ip: `4.4.${i >> 8}.${i & 255}`, minsAgo: 200 });
+    }
+    expect(await check('real-person@mail.ua', '5.5.5.5')).toEqual({ ok: true });
+  });
+
+  it('позавчорашнє поза добовим вікном не рахується', async () => {
+    for (let i = 0; i < FLOOD_LIMITS.globalDay.max; i += 1) {
+      await seed(1, { email: `old${i}@mail.ua`, ip: `6.6.${i >> 8}.${i & 255}`, minsAgo: 25 * 60 });
+    }
+    expect(await check('real-person@mail.ua', '5.5.5.5')).toEqual({ ok: true });
+  });
+
+  it('вхід через бота квоту не їсть: kind tg_login і telegram поза всіма лічильниками', async () => {
+    // Обидва різновиди народжуються без листа: 'tg_login' — кнопка на лендингу,
+    // 'telegram' — разовий лінк у веб із бота. Якби вони рахувались, хвиля
+    // входів ботом мовчки замикала б пошту справжнім людям.
+    for (const kind of ['tg_login', 'telegram']) {
+      repo = new InMemoryRepo();
+      for (let i = 0; i < FLOOD_LIMITS.globalDay.max; i += 1) {
+        await seed(1, { email: undefined, ip: '7.7.7.7', minsAgo: 1, kind });
+      }
+      expect(await check('real-person@mail.ua', '7.7.7.7'), kind).toEqual({ ok: true });
+    }
   });
 
   it('вигаданий домен ріжеться ДО лічильників — бот не замикає ними людей', async () => {

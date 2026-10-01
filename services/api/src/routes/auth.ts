@@ -74,10 +74,12 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
         // Пошту в лог не кладемо: вона й так у базі, а в логах це зайві
         // персональні дані на кожен запит бота.
         req.log.warn({ reason: flood.reason, ip: req.ip }, 'auth-request-dropped');
-        if (flood.reason === 'global') {
+        if (flood.reason === 'global' || flood.reason === 'global_day') {
           // Глобальна межа — це вже не «конкретний бот», а стан застосунку: у
           // цю хвилину НІХТО не може увійти поштою. Мовчати про таке не можна.
-          captureIncident('guard', 'auth-global-limit-hit', { ip: req.ip });
+          // Добова окремим ім'ям: вона означає, що бюджет листів на день уже
+          // витрачено, і до ранку сама не відпустить.
+          captureIncident('guard', flood.reason === 'global' ? 'auth-global-limit-hit' : 'auth-daily-limit-hit', { ip: req.ip });
         }
         return reply.code(202).send({ ok: true });
       }

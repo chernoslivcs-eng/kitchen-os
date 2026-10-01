@@ -570,7 +570,13 @@ export interface Repo {
    * інстанс, тож лічильник у процесі не бачить попередніх запитів. Саме через
    * це бот 30.09 зробив 3 374 запити й вичерпав денну квоту Resend.
    */
-  countChallengesSince(since: Date, filter?: { ip?: string; email?: string }): Promise<number>;
+  /**
+   * Скільки рядків auth_challenge народилось від `since`. Межі заливання
+   * (services/api/src/auth-flood.ts) рахують по базі, а не в памʼяті процесу:
+   * на Vercel кожен холодний старт — новий інстанс зі своїм нулем.
+   * `kind` звіряється з дефолтом колонки: рядок без kind — 'email'.
+   */
+  countChallengesSince(since: Date, filter?: { ip?: string; email?: string; kind?: AuthChallenge['kind'] }): Promise<number>;
   saveInvite(inv: HouseholdInvite): Promise<void>;
   getInviteByHash(token_hash: string): Promise<HouseholdInvite | null>;
   getInvite(id: string): Promise<HouseholdInvite | null>;

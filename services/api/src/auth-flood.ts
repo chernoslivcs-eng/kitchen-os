@@ -22,16 +22,28 @@ export const FLOOD_LIMITS = {
   ip: { max: 5, windowMs: 15 * 60_000 },
   email: { max: 3, windowMs: 60 * 60_000 },
   /**
-   * Глобальна межа — остання лінія, коли бот міняє і IP, і адреси.
+   * Глобальні межі — остання лінія, коли бот міняє і IP, і адреси. Їх дві,
+   * бо справжня стеля не наша, а Resend: безплатний тариф — 100 листів на
+   * добу, і коли вони вичерпані, відмовляє вже він, справжнім людям.
    *
-   * УВАГА на 30/год: наша звичайна витрата — одиниці на день, тож для буднів
-   * запас величезний. Але відмова тут тиха, і в день, коли на лендінг прийде
-   * хвиля людей, вони всі побачать «лист надіслано» й не отримають нічого.
-   * Тобто ціна помилки в цьому числі несиметрична: завелике — трохи зайвих
-   * листів, замале — мовчазно зламаний вхід у найгірший момент.
+   * Одна годинна межа цього не стримує: 30/год — це 720 за добу, тобто квота
+   * згоряє до сьомої години. Тому годинна тримає сплеск, а добова — бюджет.
+   *
+   * 80 за добу, а не 100: лишаємо 20 на запрошення в дім і листи біллінгу —
+   * вони летять через того самого Resend і в тій самій квоті.
    */
   global: { max: 30, windowMs: 60 * 60_000 },
+  globalDay: { max: 80, windowMs: 24 * 60 * 60_000 },
 } as const;
+
+/**
+ * Рахуємо лише магік-лінки. 'telegram' і 'tg_login' живуть у тій самій
+ * таблиці, але листів не шлють і квоти не палять — якби вони рахувались,
+ * хвиля входів через бота мовчки замикала б пошту справжнім людям.
+ * Фільтр стоїть на ВСІХ лічильниках, не лише на глобальних: вхід ботом не
+ * мусить з'їдати нічию межу, зокрема й свого IP.
+ */
+const MAIL_KIND = 'email' as const;
 
 /**
  * Домени, куди лист не дійде за означенням (RFC 2606 і те, чим користувався
@@ -54,7 +66,7 @@ export function isUndeliverable(email: string): boolean {
 
 export type FloodVerdict =
   | { ok: true }
-  | { ok: false; reason: 'undeliverable' | 'ip' | 'email' | 'global' };
+  | { ok: false; reason: 'undeliverable' | 'ip' | 'email' | 'global' | 'global_day' };
 
 export interface FloodCheckInput {
   repo: Repo;
@@ -72,14 +84,17 @@ export async function checkAuthFlood(i: FloodCheckInput): Promise<FloodVerdict> 
   if (i.delivers && isUndeliverable(i.email)) return { ok: false, reason: 'undeliverable' };
 
   if (i.ip) {
-    const n = await i.repo.countChallengesSince(since(FLOOD_LIMITS.ip.windowMs), { ip: i.ip });
+    const n = await i.repo.countChallengesSince(since(FLOOD_LIMITS.ip.windowMs), { ip: i.ip, kind: MAIL_KIND });
     if (n >= FLOOD_LIMITS.ip.max) return { ok: false, reason: 'ip' };
   }
-  const byEmail = await i.repo.countChallengesSince(since(FLOOD_LIMITS.email.windowMs), { email: i.email });
+  const byEmail = await i.repo.countChallengesSince(since(FLOOD_LIMITS.email.windowMs), { email: i.email, kind: MAIL_KIND });
   if (byEmail >= FLOOD_LIMITS.email.max) return { ok: false, reason: 'email' };
 
-  const all = await i.repo.countChallengesSince(since(FLOOD_LIMITS.global.windowMs));
-  if (all >= FLOOD_LIMITS.global.max) return { ok: false, reason: 'global' };
+  const hour = await i.repo.countChallengesSince(since(FLOOD_LIMITS.global.windowMs), { kind: MAIL_KIND });
+  if (hour >= FLOOD_LIMITS.global.max) return { ok: false, reason: 'global' };
+
+  const day = await i.repo.countChallengesSince(since(FLOOD_LIMITS.globalDay.windowMs), { kind: MAIL_KIND });
+  if (day >= FLOOD_LIMITS.globalDay.max) return { ok: false, reason: 'global_day' };
 
   return { ok: true };
 }
