@@ -140,7 +140,7 @@ export function SubscriptionPage() {
           + `На сторінці банку отримувач — «${MERCHANT_LEGAL_NAME}», це ми.`,
         cta: 'Оформити',
       }
-    : bankNotice(PLAN_PRICE_UAH[plan], false);
+    : bankNotice(PLAN_PRICE_UAH[plan]);
 
   async function checkout(plan: Plan) {
     if (busy) return;

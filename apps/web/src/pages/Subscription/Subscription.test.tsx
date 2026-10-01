@@ -149,7 +149,7 @@ describe('Екран «Підписка» — верхній рядок і кн�
     expect(btns).toHaveLength(2);
   
     // Борг 26.09: банк не покаже ні суми, ні «верифікації» — мусимо ми.
-    expect(host!.textContent).toContain('зараз нічого не спише — 0 ₴');
+    expect(host!.textContent).toContain('зараз нічого не спише. Перше списання 210 ₴ — протягом доби');
     expect(host!.textContent).toContain('kitchen-os');
 });
 

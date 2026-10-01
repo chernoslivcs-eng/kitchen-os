@@ -6,7 +6,7 @@
 // Один модуль на всі канали (веб, бот, пошта), щоб той самий стан не
 // розповідався двома різними голосами.
 import { PLAN_PRICE_UAH } from './plans.js';
-import { TRIAL_DAYS, type HouseholdSubscription, type SubscriptionState } from './subscription.js';
+import type { HouseholdSubscription, SubscriptionState } from './subscription.js';
 
 export const SUBSCRIPTION_PATH = '/profile/subscription';
 
@@ -46,19 +46,6 @@ export const PAYWALL = {
 export const MERCHANT_LEGAL_NAME = 'kitchen-os';
 
 /**
- * Дата першого списання для НОВОГО оформлення: сьогодні + TRIAL_DAYS, словами.
- *
- * Рахується тут, а не в кожного, хто малює підпис. Спершу дату приймали
- * готовим рядком — і лендінг з екраном «Підписка» показали одну й ту саму
- * обіцянку в різному вигляді («10 жовтня» проти «10.10»). Формат той самий,
- * що в листі MAIL.trialEnds: про одне й те саме списання людина читає двічі.
- */
-function trialDate(now: Date): string {
-  return new Date(now.getTime() + TRIAL_DAYS * 86_400_000)
-    .toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
-}
-
-/**
  * Що сказати перед переходом на сторінку банку (борг живого тесту 26.09).
  *
  * Перевірено живцем: сторінка mono не показує ні суми, ні слова «верифікація»
@@ -66,17 +53,19 @@ function trialDate(now: Date): string {
  * людина бачить слово «Оплата» без жодного числа. Обіцянку «зараз не спишемо»
  * не підтвердить ніхто, крім нас, тому вона мусить стояти тут.
  *
- * `trialAvailable` — false, коли пробний уже витрачено: тоді першого списання
- * «в дату» немає, воно станеться найближчим проходом крону. Обіцяти конкретний
- * день у цьому випадку означало б обіцяти те, чого ми не контролюємо.
+ * Текст один на всі випадки. Доти він розгалужувався на `trialAvailable`:
+ * з пробним обіцяв конкретний день, без нього — «протягом доби, пробний період
+ * уже використано». Обидві гілки померли 01.10: нових пробних не створюється
+ * (спек demo-instead-of-beta §2), а той, хто прийшов із демо, пробного й не
+ * мав — слово «пробний» розповідало б йому про чуже.
+ *
+ * Дня тут немає навмисно: списання робить крон найближчим проходом, і
+ * конкретна дата — не те, що ми контролюємо.
  */
-export function bankNotice(sum: number, trialAvailable: boolean, now: Date = new Date()): { title: string; text: string; cta: string } {
-  const when = trialAvailable
-    ? `буде ${trialDate(now)}`
-    : 'буде протягом доби — пробний період уже використано';
+export function bankNotice(sum: number): { title: string; text: string; cta: string } {
   return {
     title: 'Далі — сторінка банку',
-    text: `monobank збереже картку і зараз нічого не спише — 0 ₴. Перше списання ${sum} ₴ ${when}. `
+    text: `monobank збереже картку і зараз нічого не спише. Перше списання ${sum} ₴ — протягом доби. `
       + `На сторінці банку отримувач — «${MERCHANT_LEGAL_NAME}», це ми.`,
     cta: 'До банку',
   };
