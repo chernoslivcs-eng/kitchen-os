@@ -15,6 +15,7 @@
 import { createInterface } from 'node:readline/promises';
 import { pickRepo } from '../../services/api/src/server.ts';
 import { pickMailer } from '../../services/api/src/mailer.ts';
+import { makeTelegramNotify } from '../../services/api/src/telegram-notify.ts';
 import { planEndBeta, applyEndBeta } from '../../services/api/src/billing-end-beta.ts';
 import { DEMO_DAYS } from '../../packages/domain/subscription.ts';
 
@@ -47,6 +48,12 @@ rl.close();
 if (answer !== String(plan.length)) { console.log('Скасовано.'); process.exit(1); }
 
 const mailer = pickMailer();
-const r = await applyEndBeta({ repo, mailer, appUrl: process.env.APP_URL ?? 'http://localhost:5173', now: () => now });
+// Без цього рядка люди без пошти не отримували нічого, а скрипт друкував
+// «повідомлень у бот 0» — не відрізнити від «таких людей немає».
+// TELEGRAM_BOT_TOKEN має бути від ПРОДОВОГО бота: chat_id у базі видані ним,
+// і чужий бот у ті чати не напише.
+const telegramNotify = makeTelegramNotify(repo);
+if (!telegramNotify) console.log('TELEGRAM_BOT_TOKEN не заданий — у бот не піде нічого.');
+const r = await applyEndBeta({ repo, mailer, appUrl: process.env.APP_URL ?? 'http://localhost:5173', now: () => now, telegramNotify });
 console.log(`\nГотово: домів ${r.households}, листів ${r.mails}, повідомлень у бот ${r.notes}.`);
 console.log(`Далі щоденний крон сам: за 2 дні до кінця — лист, у дату кінця — read_only. Окремо запускати нічого не треба.`);
