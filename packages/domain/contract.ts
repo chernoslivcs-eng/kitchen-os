@@ -7,7 +7,8 @@ import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
 import type { HouseholdSubscription, PaymentIntent } from './subscription.js';
 import { startDemo } from './subscription.js';
-import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard, AdminOccasionRow, PeriodCard, Card } from './types.js';
+import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard, AdminOccasionRow, PeriodCard, Card, AuthChallenge } from './types.js';
+import type { SignupSourceRow } from './signup-source.js';
 import { noteHash, type ProfileNote, type VetoRow } from './profile-text.js';
 import { createPending, applyCard, undoCard, dismissCard } from './apply.js';
 import { displayName } from './product.js';
@@ -1813,6 +1814,62 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         expect(await ctx.repo.getSubscription(household_id)).toBeNull();
         expect(await ctx.repo.listBatches(household_id)).toHaveLength(0);
         expect(await ctx.repo.getUser(user_id)).not.toBeNull();
+      });
+    });
+
+    // Джерело реєстрації (міграція 0052). Мапер і каскади локально не
+    // перевіряються (Postgres ганяє лише CI), тож тут — усе, що могло б
+    // розійтися мовчки: кожна колонка туди й назад, «перший запис виграє»,
+    // jsonb на challenge і доля рядка при видаленні дому чи акаунта.
+    describe('signup_source', () => {
+      const rowOf = (user_id: string, household_id: string | null, over: Partial<SignupSourceRow> = {}): SignupSourceRow => ({
+        user_id, household_id, via: 'email',
+        utm_source: 'linkedin', utm_medium: 'social', utm_campaign: 'launch', utm_content: 'post-1', ref: 'olena',
+        created_at: '2026-10-02T09:00:00.000Z',
+        ...over,
+      });
+
+      it('усі поля переживають save/get; повторний запис нічого не міняє', async () => {
+        const { user_id, household_id } = await ctx.repo.createUserWithHousehold(`src-${randomUUID()}@x.test`, 'S');
+        expect(await ctx.repo.getSignupSource(user_id)).toBeNull();
+        const row = rowOf(user_id, household_id);
+        await ctx.repo.saveSignupSource(row);
+        expect(await ctx.repo.getSignupSource(user_id)).toEqual(row);
+        await ctx.repo.saveSignupSource(rowOf(user_id, household_id, { via: 'google', utm_source: 'ads', ref: null }));
+        expect(await ctx.repo.getSignupSource(user_id)).toEqual(row);
+      });
+
+      it('без міток і без дому (запрошений): порожнє лишається null', async () => {
+        const guest = await ctx.repo.createUserOnly(`src-guest-${randomUUID()}@x.test`, 'G');
+        const row = rowOf(guest, null, { via: 'invite', utm_source: null, utm_medium: null, utm_campaign: null, utm_content: null, ref: null });
+        await ctx.repo.saveSignupSource(row);
+        expect(await ctx.repo.getSignupSource(guest)).toEqual(row);
+      });
+
+      it('мітки на challenge переживають save/get; без міток — null', async () => {
+        const mk = (hash: string, source: AuthChallenge['source']): AuthChallenge => ({
+          id: randomUUID(), email: `src-ch-${hash}@x.test`, token_hash: hash,
+          created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 60_000).toISOString(),
+          consumed_at: null, ip: null, user_agent: null, source,
+        });
+        const withMarks = `h-src-${randomUUID()}`;
+        const bare = `h-src-${randomUUID()}`;
+        await ctx.repo.saveChallenge(mk(withMarks, { utm_source: 'instagram', ref: 'olena' }));
+        await ctx.repo.saveChallenge(mk(bare, null));
+        expect((await ctx.repo.getChallengeByHash(withMarks))?.source).toEqual({ utm_source: 'instagram', ref: 'olena' });
+        expect((await ctx.repo.getChallengeByHash(bare))?.source ?? null).toBeNull();
+      });
+
+      it('рядок іде разом із домом, який він привів, і разом з акаунтом', async () => {
+        const a = await ctx.repo.createUserWithHousehold(`src-a-${randomUUID()}@x.test`, 'A');
+        await ctx.repo.saveSignupSource(rowOf(a.user_id, a.household_id));
+        await ctx.repo.deleteHousehold(a.household_id);
+        expect(await ctx.repo.getSignupSource(a.user_id)).toBeNull();
+
+        const b = await ctx.repo.createUserWithHousehold(`src-b-${randomUUID()}@x.test`, 'B');
+        await ctx.repo.saveSignupSource(rowOf(b.user_id, b.household_id));
+        await ctx.repo.deleteUserAccount(b.user_id);
+        expect(await ctx.repo.getSignupSource(b.user_id)).toBeNull();
       });
     });
   });

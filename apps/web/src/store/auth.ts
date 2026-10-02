@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { api, ApiError, type AuthMode, type Me } from '../api';
 import { setSentryUser, captureClientIncident } from '../lib/sentry';
 import { markHadSession } from '../lib/session-flag';
+import { clearSignupSource } from '../lib/signup-source';
 
 type Status = 'idle' | 'loading' | 'guest' | 'signed_in' | 'error';
 
@@ -31,6 +32,9 @@ export const useAuth = create<AuthState>((set) => ({
       // /admin/pulse. Тільки id: пошта й імʼя туди не їдуть.
       setSentryUser(me.user.id);
       markHadSession();
+      // Акаунт уже є — мітки джерела своє зробили (сервер записав їх при
+      // створенні) і в браузері більше не потрібні.
+      clearSignupSource();
       set({ status: 'signed_in', me });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {

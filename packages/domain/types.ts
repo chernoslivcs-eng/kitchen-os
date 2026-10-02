@@ -3,6 +3,7 @@
 
 import type { ProfileFieldKey, ProfileFieldValue } from './profile-text.js';
 import type { Rule, Tradition } from './occasion-rules.js';
+import type { SignupMarks } from './signup-source.js';
 
 export type Zone = 'dry' | 'fridge' | 'freezer' | 'fresh' | 'spices' | 'drinks';
 export type Unit = 'g' | 'ml' | 'pcs' | 'pack';
@@ -785,6 +786,13 @@ export interface AuthChallenge {
   mode?: 'start' | 'login';
   status?: 'no_account' | null;
   conflict_user_id?: string | null;
+  /**
+   * Мітки джерела реєстрації (міграція 0052), з якими людина натиснула «увійти».
+   * Їдуть на challenge, бо лінк із листа відкривають в іншому браузері, а
+   * /start тисне бот — localStorage лендінгу там уже недосяжний. Читаються
+   * лише коли вхід СТВОРЮЄ акаунт.
+   */
+  source?: SignupMarks | null;
 }
 
 /** Акаунт-дубль, володіння ключем якого щойно доведено: що людина побачить у профілі перед злиттям. */

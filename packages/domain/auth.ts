@@ -5,6 +5,7 @@ import { randomBytes, createHash, randomUUID } from 'node:crypto';
 import type { Repo, UserRow } from './repo.js';
 import type { AuthChallenge, AuthSession, UserContext } from './types.js';
 import { startDemo } from './subscription.js';
+import type { SignupMarks, SignupVia } from './signup-source.js';
 
 const CHALLENGE_TTL_MIN = 15;
 const SESSION_TTL_DAYS = 30;
@@ -56,6 +57,8 @@ export interface RequestChallengeInput {
   email: string;
   ip?: string | null;
   user_agent?: string | null;
+  /** Мітки джерела з лендінгу — доїдуть до verify разом із токеном. */
+  source?: SignupMarks | null;
 }
 
 export interface RequestChallengeResult {
@@ -75,6 +78,7 @@ export async function requestChallenge(repo: Repo, input: RequestChallengeInput)
     consumed_at: null,
     ip: input.ip ?? null,
     user_agent: input.user_agent ?? null,
+    source: input.source ?? null,
   };
   await repo.saveChallenge(challenge);
   return { challenge, raw_token: raw };
@@ -109,7 +113,10 @@ export async function verifyChallenge(repo: Repo, raw_token: string, ip?: string
     return { ok: true, result: { session, raw_cookie, user_id: challenge.user_id, household_id } };
   }
   if (!challenge.email) return { ok: false, reason: 'not_found' };
-  const result = await signInWithVerifiedEmail(repo, challenge.email, challenge.email.split('@')[0] ?? 'Anon', ip, user_agent);
+  const result = await signInWithVerifiedEmail(
+    repo, challenge.email, challenge.email.split('@')[0] ?? 'Anon', ip, user_agent,
+    { via: 'email', marks: challenge.source ?? null },
+  );
   return { ok: true, result };
 }
 
@@ -157,6 +164,42 @@ export async function startHouseholdDemo(repo: Repo, household_id: string, now: 
   await repo.saveSubscription(startDemo(household_id, now));
 }
 
+/** Звідки прийшла реєстрація: спосіб входу і мітки посилання (може не бути жодної). */
+export interface SignupOrigin {
+  via: SignupVia;
+  marks: SignupMarks | null;
+}
+
+/**
+ * Джерело реєстрації (міграція 0052). Викликається там само й тоді само, що
+ * `startHouseholdDemo`: РЯДОМ зі створенням акаунта, на кожному шляху входу, і
+ * ніде більше — вхід у наявний акаунт сюди не доходить, тож його джерело ніхто
+ * не перепише. Рядок пишемо й без міток: «прийшов сам» — теж відповідь, і без
+ * неї частку невідомого не порахувати.
+ *
+ * `household_id: null` — людину запросили в чужий дім: її мітки зберігаємо, але
+ * джерелом дому вони не стають (дім привів той, хто його створив).
+ */
+export async function recordSignupSource(
+  repo: Repo,
+  who: { user_id: string; household_id: string | null },
+  origin: SignupOrigin,
+  now: Date = new Date(),
+): Promise<void> {
+  const m = origin.marks ?? {};
+  await repo.saveSignupSource({
+    user_id: who.user_id,
+    household_id: who.household_id,
+    via: origin.via,
+    utm_source: m.utm_source ?? null,
+    utm_medium: m.utm_medium ?? null,
+    utm_campaign: m.utm_campaign ?? null,
+    utm_content: m.utm_content ?? null,
+    ref: m.ref ?? null,
+    created_at: now.toISOString(),
+  });
+}
+
 // PR 1 (TELEGRAM-AUTH-PAY-PLAN-0915): вхід за Telegram-id — дзеркало
 // signInWithVerifiedEmail. Знайти за telegram_account (без revoked) → інакше
 // створити user без пошти + дім + привʼязку. Привʼязка з профілю до акаунта з
@@ -166,6 +209,8 @@ export async function signInWithTelegram(
   tg: TelegramSignIn,
   ip?: string | null,
   user_agent?: string | null,
+  /** Мітки з лендінгу (вхід через `/start login_<token>`); прямий /start у боті їх не має. */
+  marks: SignupMarks | null = null,
 ): Promise<VerifyChallengeResult & { user: UserRow; created: boolean }> {
   const chat_id = tg.chat_id ?? null;
   let user = await repo.getUserByTelegramId(tg.telegram_user_id);
@@ -183,6 +228,7 @@ export async function signInWithTelegram(
     user = await repo.getUser(made.user_id);
     created = true;
     await startHouseholdDemo(repo, made.household_id);
+    await recordSignupSource(repo, made, { via: 'telegram', marks });
   } else if (chat_id != null) {
     // Вхід із віджета не знав chat_id — перший /start доповнює рядок.
     const acc = await repo.getTelegramByTelegramUser(tg.telegram_user_id);
@@ -213,7 +259,7 @@ export async function signInWithTelegram(
  * акаунт для невідомого telegram_user_id (як і було); «Вхід» — ніколи
  * (attachTelegramLoginUser зупиниться раніше, ніж покличе signInWithTelegram).
  */
-export async function beginTelegramLogin(repo: Repo, ip?: string | null, user_agent?: string | null, mode: 'start' | 'login' = 'start'): Promise<{ challenge: AuthChallenge; raw_token: string }> {
+export async function beginTelegramLogin(repo: Repo, ip?: string | null, user_agent?: string | null, mode: 'start' | 'login' = 'start', source: SignupMarks | null = null): Promise<{ challenge: AuthChallenge; raw_token: string }> {
   const raw = randomToken();
   const now = new Date();
   const challenge: AuthChallenge = {
@@ -228,6 +274,7 @@ export async function beginTelegramLogin(repo: Repo, ip?: string | null, user_ag
     consumed_at: null,
     ip: ip ?? null,
     user_agent: user_agent ?? null,
+    source,
   };
   await repo.saveChallenge(challenge);
   return { challenge, raw_token: raw };
@@ -258,7 +305,7 @@ export async function attachTelegramLoginUser(repo: Repo, login_token: string, t
     const known = await repo.getUserByTelegramId(tg.telegram_user_id) ?? await repo.getTelegramByTelegramUser(tg.telegram_user_id);
     if (!known) { await repo.setChallengeStatus(challenge.id, 'no_account'); return { ok: false, reason: 'no_account' }; }
   }
-  const { user, created } = await signInWithTelegram(repo, tg, null, null);
+  const { user, created } = await signInWithTelegram(repo, tg, null, null, challenge.source ?? null);
   await repo.attachChallengeUser(challenge.id, user.id);
   return { ok: true, user, created };
 }
@@ -294,6 +341,8 @@ export async function signInWithVerifiedEmail(
   displayName: string,
   ip?: string | null,
   user_agent?: string | null,
+  /** Пошта й Google ділять цю функцію — спосіб каже викликач. Читається лише коли акаунт СТВОРЮЄТЬСЯ. */
+  origin: SignupOrigin = { via: 'email', marks: null },
 ): Promise<VerifyChallengeResult> {
   const existing = await repo.findUserByEmail(email);
   let user_id: string;
@@ -312,6 +361,7 @@ export async function signInWithVerifiedEmail(
     user_id = created.user_id;
     household_id = created.household_id;
     await startHouseholdDemo(repo, household_id);
+    await recordSignupSource(repo, created, origin);
   }
 
   const { session, raw_cookie } = await openSession(repo, user_id, ip, user_agent);

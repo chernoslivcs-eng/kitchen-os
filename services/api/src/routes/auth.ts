@@ -12,7 +12,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Repo } from '@kitchen/domain';
-import { requestChallenge, verifyChallenge, verifyEmailAttach, resolveSession, logoutSession, openSession, verifyTelegramWebToken, CHALLENGE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
+import { requestChallenge, verifyChallenge, verifyEmailAttach, resolveSession, logoutSession, openSession, verifyTelegramWebToken, cleanSignupMarks, CHALLENGE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
 import type { Mailer } from '../mailer.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 import { tooMany } from '../too-many.js';
@@ -46,7 +46,7 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
     }
   };
 
-  app.post<{ Body: { email?: string; next?: string; mode?: 'start' | 'login' } }>(
+  app.post<{ Body: { email?: string; next?: string; mode?: 'start' | 'login'; src?: unknown } }>(
     '/v1/auth/request',
     { preHandler: limitCheck },
     async (req, reply) => {
@@ -87,6 +87,10 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
         email,
         ip: req.ip,
         user_agent: req.headers['user-agent'] ?? null,
+        // Мітки джерела їдуть на challenge, а не в лінк: лист відкривають в
+        // іншому браузері, і localStorage лендінгу там уже немає. Чистимо тут
+        // ще раз — клієнту не віримо.
+        source: cleanSignupMarks(req.body?.src),
       });
       let link = `${baseUrl()}/v1/auth/verify?token=${encodeURIComponent(raw_token)}`;
       if (next) link += `&next=${encodeURIComponent(next)}`;

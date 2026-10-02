@@ -6,7 +6,7 @@
 //
 //   GET  /v1/auth/providers        → { google, telegram, telegramBotId? } —
 //                                     той самий роут, auth-google.ts
-//   POST /v1/auth/telegram/begin   → { mode?: 'start'|'login' } (типово 'start')
+//   POST /v1/auth/telegram/begin   → { mode?: 'start'|'login', src?: мітки джерела } (типово 'start')
 //                                     → challenge kind 'tg_login' без user_id,
 //                                     { token, url: t.me/<bot>?start=login_<token> }
 //   GET  /v1/auth/telegram/poll    → { status: 'pending'|'ok'|'expired'|'no_account' };
@@ -21,7 +21,7 @@
 // людина тисне Start у застосунку.
 import type { FastifyInstance } from 'fastify';
 import type { Repo } from '@kitchen/domain';
-import { beginTelegramLogin, pollTelegramLogin, SESSION_TTL_MS } from '@kitchen/domain';
+import { beginTelegramLogin, pollTelegramLogin, cleanSignupMarks, SESSION_TTL_MS } from '@kitchen/domain';
 import { COOKIE_NAME } from './auth.js';
 
 export interface TelegramAuthOpts {
@@ -38,10 +38,12 @@ function isSecure(): boolean {
 export function telegramAuthRoutes(app: FastifyInstance, repo: Repo, opts?: TelegramAuthOpts) {
   if (!opts) return;
 
-  app.post<{ Body: { mode?: 'start' | 'login' } | null }>('/v1/auth/telegram/begin', async (req, reply) => {
+  app.post<{ Body: { mode?: 'start' | 'login'; src?: unknown } | null }>('/v1/auth/telegram/begin', async (req, reply) => {
     // Злиття (15.09), контракт із лендингом: mode 'login' — /start без акаунта його не створює (poll → 'no_account').
     const mode = req.body?.mode === 'login' ? 'login' : 'start';
-    const { raw_token } = await beginTelegramLogin(repo, req.ip, req.headers['user-agent'] ?? null, mode);
+    // Мітки джерела привʼязуємо до токена входу: акаунт створить бот на /start
+    // login_<token>, і лендінгу з його localStorage там уже не буде.
+    const { raw_token } = await beginTelegramLogin(repo, req.ip, req.headers['user-agent'] ?? null, mode, cleanSignupMarks(req.body?.src));
     const url = `https://t.me/${opts.botUsername}?start=${encodeURIComponent(`login_${raw_token}`)}`;
     return reply.send({ token: raw_token, url });
   });

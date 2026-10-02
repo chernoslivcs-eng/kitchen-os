@@ -13,7 +13,7 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { Repo } from '@kitchen/domain';
-import { signInWithVerifiedEmail, SESSION_TTL_MS } from '@kitchen/domain';
+import { signInWithVerifiedEmail, cleanSignupMarks, signupMarksFromSearch, signupMarksToSearch, SESSION_TTL_MS } from '@kitchen/domain';
 import { COOKIE_NAME } from './auth.js';
 import { captureIncident } from '../sentry.js';
 
@@ -48,6 +48,10 @@ const SIGNIN_URL = `/${SIGNIN_ANCHOR}`;
 // пронести крізь редирект на Google і назад. Окрема кука (не в state,
 // щоб не чіпати CSRF-порівняння 1:1) із тим самим TTL, що state.
 const MODE_COOKIE = 'kos_oauth_mode';
+// Мітки джерела реєстрації — так само окремою кукою з тим самим TTL: сторінка
+// йде на Google, і донести їх до колбека більше нема чим. Технічна кука на час
+// одного входу (httpOnly, 15 хв, гаситься в колбеку), не для стеження.
+const SRC_COOKIE = 'kos_oauth_src';
 
 function isSecure(): boolean {
   return process.env.NODE_ENV === 'production';
@@ -102,7 +106,7 @@ export function googleAuthRoutes(app: FastifyInstance, repo: Repo, opts?: Google
   const exchange = opts.exchange ?? makeRealExchange(opts.clientId, opts.clientSecret);
   const redirectUri = () => `${baseUrl()}/v1/auth/google/callback`;
 
-  app.get<{ Querystring: { mode?: string } }>('/v1/auth/google', async (req, reply) => {
+  app.get<{ Querystring: Record<string, unknown> & { mode?: string } }>('/v1/auth/google', async (req, reply) => {
     const state = randomBytes(24).toString('base64url');
     reply.setCookie(STATE_COOKIE, state, {
       httpOnly: true,
@@ -113,6 +117,10 @@ export function googleAuthRoutes(app: FastifyInstance, repo: Repo, opts?: Google
     });
     if (req.query.mode === 'login') {
       reply.setCookie(MODE_COOKIE, 'login', { httpOnly: true, secure: isSecure(), sameSite: 'lax', path: '/', maxAge: STATE_TTL_SEC });
+    }
+    const src = signupMarksToSearch(cleanSignupMarks(req.query));
+    if (src) {
+      reply.setCookie(SRC_COOKIE, src, { httpOnly: true, secure: isSecure(), sameSite: 'lax', path: '/', maxAge: STATE_TTL_SEC });
     }
     const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     url.searchParams.set('client_id', opts.clientId);
@@ -128,8 +136,11 @@ export function googleAuthRoutes(app: FastifyInstance, repo: Repo, opts?: Google
     async (req, reply) => {
       const expected = (req.cookies as Record<string, string | undefined>)[STATE_COOKIE];
       const mode = (req.cookies as Record<string, string | undefined>)[MODE_COOKIE] === 'login' ? 'login' : 'start';
+      // Читаємо ДО перевірки state, гасимо завжди: кука не мусить пережити колбек.
+      const marks = signupMarksFromSearch((req.cookies as Record<string, string | undefined>)[SRC_COOKIE] ?? '');
       reply.clearCookie(STATE_COOKIE, { path: '/' });
       reply.clearCookie(MODE_COOKIE, { path: '/' });
+      reply.clearCookie(SRC_COOKIE, { path: '/' });
       // Юзер натиснув «скасувати» на консенті — повертаємо на вхід без драми.
       if (req.query.error) return reply.redirect(SIGNIN_URL);
       if (!req.query.code || !req.query.state || !expected || req.query.state !== expected) {
@@ -164,6 +175,7 @@ export function googleAuthRoutes(app: FastifyInstance, repo: Repo, opts?: Google
       const result = await signInWithVerifiedEmail(
         repo, email, profile.name || email.split('@')[0] || 'Anon',
         req.ip, req.headers['user-agent'] ?? null,
+        { via: 'google', marks },
       );
       reply.setCookie(COOKIE_NAME, result.raw_cookie, {
         httpOnly: true,

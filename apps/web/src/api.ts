@@ -1,6 +1,9 @@
 // Тонка обгортка над fetch — усе, що ходить у /v1/*. credentials:'include'
 // щоб cookie 'kos' приходила автоматично; в дев-режимі Vite проксить на fastify.
 
+import { signupMarksToSearch, type SignupMarks } from '@kitchen/domain/signup-source';
+import { getSignupSource } from './lib/signup-source';
+
 export class ApiError extends Error {
   constructor(public status: number, public payload: unknown, message: string) {
     super(message);
@@ -631,26 +634,39 @@ export interface AdminOccasion extends AdminOccasionInput {
 /** AUTH-BRIEF-0915: «Реєстрація» (типово) створює акаунт для невідомого ключа; «Вхід» — ніколи. */
 export type AuthMode = 'start' | 'login';
 
+/** Мітки джерела реєстрації для тіла POST: `{ src }` або нічого, якщо людина прийшла без міток. */
+function srcBody(): { src?: SignupMarks } {
+  const src = getSignupSource();
+  return src ? { src } : {};
+}
+
 export const api = {
   auth: {
     // 'start' — як завжди; 'login' + невідома пошта → {error:'no_account'}
     // замість {ok:true}, листа не шле (перевірено на сервері, не тут).
+    // src — мітки джерела реєстрації (lib/signup-source.ts). Їдуть з усіма
+    // трьома способами входу; сервер пише їх лише коли вхід створює акаунт.
     request: (email: string, next?: string | null, mode?: AuthMode) =>
       req<{ ok: true } | { error: 'no_account' }>('/v1/auth/request', {
         method: 'POST',
-        body: JSON.stringify({ email, ...(next ? { next } : {}), ...(mode ? { mode } : {}) }),
+        body: JSON.stringify({ email, ...(next ? { next } : {}), ...(mode ? { mode } : {}), ...srcBody() }),
       }),
     logout: () => req<null>('/v1/auth/logout', { method: 'POST', body: '{}' }),
     providers: () => req<{ google: boolean; telegram: boolean; telegramBotId: string | null }>('/v1/auth/providers'),
     /** mode:'login' — кладе ?mode=login у href, /v1/auth/google/callback тоді не створює акаунт для невідомої пошти (редирект ?err=no_account&via=google). */
-    googleUrl: (mode?: AuthMode) => (mode === 'login' ? '/v1/auth/google?mode=login' : '/v1/auth/google'),
+    googleUrl: (mode?: AuthMode) => {
+      // Сторінка йде на Google — мітки їдуть у запиті, сервер перекладе їх у
+      // куку на час входу (auth-google.ts, kos_oauth_src).
+      const qs = [mode === 'login' ? 'mode=login' : '', signupMarksToSearch(getSignupSource())].filter(Boolean).join('&');
+      return qs ? `/v1/auth/google?${qs}` : '/v1/auth/google';
+    },
     // Хотфікс 15.09 (заміна Login Widget — попап/редирект-флоу не працювали
     // надійно): begin створює challenge на сервері й дає лінк на бота;
     // клік відкриває t.me/…?start=login_<token>, а лендинг опитує poll, поки
     // людина не тисне Start у застосунку. mode:'login' — бот не створить
     // акаунт для невідомого telegram_user_id (poll: {status:'no_account'}).
     telegramBegin: (mode?: AuthMode) =>
-      req<{ token: string; url: string }>('/v1/auth/telegram/begin', { method: 'POST', body: JSON.stringify(mode ? { mode } : {}) }),
+      req<{ token: string; url: string }>('/v1/auth/telegram/begin', { method: 'POST', body: JSON.stringify({ ...(mode ? { mode } : {}), ...srcBody() }) }),
     telegramPoll: (token: string) => req<{ status: 'pending' | 'ok' | 'expired' | 'no_account' }>(`/v1/auth/telegram/poll?token=${encodeURIComponent(token)}`),
     attachEmailRequest: (email: string) =>
       req<{ ok: true }>('/v1/auth/email/attach/request', { method: 'POST', body: JSON.stringify({ email }) }),
@@ -1086,9 +1102,11 @@ export const api = {
     info: (token: string) =>
       req<{ email: string; household_name: string; role: string }>(
         `/v1/invites/info?token=${encodeURIComponent(token)}`),
-    accept: (token: string) =>
-      req<{ ok: true; user_id: string; household_id: string }>(
-        `/v1/invites/accept?token=${encodeURIComponent(token)}`),
+    accept: (token: string) => {
+      const src = signupMarksToSearch(getSignupSource());
+      return req<{ ok: true; user_id: string; household_id: string }>(
+        `/v1/invites/accept?token=${encodeURIComponent(token)}${src ? `&${src}` : ''}`);
+    },
   },
 };
 
