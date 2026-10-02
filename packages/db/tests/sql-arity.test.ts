@@ -45,6 +45,24 @@ describe('сирий SQL: списки не розʼїхались', () => {
     expect(src).toMatch(/source:\s*r\.source|r\.source as/);
   });
 
+  // Мітки джерела реєстрації їдуть на challenge (пошта, Telegram). У памʼяті
+  // поле проходить спредом; тут — лише якщо вписане і в INSERT, і в читання.
+  it('auth_challenge.source присутній і в записі, і в читанні', () => {
+    const insert = /INSERT INTO auth_challenge \(([^)]*)\)/.exec(src);
+    expect(insert?.[1]).toContain('source');
+    expect(src).toMatch(/source:\s*cleanSignupMarks\(r\.source\)/);
+  });
+
+  it('міграція 0052 заводить таблицю signup_source і колонку auth_challenge.source', () => {
+    const mig = readFileSync(join(HERE, '..', '..', '..', 'migrations', '0052_signup_source.sql'), 'utf-8');
+    expect(mig).toMatch(/CREATE TABLE signup_source/i);
+    expect(mig).toMatch(/ALTER TABLE auth_challenge ADD COLUMN source jsonb/i);
+    // Кожна колонка з рантайм-списку репозиторію мусить бути в міграції.
+    const fields = /const SIGNUP_FIELDS = \[([^\]]*)\]/.exec(src)![1]!.match(/'(\w+)'/g)!.map((s) => s.slice(1, -1));
+    expect(fields.length).toBe(9);
+    for (const f of fields) expect(mig, f).toMatch(new RegExp(`^\\s+${f}\\s`, 'm'));
+  });
+
   it('міграція 0016 додає саме цю колонку', () => {
     const mig = readFileSync(join(HERE, '..', '..', '..', 'migrations', '0016_message_source.sql'), 'utf-8');
     expect(mig).toMatch(/ALTER TABLE message ADD COLUMN source/i);

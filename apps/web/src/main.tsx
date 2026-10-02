@@ -8,11 +8,16 @@ import { initTheme } from './theme';
 import { initSentry } from './lib/sentry';
 import { installKeyboardOffset } from './lib/keyboard-offset';
 import { installPreloadErrorHandler } from './lib/preload-error';
+import { captureSignupSource } from './lib/signup-source';
 
 initTheme();
 installKeyboardOffset();
 // Стара вкладка після деплою просить чанк, якого вже немає — див. lib/preload-error.
 installPreloadErrorHandler();
+// Мітки джерела (utm_*, ref) забираємо з адреси ДО першого рендера: роутер
+// може одразу повести далі (`<Navigate>`, ?next), і рядок запиту зникне. Тут, а
+// не в Landing — мічене посилання може вести й на /share/…, і на /invite.
+captureSignupSource(window.location.search);
 
 // Реєструємо service worker лише в проді — у dev-режимі Vite HMR ламатиметься.
 // ?v=<BUILD_ID> — кожен білд отримує нову URL реєстрації → нова SW → нова

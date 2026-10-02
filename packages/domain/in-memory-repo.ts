@@ -17,6 +17,7 @@ import {
 import { BUILTIN_OCCASIONS, adminRowToOccasion, type OccasionRow } from './occasion-data.js';
 import type { OccasionSubscriptionRow } from './periods.js';
 import type { HouseholdSubscription, PaymentIntent, PaymentRow, SubscriptionState } from './subscription.js';
+import type { SignupSourceRow } from './signup-source.js';
 
 export class InMemoryRepo implements Repo {
   private batches = new Map<string, PantryBatch>();
@@ -33,6 +34,7 @@ export class InMemoryRepo implements Repo {
     household_id: string; user_id: string; role: HouseholdRole; joined_at: string;
   }[] = [];
   private challenges = new Map<string, AuthChallenge>();      // by token_hash
+  private signupSources = new Map<string, SignupSourceRow>(); // by user_id (міграція 0052)
   private sessions = new Map<string, AuthSession>();          // by cookie_hash
   private tokenUsage: TokenUsageRow[] = [];
   private invites = new Map<string, HouseholdInvite>();          // by id
@@ -345,6 +347,18 @@ export class InMemoryRepo implements Repo {
     this.households.set(household_id, { id: household_id, name: `Дім ${name}`, created_at: now });
     this.members.push({ household_id, user_id, role: 'owner', joined_at: now });
     return { user_id, household_id };
+  }
+
+  async saveSignupSource(row: SignupSourceRow): Promise<void> {
+    if (!this.signupSources.has(row.user_id)) this.signupSources.set(row.user_id, { ...row });
+  }
+  /** Те саме, що в Postgres роблять каскади signup_source: рядок іде разом з акаунтом або з домом, який він привів. */
+  private dropSignupSources(gone: (r: SignupSourceRow) => boolean): void {
+    for (const [id, r] of this.signupSources) if (gone(r)) this.signupSources.delete(id);
+  }
+  async getSignupSource(user_id: string): Promise<SignupSourceRow | null> {
+    const r = this.signupSources.get(user_id);
+    return r ? { ...r } : null;
   }
 
   async createUserOnly(email: string, name: string): Promise<string> {
@@ -865,6 +879,7 @@ export class InMemoryRepo implements Repo {
     for (const [id, c] of this.catches) if (c.household_id === household_id) this.catches.delete(id);
     this.appEvents = this.appEvents.filter((e) => e.household_id !== household_id);
     this.tokenUsage = this.tokenUsage.map((t) => (t.household_id === household_id ? { ...t, household_id: null } : t));
+    this.dropSignupSources((r) => r.household_id === household_id);
   }
 
   async deleteUserAccount(user_id: string): Promise<void> {
@@ -889,6 +904,7 @@ export class InMemoryRepo implements Repo {
     this.profileTexts.delete(user_id);
     for (const [id, n] of this.profileNotes) if (n.user_id === user_id) this.profileNotes.delete(id);
     this.vetoRows = this.vetoRows.filter((r) => r.user_id !== user_id);
+    this.dropSignupSources((r) => r.user_id === user_id || (r.household_id != null && own.has(r.household_id)));
   }
 
   // ── Дайджест (DIGEST-PLAN-0917) ──
@@ -985,6 +1001,8 @@ export class InMemoryRepo implements Repo {
       for (const r of this.tokenUsage) if (r.household_id === hh) r.household_id = into_household_id;
       this.households.delete(hh);
     }
+    // Джерело реєстрації не переїжджає: дубль і його дім зникають, і рядок із ними (у Postgres — каскадом).
+    this.dropSignupSources((r) => r.user_id === from_user_id || (r.household_id != null && r.household_id !== into_household_id && fromHouseholds.includes(r.household_id)));
     this.members = this.members.filter((m) => m.user_id !== from_user_id);
     for (const r of this.recipes.values()) if (r.owner_id === from_user_id) { r.owner_id = into_user_id; stats.recipes++; }
     for (const [key, s] of this.chatSessions) {

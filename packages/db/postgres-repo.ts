@@ -24,6 +24,7 @@ import type {
 import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
 import type { HouseholdSubscription, PaymentIntent, PaymentRow, SubscriptionState } from '@kitchen/domain/subscription';
+import { cleanSignupMarks, type SignupSourceRow, type SignupVia } from '@kitchen/domain/signup-source';
 
 type Row = Record<string, unknown>;
 
@@ -158,6 +159,32 @@ const SUB_FIELDS = [
 ] as const;
 type MissingSubField = Exclude<keyof HouseholdSubscription, (typeof SUB_FIELDS)[number]>;
 export type __SubFieldsCovered = AssertNever<MissingSubField>;
+
+/**
+ * Колонки signup_source (міграція 0052) — той самий прийом, що SUB_FIELDS:
+ * один список на INSERT і на читання, звірений із типом на компіляції. Нова
+ * мітка в SignupSourceRow, забута тут, не збереться.
+ */
+const SIGNUP_FIELDS = [
+  'user_id', 'household_id', 'via', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'ref', 'created_at',
+] as const;
+type MissingSignupField = Exclude<keyof SignupSourceRow, (typeof SIGNUP_FIELDS)[number]>;
+export type __SignupFieldsCovered = AssertNever<MissingSignupField>;
+
+function signupRow(r: Row): SignupSourceRow {
+  const text = (v: unknown) => (v == null ? null : String(v));
+  return {
+    user_id: r.user_id as string,
+    household_id: text(r.household_id),
+    via: r.via as SignupVia,
+    utm_source: text(r.utm_source),
+    utm_medium: text(r.utm_medium),
+    utm_campaign: text(r.utm_campaign),
+    utm_content: text(r.utm_content),
+    ref: text(r.ref),
+    created_at: new Date(r.created_at as string).toISOString(),
+  };
+}
 
 // Намір оплати (міграція 0047).
 function intentRow(r: Row): PaymentIntent {
@@ -887,6 +914,22 @@ export class PostgresRepo implements Repo {
     }
   }
 
+  // ── Джерело реєстрації (міграція 0052) ──
+  // DO NOTHING, а не DO UPDATE: рядок народжується разом з акаунтом і більше
+  // не міняється — «перший дотик виграє» тримається й на рівні бази.
+  async saveSignupSource(row: SignupSourceRow): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO signup_source (${SIGNUP_FIELDS.join(', ')})
+       VALUES (${SIGNUP_FIELDS.map((_, i) => `$${i + 1}`).join(',')})
+       ON CONFLICT (user_id) DO NOTHING`,
+      SIGNUP_FIELDS.map((f) => row[f]),
+    );
+  }
+  async getSignupSource(user_id: string): Promise<SignupSourceRow | null> {
+    const { rows } = await this.pool.query('SELECT * FROM signup_source WHERE user_id = $1', [user_id]);
+    return rows[0] ? signupRow(rows[0]) : null;
+  }
+
   async createUserOnly(email: string, name: string): Promise<string> {
     const { rows } = await this.pool.query<{ id: string }>(
       'INSERT INTO "user" (name, email) VALUES ($1, $2) RETURNING id',
@@ -1259,10 +1302,10 @@ export class PostgresRepo implements Repo {
 
   async saveChallenge(c: AuthChallenge): Promise<void> {
     await this.pool.query(
-      `INSERT INTO auth_challenge (id, email, token_hash, created_at, expires_at, consumed_at, ip, user_agent, kind, user_id, mode)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      `INSERT INTO auth_challenge (id, email, token_hash, created_at, expires_at, consumed_at, ip, user_agent, kind, user_id, mode, source)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        ON CONFLICT (token_hash) DO NOTHING`,
-      [c.id, c.email, c.token_hash, c.created_at, c.expires_at, c.consumed_at, c.ip, c.user_agent, c.kind ?? 'email', c.user_id ?? null, c.mode ?? 'start'],
+      [c.id, c.email, c.token_hash, c.created_at, c.expires_at, c.consumed_at, c.ip, c.user_agent, c.kind ?? 'email', c.user_id ?? null, c.mode ?? 'start', c.source ? JSON.stringify(c.source) : null],
     );
   }
 
@@ -1284,6 +1327,8 @@ export class PostgresRepo implements Repo {
       mode: (r.mode as 'start' | 'login' | null) ?? 'start',
       status: (r.status as 'no_account' | null) ?? null,
       conflict_user_id: r.conflict_user_id ?? null,
+      // Чистимо й на читанні: у jsonb може лежати що завгодно, а далі це їде в signup_source.
+      source: cleanSignupMarks(r.source),
     };
   }
 

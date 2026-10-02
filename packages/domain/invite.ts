@@ -8,7 +8,8 @@
 import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
 import type { HouseholdInvite, HouseholdRole, AuthSession } from './types.js';
-import { randomToken, hashToken, openSession } from './auth.js';
+import { randomToken, hashToken, openSession, recordSignupSource } from './auth.js';
+import type { SignupMarks } from './signup-source.js';
 
 // QA8-18: макет обіцяє «ПОСИЛАННЯ ДІЄ 72 ГОД», код давав тиждень.
 const INVITE_TTL_HOURS = 72;
@@ -81,6 +82,8 @@ export async function acceptInvite(
   raw_token: string,
   ip?: string | null,
   user_agent?: string | null,
+  /** Мітки, з якими запрошений колись прийшов на сайт. Лягають окремо від джерела дому. */
+  marks: SignupMarks | null = null,
 ): Promise<AcceptOutcome> {
   const inv = await repo.getInviteByHash(hashToken(raw_token));
   if (!inv) return { ok: false, reason: 'not_found' };
@@ -110,6 +113,8 @@ export async function acceptInvite(
     already_member = await repo.isMember(inv.household_id, user_id);
   } else {
     user_id = await repo.createUserOnly(inv.email, inv.email.split('@')[0] ?? 'Anon');
+    // household_id: null — дім чужий, і привів його не цей гість.
+    await recordSignupSource(repo, { user_id, household_id: null }, { via: 'invite', marks });
   }
   await repo.addMember(inv.household_id, user_id, inv.role);
   await repo.consumeInvite(inv.id, user_id);

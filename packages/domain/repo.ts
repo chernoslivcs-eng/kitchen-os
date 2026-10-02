@@ -16,6 +16,7 @@ import type {
 import type { OccasionRow } from './occasion-data.js';
 import type { OccasionSubscriptionRow } from './periods.js';
 import type { HouseholdSubscription, PaymentIntent, PaymentRow, SubscriptionState } from './subscription.js';
+import type { SignupSourceRow } from './signup-source.js';
 
 /**
  * Що можна міняти в намірі після створення. Окремим іменем, бо Postgres
@@ -306,6 +307,11 @@ export interface Repo {
   // Крок 7: разові позначки на користувачі (Семен, картка «Про тебе»).
   touchUser(user_id: string, field: UserStampField, at: string): Promise<void>;
   createUserWithHousehold(email: string, name: string): Promise<{ user_id: string; household_id: string }>;
+
+  // ── Джерело реєстрації (міграція 0052) ──
+  /** Один рядок на новий акаунт. Перший запис виграє: повторний виклик для того самого user_id нічого не міняє. */
+  saveSignupSource(row: SignupSourceRow): Promise<void>;
+  getSignupSource(user_id: string): Promise<SignupSourceRow | null>;
 
   // ── Підписка дому (спек 2026-09-25 §6, міграція 0046) ──
   // Стан належить ДОМУ: один рядок на household_id, усі члени бачать те саме.

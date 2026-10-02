@@ -10,7 +10,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { incident } from '../incident.js';
 import type { Repo, HouseholdRole } from '@kitchen/domain';
-import { createInvite, acceptInvite, inviteInfo, INVITE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
+import { createInvite, acceptInvite, inviteInfo, cleanSignupMarks, INVITE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
 import type { Mailer } from '../mailer.js';
 import { COOKIE_NAME } from './auth.js';
 import { authenticated, requireUser } from '../middleware/session.js';
@@ -214,14 +214,16 @@ export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, 
     return reply.send(info);
   });
 
-  app.get<{ Querystring: { token?: string; next?: string } }>('/v1/invites/accept', async (req, reply) => {
+  app.get<{ Querystring: Record<string, unknown> & { token?: string; next?: string } }>('/v1/invites/accept', async (req, reply) => {
     const raw = req.query.token;
     if (!raw) return reply.code(400).send({ error: 'token required' });
     // Браузерний клік по старому лінку з листа — НЕ споживаємо токен, ведемо
     // на сторінку рішення. Програмний accept (фронт/тести) іде без text/html.
     const wantsHtml = /text\/html/i.test(String(req.headers.accept ?? ''));
     if (wantsHtml) return reply.redirect(`/invite?token=${encodeURIComponent(raw)}`);
-    const out = await acceptInvite(repo, raw, req.ip, req.headers['user-agent'] ?? null);
+    // Мітки джерела запрошеного (якщо він колись приходив із міченого посилання)
+    // лягають окремо від джерела дому — див. recordSignupSource.
+    const out = await acceptInvite(repo, raw, req.ip, req.headers['user-agent'] ?? null, cleanSignupMarks(req.query));
     if (!out.ok) {
       const code = out.reason === 'expired' ? 410
         : out.reason === 'consumed' ? 410

@@ -13,6 +13,7 @@ export * from './occasions.js';
 export * from './occasion-catch.js';
 export * from './session-title.js';
 export * from './auth.js';
+export * from './signup-source.js';
 export * from './invite.js';
 export * from './product.js';
 export * from './modes.js';
