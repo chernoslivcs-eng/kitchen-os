@@ -14,6 +14,7 @@ import type { Mailer } from './mailer.js';
 import type { BillingProvider } from './billing/provider.js';
 import { ingestProviderEvent } from './billing/ingest.js';
 import { BillingNotConfiguredError } from './billing/pick-provider.js';
+import { notifyHousehold } from './notify-household.js';
 
 const DAY = 86_400_000;
 /** Пів року тиші — і дім отримує попередження (спек §5). */
@@ -55,20 +56,30 @@ export interface BillingCronSummary {
   charged: number;
   /** Скільки списань не пройшло (дім пішов у past_due). */
   chargeFailures: number;
+  /** Вигадані адреси, яких не пробували (@example.com і подібні). */
+  notifySkipped: number;
+  /** Спроби доставки, які впали. Стан дому при цьому вже змінено. */
+  notifyFailed: number;
 }
 
-async function notifyHousehold(deps: BillingCronDeps, household_id: string, subject: string, text: string): Promise<void> {
-  for (const m of await deps.repo.listMembersOfHousehold(household_id)) {
-    const u = await deps.repo.getUser(m.user_id);
-    if (u?.email) await deps.mailer.sendPlain({ to: u.email, subject, text });
-    else if (deps.telegramNotify) await deps.telegramNotify(m.user_id, text);
-    // Ні пошти, ні бота — нічого не шлемо; стан міняється однаково (спек §7).
-  }
+/**
+ * Розсилка по дому — через спільний модуль, який НІКОЛИ не кидає (інцидент
+ * 01.10: один @example.com зупинив разовий скрипт посередині). Тут це так
+ * само важливо: крон ходить по всіх домах підряд, і одна мертва адреса не
+ * мусить лишати решту без листа — а стан їм уже змінили.
+ *
+ * Невдачі й пропуски складаємо в підсумок проходу, щоб вони не загубились
+ * між станами.
+ */
+async function notify(deps: BillingCronDeps, out: BillingCronSummary, household_id: string, subject: string, text: string): Promise<void> {
+  const t = await notifyHousehold({ repo: deps.repo, mailer: deps.mailer, telegramNotify: deps.telegramNotify }, household_id, subject, text);
+  out.notifySkipped += t.skipped;
+  out.notifyFailed += t.failed;
 }
 
 export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCronSummary> {
   const now = deps.now?.() ?? new Date();
-  const out: BillingCronSummary = { transitions: 0, trialMails: 0, demoMails: 0, lapsedMails: 0, warnings: 0, deleted: 0, intentsExpired: 0, charged: 0, chargeFailures: 0 };
+  const out: BillingCronSummary = { transitions: 0, trialMails: 0, demoMails: 0, lapsedMails: 0, warnings: 0, deleted: 0, intentsExpired: 0, charged: 0, chargeFailures: 0, notifySkipped: 0, notifyFailed: 0 };
 
   // 1. Переходи станів.
   // `demo` тут разом з рештою: демо закінчується тим самим переходом у
@@ -79,7 +90,7 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     await deps.repo.saveSubscription(next);
     out.transitions++;
     if (next.state === 'lapsed') {
-      await notifyHousehold(deps, sub.household_id, MAIL.lapsed.subject, MAIL.lapsed.text);
+      await notify(deps, out, sub.household_id, MAIL.lapsed.subject, MAIL.lapsed.text);
       out.lapsedMails++;
     }
   }
@@ -91,7 +102,7 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     // Маску віддаємо як є: якщо її немає, лист сам прибере згадку про картку,
     // а не намалює «•• ····».
     const m = MAIL.trialEnds(fmt(sub.trial_ends_at), sub.card_mask, PLAN_PRICE_UAH[sub.plan], `${deps.appUrl}${SUBSCRIPTION_PATH}`);
-    await notifyHousehold(deps, sub.household_id, m.subject, m.text);
+    await notify(deps, out, sub.household_id, m.subject, m.text);
     await deps.repo.saveSubscription({ ...sub, trial_mail_sent_at: now.toISOString() });
     out.trialMails++;
   }
@@ -111,7 +122,7 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     // третю ранку, — тобто майже в усіх.
     if (Math.floor((new Date(sub.demo_ends_at).getTime() - now.getTime()) / DAY) > 2) continue;
     const m = MAIL.demoEnding(fmt(sub.demo_ends_at));
-    await notifyHousehold(deps, sub.household_id, m.subject, m.text);
+    await notify(deps, out, sub.household_id, m.subject, m.text);
     await deps.repo.saveSubscription({ ...sub, demo_mail_sent_at: now.toISOString() });
     out.demoMails++;
   }
@@ -153,7 +164,7 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     );
     if ((now.getTime() - since) / DAY < QUIET_DAYS) continue;
     const m = MAIL.deletionWarning(`${deps.appUrl}/app`);
-    await notifyHousehold(deps, sub.household_id, m.subject, m.text);
+    await notify(deps, out, sub.household_id, m.subject, m.text);
     await deps.repo.saveSubscription({ ...sub, deletion_warned_at: now.toISOString() });
     out.warnings++;
   }
