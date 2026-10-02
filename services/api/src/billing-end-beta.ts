@@ -18,6 +18,7 @@ import type { Repo } from '@kitchen/domain';
 import { DEMO_DAYS, startDemo, type SubscriptionState } from '@kitchen/domain/subscription';
 import { MAIL } from '@kitchen/domain/paywall';
 import type { Mailer } from './mailer.js';
+import { notifyHousehold } from './notify-household.js';
 
 const DAY = 86_400_000;
 const fmt = (iso: string) => new Date(iso).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
@@ -42,6 +43,12 @@ export interface EndBetaSummary {
   households: number;
   mails: number;
   notes: number;
+  /** Вигадані адреси (@example.com і подібні) — не пробували. */
+  skipped: number;
+  /** Спроби доставки, які впали. Стан дому вже змінено. */
+  failed: number;
+  /** household_id, де хоч одна спроба впала. */
+  failures: string[];
 }
 
 /** Кого зачепить і як. Нічого не змінює — це і є `--dry-run`. */
@@ -61,7 +68,7 @@ export async function planEndBeta(repo: Repo, now: Date): Promise<EndBetaAction[
 
 export async function applyEndBeta(deps: EndBetaDeps): Promise<EndBetaSummary> {
   const now = deps.now?.() ?? new Date();
-  const out: EndBetaSummary = { households: 0, mails: 0, notes: 0 };
+  const out: EndBetaSummary = { households: 0, mails: 0, notes: 0, skipped: 0, failed: 0, failures: [] };
   for (const a of await planEndBeta(deps.repo, now)) {
     const prev = await deps.repo.getSubscription(a.household_id);
     await deps.repo.saveSubscription({
@@ -78,12 +85,17 @@ export async function applyEndBeta(deps: EndBetaDeps): Promise<EndBetaSummary> {
     });
     out.households++;
     const m = MAIL.demoStarted(fmt(a.demo_ends_at));
-    for (const member of await deps.repo.listMembersOfHousehold(a.household_id)) {
-      const u = await deps.repo.getUser(member.user_id);
-      if (u?.email) { await deps.mailer.sendPlain({ to: u.email, subject: m.subject, text: m.text }); out.mails++; }
-      else if (deps.telegramNotify) { await deps.telegramNotify(member.user_id, m.text); out.notes++; }
-      // Ні пошти, ні бота — стан міняється однаково, лист нікуди не йде.
-    }
+    // Стан уже збережено вище, і це навмисний порядок: дім мусить отримати
+    // демо навіть тоді, коли сказати про це нікуди. Інцидент 01.10 показав
+    // зворотний бік — тоді необроблений виняток із листа зупиняв весь прохід,
+    // і доми після нього не отримували навіть стану.
+    const t = await notifyHousehold(
+      { repo: deps.repo, mailer: deps.mailer, telegramNotify: deps.telegramNotify },
+      a.household_id, m.subject, m.text,
+    );
+    out.mails += t.mails; out.notes += t.notes;
+    out.skipped += t.skipped; out.failed += t.failed;
+    out.failures.push(...t.failures);
   }
   return out;
 }

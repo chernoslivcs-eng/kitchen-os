@@ -72,5 +72,12 @@ if (answer !== String(plan.length)) { console.log('Скасовано.'); proces
 const telegramNotify = makeTelegramNotify(repo);
 if (!telegramNotify) console.log('TELEGRAM_BOT_TOKEN не заданий — у бот не піде нічого.');
 const r = await applyEndBeta({ repo, mailer, appUrl: process.env.APP_URL ?? 'http://localhost:5173', now: () => now, telegramNotify });
-console.log(`\nГотово: домів ${r.households}, листів ${r.mails}, повідомлень у бот ${r.notes}.`);
+console.log(`\nГотово: домів ${r.households}, листів ${r.mails}, у бот ${r.notes}, пропущено ${r.skipped}, не вдалось ${r.failed}.`);
+if (r.skipped) console.log(`Пропущено — вигадані адреси (@example.com і подібні): їм не писали навмисно, стан змінено.`);
+if (r.failures.length) {
+  // Стани цим домам уже змінені — повторний запуск їх не знайде. Якщо людині
+  // треба сказати, це робиться руками, тому id мусять лишитись на екрані.
+  console.log(`Доми, де доставка впала (стан змінено, повідомлення не дійшло):`);
+  for (const id of r.failures) console.log(`  ${id}`);
+}
 console.log(`Далі щоденний крон сам: за 2 дні до кінця — лист, у дату кінця — read_only. Окремо запускати нічого не треба.`);

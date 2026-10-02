@@ -96,3 +96,44 @@ describe('applyEndBeta', () => {
     expect(notes[0]).toContain('8 листопада');
   });
 });
+
+// Інцидент 01.10: один @example.com зупинив скрипт посередині — 21 дім
+// перейшов, 9 лишились у бета-стані. Тепер одна адреса не вирішує долю інших.
+describe('applyEndBeta · одна адреса не валить прохід', () => {
+  class PickyMailer {
+    readonly delivers = true;
+    readonly out: string[] = [];
+    constructor(private readonly breaksOn: RegExp) {}
+    async sendPlain(m: { to: string }): Promise<void> {
+      if (this.breaksOn.test(m.to)) throw new Error('550 Invalid `to` field');
+      this.out.push(m.to);
+    }
+    async sendMagicLink(): Promise<void> { throw new Error('не для цього тесту'); }
+  }
+
+  it('дім із мертвою адресою не спиняє решти: усі отримують demo, невдача в підсумку', async () => {
+    const repo = new InMemoryRepo();
+    const bad = await repo.createUserWithHousehold('qa@gmail.com', 'QA');     // на цій падає
+    const good = await repo.createUserWithHousehold('real@gmail.com', 'Р');
+    const mailer = new PickyMailer(/^qa@/);
+    const r = await applyEndBeta({ repo, mailer: mailer as never, appUrl: 'http://app.test', now: () => NOW });
+
+    expect(r).toMatchObject({ households: 2, mails: 1, failed: 1 });
+    expect(r.failures).toEqual([bad.household_id]);
+    // Головне: обидва доми в demo, а не лише той, що до падіння.
+    for (const h of [bad.household_id, good.household_id]) {
+      expect(await repo.getSubscription(h)).toMatchObject({ state: 'demo', demo_ends_at: PLUS7 });
+    }
+    expect(mailer.out).toEqual(['real@gmail.com']);
+  });
+
+  it('@example.com не пробуємо зовсім: стан є, лічильник «пропущено»', async () => {
+    const repo = new InMemoryRepo();
+    const qa = await repo.createUserWithHousehold('qa@example.com', 'QA');
+    const mailer = new PickyMailer(/@example\.com$/);   // кинув би, якби дійшло
+    const r = await applyEndBeta({ repo, mailer: mailer as never, appUrl: 'http://app.test', now: () => NOW });
+    expect(r).toMatchObject({ households: 1, mails: 0, skipped: 1, failed: 0 });
+    expect(r.failures).toEqual([]);
+    expect(await repo.getSubscription(qa.household_id)).toMatchObject({ state: 'demo' });
+  });
+});

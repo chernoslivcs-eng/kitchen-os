@@ -277,3 +277,60 @@ describe('runBillingCron · списання за токеном', () => {
   });
 });
 
+
+// Інцидент 01.10 у кроні: 07.10 він піде слати «за 2 дні», і на першому ж
+// старому QA-акаунті з @example.com nodemailer кидає 550. Доти це був
+// необроблений виняток — прохід спинявся, і доми після нього лишались без
+// листа й без переходу.
+describe('runBillingCron · мертва адреса не спиняє прохід', () => {
+  class PickyMailer {
+    readonly delivers = true;
+    readonly out: string[] = [];
+    constructor(private readonly breaksOn: RegExp) {}
+    async sendPlain(m: { to: string }): Promise<void> {
+      if (this.breaksOn.test(m.to)) throw new Error('550 Invalid `to` field');
+      this.out.push(m.to);
+    }
+    async sendMagicLink(): Promise<void> { throw new Error('не для цього тесту'); }
+  }
+
+  const demoHouseFor = async (repo: InMemoryRepo, email: string) => {
+    const { household_id } = await repo.createUserWithHousehold(email, 'Д');
+    await repo.saveSubscription(sub(household_id, {
+      state: 'demo', plan: null, provider_order_id: null, card_mask: null,
+      trial_used_at: '2026-10-01T09:00:00.000Z', demo_ends_at: '2026-10-08T09:00:00.000Z',
+    }));
+    return household_id;
+  };
+
+  it('лист першому дому впав — другий усе одно отримує, обидва позначені', async () => {
+    const repo = new InMemoryRepo();
+    const first = await demoHouseFor(repo, 'broken@gmail.com');
+    const second = await demoHouseFor(repo, 'fine@gmail.com');
+    const mailer = new PickyMailer(/^broken@/);
+    const r = await runBillingCron({
+      repo, mailer: mailer as never, appUrl: 'http://app.test', now: () => new Date('2026-10-06T03:30:00.000Z'),
+    });
+
+    // Обидва доми оброблені: лічильник листів рахує спроби по домах, а
+    // notifyFailed каже, що одна доставка не дійшла.
+    expect(r).toMatchObject({ demoMails: 2, notifyFailed: 1 });
+    expect(mailer.out).toEqual(['fine@gmail.com']);
+    // Слід «лист надіслано» ставиться обом: повторювати спробу щодня по
+    // мертвій адресі означало б щоранку писати в лог те саме.
+    for (const h of [first, second]) {
+      expect((await repo.getSubscription(h))?.demo_mail_sent_at).toBe('2026-10-06T03:30:00.000Z');
+    }
+  });
+
+  it('@example.com у кроні пропускається без спроби', async () => {
+    const repo = new InMemoryRepo();
+    await demoHouseFor(repo, 'qa@example.com');
+    const mailer = new PickyMailer(/@example\.com$/);
+    const r = await runBillingCron({
+      repo, mailer: mailer as never, appUrl: 'http://app.test', now: () => new Date('2026-10-06T03:30:00.000Z'),
+    });
+    expect(r).toMatchObject({ demoMails: 1, notifySkipped: 1, notifyFailed: 0 });
+    expect(mailer.out).toEqual([]);
+  });
+});
