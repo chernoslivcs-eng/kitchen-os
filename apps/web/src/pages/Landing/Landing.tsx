@@ -31,6 +31,7 @@ import {
 import { useBreakpoint, useFrameZoom, useReveal, useGloss, useLiveStart, useScrollScene, reducedMotion } from './useLandingMotion';
 import styles from './Landing.module.css';
 import { useLightOnly } from '../../lib/useLightOnly';
+import { usePageMeta } from '../../lib/usePageMeta';
 
 const s = styles;
 
@@ -45,6 +46,11 @@ function GuessChip({ className }: { className?: string }) {
 export function Landing() {
   // №2: лендінг завжди світлий, на всіх ширинах — темна лише в застосунку.
   useLightOnly();
+  // Пошукова база, крок 1 (рішення власника 03.10): текст власника з брифу.
+  usePageMeta({
+    title: 'Kitchen OS — асистент для домашньої кухні',
+    description: 'Асистент для домашньої кухні: знає, що у тебе вдома, пропонує, що приготувати, веде по кроках і сам веде список покупок. 7 днів безкоштовно, без картки.',
+  });
   const bp = useBreakpoint();
   const desk = bp === 'desk', tab = bp === 'tab', mob = bp === 'mob';
   const location = useLocation();

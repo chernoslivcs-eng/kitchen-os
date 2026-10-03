@@ -8,6 +8,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, Route, Routes, type InitialEntry } from 'react-router-dom';
 import { LegalDocPage } from './LegalDocPage';
+import { LEGAL_DOCS, type LegalDocKey } from '../../lib/legal-docs';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root | undefined; let host: HTMLDivElement | undefined;
@@ -31,6 +32,8 @@ async function mount(initialEntries: InitialEntry[], initialIndex?: number) {
           <Route path="/profile" element={<div data-marker="profile">профіль</div>} />
           <Route path="/terms" element={<LegalDocPage doc="terms" />} />
           <Route path="/privacy" element={<LegalDocPage doc="privacy" />} />
+          <Route path="/refund" element={<LegalDocPage doc="refund" />} />
+          <Route path="/contacts" element={<LegalDocPage doc="contacts" />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -57,6 +60,21 @@ describe('LegalDocPage · рендер', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
+});
+
+describe('LegalDocPage · пошукова база (крок 1)', () => {
+  const docs: LegalDocKey[] = ['terms', 'privacy', 'refund', 'contacts'];
+  for (const doc of docs) {
+    it(`/${doc}: title і description — із LEGAL_DOCS`, async () => {
+      await mount([`/${doc}`]);
+      const { title, description } = LEGAL_DOCS[doc];
+      expect(document.title).toBe(`${title} · Kitchen OS`);
+      const metaDesc = document.head.querySelector('meta[name="description"]')?.getAttribute('content');
+      expect(metaDesc).toBe(description);
+      const ogTitle = document.head.querySelector('meta[property="og:title"]')?.getAttribute('content');
+      expect(ogTitle).toBe(`${title} · Kitchen OS`);
+    });
+  }
 });
 
 describe('LegalDocPage · закриття', () => {

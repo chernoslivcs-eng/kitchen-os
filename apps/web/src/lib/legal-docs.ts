@@ -19,11 +19,13 @@ export const LEGAL_ROUTES: Record<LegalDocKey, string> = {
   contacts: '/contacts',
 };
 
-export const LEGAL_DOCS: Record<LegalDocKey, { title: string; md: string }> = {
-  terms: { title: 'Оферта', md: offerMd },
-  privacy: { title: 'Політика конфіденційності', md: privacyMd },
-  refund: { title: 'Повернення і скасування', md: refundMd },
-  contacts: { title: 'Реквізити й контакти', md: contactsMd },
+// description — для usePageMeta (пошукова база, крок 1, 03.10): короткий,
+// точний переказ документа, без обіцянок, яких у ньому нема.
+export const LEGAL_DOCS: Record<LegalDocKey, { title: string; description: string; md: string }> = {
+  terms: { title: 'Оферта', description: 'Умови використання Kitchen OS — договір приєднання для реєстрації, демо-версії та підписки.', md: offerMd },
+  privacy: { title: 'Політика конфіденційності', description: 'Політика конфіденційності Kitchen OS — які дані ми збираємо, навіщо і як довго зберігаємо.', md: privacyMd },
+  refund: { title: 'Повернення і скасування', description: 'Умови скасування підписки Kitchen OS: скасувати можна будь-коли, повернення за оплачений період не передбачено.', md: refundMd },
+  contacts: { title: 'Реквізити й контакти', description: 'Реквізити ФОП і контакти Kitchen OS.', md: contactsMd },
 };
 
 // Внутрішні посилання між документами в самому markdown ведуть одне на
