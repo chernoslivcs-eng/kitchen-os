@@ -7,6 +7,18 @@ import { describe, it, expect } from 'vitest';
 import { MAIL, SUBSCRIPTION_PATH } from '@kitchen/domain/paywall';
 import { letterText } from '@kitchen/domain/letter';
 import { renderLetter } from '../src/mail-template.js';
+import { PLAN_PRICE_UAH } from '@kitchen/domain/plans';
+
+/**
+ * Те, що людина бачить: без тегів, без стилів і без прихованого рядка прев'ю.
+ * Саме на цьому тексті перевіряємо відсутність сум.
+ */
+function visibleText(h: string): string {
+  return h
+    .replace(/<div style="display:none[\s\S]*?<\/div>/g, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ');
+}
 
 const APP = 'https://kitchen-os.app';
 const letter = MAIL.demoEnding('9 жовтня', `${APP}${SUBSCRIPTION_PATH}`);
@@ -30,11 +42,19 @@ describe('лист 4 · демо закінчується', () => {
 
   // Принцип 1 зі спека: ціни живуть на сторінці підписки, не в листі. Привід —
   // відгук тестувальниці: «тільки зрозуміла, що ви грошей хочете».
+  //
+  // Перевіряємо ВИДИМИЙ текст, а не розмітку: у html повно цифр, які сумами не
+  // є (кольори #d2ad6b, розміри 13px, ширина 440), і пошук «210» по сирому
+  // html або падав би дарма, або нічого не доводив.
+  //
+  // Ціни беремо з PLAN_PRICE_UAH, а не числами в тесті: інакше після зміни
+  // тарифу тест і далі стеріг би старі 210/290, пропускаючи нові.
   it('жодної суми — ні в html, ні в тексті', () => {
-    for (const s of [html, text]) {
-      expect(s).not.toMatch(/\d+\s*₴/);
-      expect(s).not.toContain('210');
-      expect(s).not.toContain('290');
+    for (const where of [visibleText(html), text]) {
+      expect(where).not.toMatch(/₴|грн|гривен/i);
+      for (const price of Object.values(PLAN_PRICE_UAH)) {
+        expect(where, `сума ${price}`).not.toMatch(new RegExp(`(^|\\D)${price}(\\D|$)`));
+      }
     }
   });
 
