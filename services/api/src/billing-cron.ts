@@ -14,7 +14,8 @@ import type { Mailer } from './mailer.js';
 import type { BillingProvider } from './billing/provider.js';
 import { ingestProviderEvent } from './billing/ingest.js';
 import { BillingNotConfiguredError } from './billing/pick-provider.js';
-import { notifyHousehold } from './notify-household.js';
+import { notifyHousehold, type Outgoing } from './notify-household.js';
+import { renderLetter } from './mail-template.js';
 
 const DAY = 86_400_000;
 /** Пів року тиші — і дім отримує попередження (спек §5). */
@@ -71,8 +72,8 @@ export interface BillingCronSummary {
  * Невдачі й пропуски складаємо в підсумок проходу, щоб вони не загубились
  * між станами.
  */
-async function notify(deps: BillingCronDeps, out: BillingCronSummary, household_id: string, subject: string, text: string): Promise<void> {
-  const t = await notifyHousehold({ repo: deps.repo, mailer: deps.mailer, telegramNotify: deps.telegramNotify }, household_id, subject, text);
+async function notify(deps: BillingCronDeps, out: BillingCronSummary, household_id: string, msg: Outgoing): Promise<void> {
+  const t = await notifyHousehold({ repo: deps.repo, mailer: deps.mailer, telegramNotify: deps.telegramNotify }, household_id, msg);
   out.notifySkipped += t.skipped;
   out.notifyFailed += t.failed;
 }
@@ -90,7 +91,7 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     await deps.repo.saveSubscription(next);
     out.transitions++;
     if (next.state === 'lapsed') {
-      await notify(deps, out, sub.household_id, MAIL.lapsed.subject, MAIL.lapsed.text);
+      await notify(deps, out, sub.household_id, { subject: MAIL.lapsed.subject, text: MAIL.lapsed.text });
       out.lapsedMails++;
     }
   }
@@ -102,7 +103,7 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     // Маску віддаємо як є: якщо її немає, лист сам прибере згадку про картку,
     // а не намалює «•• ····».
     const m = MAIL.trialEnds(fmt(sub.trial_ends_at), sub.card_mask, PLAN_PRICE_UAH[sub.plan], `${deps.appUrl}${SUBSCRIPTION_PATH}`);
-    await notify(deps, out, sub.household_id, m.subject, m.text);
+    await notify(deps, out, sub.household_id, { subject: m.subject, text: m.text });
     await deps.repo.saveSubscription({ ...sub, trial_mail_sent_at: now.toISOString() });
     out.trialMails++;
   }
@@ -121,8 +122,11 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     // порівняння з 2 × DAY відсікало б лист у домів, створених пізніше за
     // третю ранку, — тобто майже в усіх.
     if (Math.floor((new Date(sub.demo_ends_at).getTime() - now.getTime()) / DAY) > 2) continue;
-    const m = MAIL.demoEnding(fmt(sub.demo_ends_at));
-    await notify(deps, out, sub.household_id, m.subject, m.text);
+    // Лист 4 зі спека EMAIL-SPEC-1003: оформлений шаблон «темна кухня»,
+    // кнопка веде на сторінку підписки — суми в листі немає, вона там.
+    const letter = MAIL.demoEnding(fmt(sub.demo_ends_at), `${deps.appUrl}${SUBSCRIPTION_PATH}`);
+    const { html, text } = renderLetter(letter, { assetsBase: deps.appUrl });
+    await notify(deps, out, sub.household_id, { subject: letter.subject, text, html, button: letter.button });
     await deps.repo.saveSubscription({ ...sub, demo_mail_sent_at: now.toISOString() });
     out.demoMails++;
   }
@@ -164,7 +168,7 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     );
     if ((now.getTime() - since) / DAY < QUIET_DAYS) continue;
     const m = MAIL.deletionWarning(`${deps.appUrl}/app`);
-    await notify(deps, out, sub.household_id, m.subject, m.text);
+    await notify(deps, out, sub.household_id, { subject: m.subject, text: m.text });
     await deps.repo.saveSubscription({ ...sub, deletion_warned_at: now.toISOString() });
     out.warnings++;
   }

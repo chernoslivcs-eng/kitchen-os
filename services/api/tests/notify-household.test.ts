@@ -46,7 +46,7 @@ describe('notifyHousehold', () => {
     const household_id = await house(['real@gmail.com', 'qa@example.com', 'second@gmail.com']);
     // Адресу зі списку «вигаданих» відсікаємо ДО відправки, тому падати нічому;
     // щоб довести саме стійкість, ламаємо на справжньому домені.
-    const t = await notifyHousehold({ repo, mailer: new PickyMailer(/^second@/) }, household_id, 'с', 'т');
+    const t = await notifyHousehold({ repo, mailer: new PickyMailer(/^second@/) }, household_id, { subject: 'с', text: 'т' });
     expect(t).toMatchObject({ mails: 1, failed: 1, skipped: 1, notes: 0 });
     expect(t.failures).toHaveLength(1);
     expect(mailer.out).toEqual([]);     // цей екземпляр не чіпали
@@ -55,7 +55,7 @@ describe('notifyHousehold', () => {
   it('вигадана адреса пропускається без спроби: лічильник «пропущено», не «не вдалось»', async () => {
     const mailer = new PickyMailer(/нічого/);
     const household_id = await house(['qa@example.com']);
-    const t = await notifyHousehold({ repo, mailer }, household_id, 'с', 'т');
+    const t = await notifyHousehold({ repo, mailer }, household_id, { subject: 'с', text: 'т' });
     expect(t).toMatchObject({ mails: 0, skipped: 1, failed: 0 });
     expect(mailer.out).toEqual([]);
   });
@@ -63,7 +63,7 @@ describe('notifyHousehold', () => {
   it('мейлер, який нікуди не шле (стенд, тести), адрес не фільтрує', async () => {
     const mailer = new ConsoleMailer();
     const household_id = await house(['qa@example.com']);
-    const t = await notifyHousehold({ repo, mailer }, household_id, 'с', 'т');
+    const t = await notifyHousehold({ repo, mailer }, household_id, { subject: 'с', text: 'т' });
     expect(t).toMatchObject({ mails: 1, skipped: 0, failed: 0 });
   });
 
@@ -72,13 +72,27 @@ describe('notifyHousehold', () => {
     const t = await notifyHousehold({
       repo, mailer: new PickyMailer(/нічого/),
       telegramNotify: async () => { throw new Error('403 bot was blocked by the user'); },
-    }, household_id, 'с', 'т');
+    }, household_id, { subject: 'с', text: 'т' });
     expect(t).toMatchObject({ mails: 1, notes: 0, failed: 1 });
+  });
+
+  // Спек EMAIL-SPEC-1003 §Уточнення: у бот іде те саме тіло простим текстом і
+  // кнопка з тим самим написом та адресою. Суми в ньому немає — вона на
+  // сторінці, куди веде кнопка.
+  it('у бот їде текст і кнопка листа', async () => {
+    const household_id = await house([null]);
+    const got: Array<{ text: string; button?: { label: string; url: string } }> = [];
+    const t = await notifyHousehold({
+      repo, mailer: new PickyMailer(/нічого/),
+      telegramNotify: async (_u, text, button) => { got.push({ text, button }); },
+    }, household_id, { subject: 'тема', text: 'тіло листа', button: { label: 'Про підписку', url: 'https://kitchen-os.app/profile/subscription' } });
+    expect(t).toMatchObject({ notes: 1, failed: 0 });
+    expect(got).toEqual([{ text: 'тіло листа', button: { label: 'Про підписку', url: 'https://kitchen-os.app/profile/subscription' } }]);
   });
 
   it('ні пошти, ні бота — тиша без лічильників', async () => {
     const household_id = await house([null]);
-    const t = await notifyHousehold({ repo, mailer: new PickyMailer(/нічого/) }, household_id, 'с', 'т');
+    const t = await notifyHousehold({ repo, mailer: new PickyMailer(/нічого/) }, household_id, { subject: 'с', text: 'т' });
     expect(t).toMatchObject({ mails: 0, notes: 0, skipped: 0, failed: 0 });
   });
 
@@ -87,7 +101,7 @@ describe('notifyHousehold', () => {
     const logged: unknown[] = [];
     const t = await notifyHousehold(
       { repo, mailer: new PickyMailer(/@gmail\.com$/), log: (o) => logged.push(o) },
-      household_id, 'с', 'т',
+      household_id, { subject: 'с', text: 'т' },
     );
     expect(t.failures).toEqual([household_id]);
     const line = JSON.stringify(logged);

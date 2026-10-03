@@ -17,6 +17,7 @@
     "./dish-category": "./dish-category.ts",
     "./subscription": "./subscription.ts",
     "./paywall": "./paywall.ts",
+    "./letter": "./letter.ts",
     "./tap-water": "./tap-water.ts",
     "./signup-source": "./signup-source.ts"
   },

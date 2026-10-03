@@ -117,7 +117,7 @@
       "destination": "/prerendered/contacts.html"
     },
     {
-      "source": "/((?!assets|fonts/|manifest.webmanifest|icon.svg|sw.js|robots.txt|sitemap.xml|prerendered/|api/).*)",
+      "source": "/((?!assets|fonts/|email/|manifest.webmanifest|icon.svg|sw.js|robots.txt|sitemap.xml|prerendered/|api/).*)",
       "destination": "/spa.html"
     }
   ],

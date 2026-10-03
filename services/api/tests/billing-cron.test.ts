@@ -42,7 +42,14 @@ describe('демо (спек 2026-10-01 §5)', () => {
 
     const deps = at(repo, mailer, '2026-10-06T03:30:00.000Z');
     expect((await runBillingCron(deps)).demoMails).toBe(1);
-    expect(mailer.plain.map((m) => m.subject)).toEqual(['Демо закінчується 8 жовтня']);
+    expect(mailer.plain.map((m) => m.subject)).toEqual(['Хороші речі можна не закінчувати']);
+    // Лист 4 іде оформленим (спек EMAIL-SPEC-1003): html з кнопкою на сторінку
+    // підписки, текстова частина — поруч, суми немає ніде.
+    const sent = mailer.plain[0]!;
+    expect(sent.html).toContain('http://app.test/profile/subscription');
+    expect(sent.html).toContain('>Про підписку</a>');
+    expect(sent.text).toContain('8 жовтня демо завершується');
+    expect(`${sent.html}${sent.text}`).not.toMatch(/\d+\s*₴/);
     expect((await repo.getSubscription(household_id))?.demo_mail_sent_at).toBe('2026-10-06T03:30:00.000Z');
 
     // Наступний день — той самий лист не повторюється.

@@ -91,7 +91,7 @@ export async function applyEndBeta(deps: EndBetaDeps): Promise<EndBetaSummary> {
     // і доми після нього не отримували навіть стану.
     const t = await notifyHousehold(
       { repo: deps.repo, mailer: deps.mailer, telegramNotify: deps.telegramNotify },
-      a.household_id, m.subject, m.text,
+      a.household_id, { subject: m.subject, text: m.text },
     );
     out.mails += t.mails; out.notes += t.notes;
     out.skipped += t.skipped; out.failed += t.failed;
