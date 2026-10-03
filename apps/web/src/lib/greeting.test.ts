@@ -1,28 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { vocative, greeting } from './greeting';
+import { greeting, EVENING_FROM } from './greeting';
 
-describe('кличний відмінок за правилами Prototype', () => {
-  it('-я → -ю, -а → -о, -й/-і → -ю, приголосна → +е', () => {
-    expect(vocative('Ілля')).toBe('Іллю');
-    expect(vocative('Марина')).toBe('Марино');
-    expect(vocative('Андрій')).toBe('Андрію');
-    expect(vocative('Пилип')).toBe('Пилипе');
-  });
-  it('решта — як є; порожнє — порожнє', () => {
-    expect(vocative('Іво')).toBe('Іво');
-    expect(vocative('  ')).toBe('');
-  });
-});
-
-describe('вітання за часом доби', () => {
+describe('вітання на порожньому екрані', () => {
   const at = (h: number) => new Date(2026, 8, 13, h, 0, 0);
-  it('до 16:00 — «що готуємо?», після — «що на вечерю?»', () => {
-    expect(greeting('Пилип', at(10))).toBe('Пилипе, що готуємо?');
-    expect(greeting('Пилип', at(16))).toBe('Пилипе, що на вечерю?');
-    expect(greeting('Пилип', at(15))).toBe('Пилипе, що готуємо?');
+
+  it('до 16:00 — «Що готуємо?», з 16:00 — «Що на вечерю?»', () => {
+    expect(greeting(at(10))).toBe('Що готуємо?');
+    expect(greeting(at(15))).toBe('Що готуємо?');
+    expect(greeting(at(EVENING_FROM))).toBe('Що на вечерю?');
+    expect(greeting(at(23))).toBe('Що на вечерю?');
   });
-  it('без імені — без звертання, з великої', () => {
-    expect(greeting(null, at(19))).toBe('Що на вечерю?');
-    expect(greeting('', at(9))).toBe('Що готуємо?');
+
+  // Рішення власника 03.10. Імʼя приходить із Google-профілю або з пошти, і
+  // «Филипп Белянскию, що готуємо?» — це те, що побачила людина на проді.
+  // Тест тримає саму відмову: у реченні немає ні коми, ні звертання.
+  it('у реченні немає звертання — ні коми, ні імені', () => {
+    // Те, що функція імені вже й не приймає, тримає tsc; тут — сам текст,
+    // бо повернути звертання можна й без параметра.
+    for (const h of [0, 10, 16, 23]) expect(greeting(at(h))).not.toContain(',');
   });
 });

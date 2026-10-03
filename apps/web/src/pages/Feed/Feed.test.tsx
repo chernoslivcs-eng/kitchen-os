@@ -434,14 +434,16 @@ describe('Р123 · порожня розмова <768 (Screens 390)', () => {
 });
 
 describe('Р140 · порожня розмова ≥768 за Prototype', () => {
-  it('вітання на імʼя в кличному; шість чіпів-довідок; тап → довідка без моделі', async () => {
+  it('питання за часом доби без імені; шість чіпів-довідок; тап → довідка без моделі', async () => {
     desktopMedia(true);
     useAuth.setState({ me: { user: { id: 'u1', name: 'Пилип', email: 'p@x' }, household: { id: 'h1', name: 'Дім', role: 'owner', members: [] }, session_id: 's1' } as never });
     await mount();
     expect(q('[data-empty-mobile]')).toBeNull();
     expect(host!.querySelectorAll('[data-empty-hero]').length).toBe(1);
-    expect(q('[data-empty-hero] h1')!.textContent).toBe(greeting('Пилип'));
-    expect(q('[data-empty-hero] h1')!.textContent!.startsWith('Пилипе, ')).toBe(true);
+    expect(q('[data-empty-hero] h1')!.textContent).toBe(greeting());
+    // Рішення власника 03.10: імені в реченні немає, хоч воно й відоме —
+    // у стор вище воно покладене навмисно, щоб тест ловив його повернення.
+    expect(q('[data-empty-hero] h1')!.textContent).not.toContain('Пилип');
     expect(host!.querySelectorAll('[data-empty-chip]').length).toBe(6);
     expect(q('[data-chat-empty]'), 'екран у стані порожньої розмови').toBeTruthy();
     expect(q('[data-chat-empty-mobile]')).toBeNull();
