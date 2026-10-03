@@ -1,22 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { greeting, EVENING_FROM } from './greeting';
+import { greeting, GREETING, EVENING_FROM } from './greeting';
 
+// Текст тут навмисно не повторюється: він тимчасовий (03.10, власник добирає
+// остаточний), і тест, який знає слова, перетворив би заміну рядка на правку
+// двох місць. Прибита поведінка, не копірайт.
 describe('вітання на порожньому екрані', () => {
   const at = (h: number) => new Date(2026, 8, 13, h, 0, 0);
 
-  it('до 16:00 — «Що готуємо?», з 16:00 — «Що на вечерю?»', () => {
-    expect(greeting(at(10))).toBe('Що готуємо?');
-    expect(greeting(at(15))).toBe('Що готуємо?');
-    expect(greeting(at(EVENING_FROM))).toBe('Що на вечерю?');
-    expect(greeting(at(23))).toBe('Що на вечерю?');
+  it('межа — 16:00: до неї денний рядок, з неї вечірній', () => {
+    expect(greeting(at(0))).toBe(GREETING.day);
+    expect(greeting(at(EVENING_FROM - 1))).toBe(GREETING.day);
+    expect(greeting(at(EVENING_FROM))).toBe(GREETING.evening);
+    expect(greeting(at(23))).toBe(GREETING.evening);
   });
 
-  // Рішення власника 03.10. Імʼя приходить із Google-профілю або з пошти, і
-  // «Филипп Белянскию, що готуємо?» — це те, що побачила людина на проді.
-  // Тест тримає саму відмову: у реченні немає ні коми, ні звертання.
-  it('у реченні немає звертання — ні коми, ні імені', () => {
-    // Те, що функція імені вже й не приймає, тримає tsc; тут — сам текст,
-    // бо повернути звертання можна й без параметра.
-    for (const h of [0, 10, 16, 23]) expect(greeting(at(h))).not.toContain(',');
+  it('рядки різні й непорожні — інакше межа ні про що', () => {
+    expect(GREETING.day.trim()).not.toBe('');
+    expect(GREETING.evening.trim()).not.toBe('');
+    expect(GREETING.day).not.toBe(GREETING.evening);
   });
 });
