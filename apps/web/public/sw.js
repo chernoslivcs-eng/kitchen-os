@@ -5,11 +5,15 @@
 // navigator.serviceWorker.register('/sw.js?v=…'). Vite додає BUILD_ID через
 // define в конфізі — кожен білд = нова URL = нова SW = нова кеш-версія = стара
 // вибиваєтся в activate. Без цього після деплою PWA лишалась із застарілим
-// index.html.
+// spa.html.
+//
+// Пошукова база, крок 3: dist/index.html перейменовано на dist/spa.html
+// (Vercel віддавав файл з таким ім'ям напряму на збіг шляху, ДО rewrites) —
+// офлайн-заглушка SPA тепер під новим ім'ям.
 
 const CACHE_PREFIX = 'kitchen-os-';
 const CACHE_VERSION = CACHE_PREFIX + (new URL(self.location.href).searchParams.get('v') || 'dev');
-const OFFLINE_FALLBACK = '/index.html';
+const OFFLINE_FALLBACK = '/spa.html';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

@@ -1,12 +1,12 @@
 // Пошукова база, крок 1 (03.10): /robots.txt і /sitemap.xml реально
 // існували лише як назва — файлів у public/ не було, і catch-all rewrite
-// vercel.json («усе, крім названих статичних файлів, → /index.html») не мав
+// vercel.json («усе, крім названих статичних файлів, → /spa.html») не мав
 // їх у винятках, тож обидва шляхи віддавали HTML лендінгу (хибна причина —
 // не вигадана: robots.txt/sitemap.xml жодного разу не fetch'ились локально,
 // тож grep по бандлу й ручний curl на localhost нічого не бачать; перевіряти
 // можна лише по самому конфігу й файлах, які реально підуть у dist/).
 import { describe, it, expect } from 'vitest';
-import { readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,10 +24,10 @@ function rewrites(): VercelRewrite[] {
 }
 
 function spaCatchAll(): RegExp {
-  // Той самий rewrite, що ловить усе й веде на /index.html — єдиний, чий
+  // Той самий rewrite, що ловить усе й веде на /spa.html — єдиний, чий
   // source компілюється з негативним lookahead-переліком винятків.
-  const r = rewrites().find((x) => x.destination === '/index.html');
-  if (!r) throw new Error('vercel.json: catch-all rewrite на /index.html не знайдено');
+  const r = rewrites().find((x) => x.destination === '/spa.html');
+  if (!r) throw new Error('vercel.json: catch-all rewrite на /spa.html не знайдено');
   // Vercel-паттерн — valid regex мінус leading "/"; source уже без прапорців.
   return new RegExp('^' + r.source.replace(/^\//, ''));
 }
@@ -104,7 +104,7 @@ describe('index.html: мета лендінгу — статично, без JS'
 // браузера (dist/prerendered/<шлях>.html, scripts/prerender-bot-pages.tsx —
 // крок 1 на Playwright+prod-serve.ts падав на Vercel: libnspr4.so нема в
 // build-образі), і vercel.json за User-Agent віддає цей файл замість
-// index.html. Перевірка тут — конфіг і сам скрипт статично; сам рендер і
+// spa.html. Перевірка тут — конфіг і сам скрипт статично; сам рендер і
 // вміст знімків — apps/web/src/entry-server.test.tsx (react-dom/server
 // напряму, без Vite SSR build, той самий компонентний код).
 describe('vercel.json: боти прев\'ю отримують пререндер, не SPA-shell', () => {
@@ -131,7 +131,7 @@ describe('vercel.json: боти прев\'ю отримують преренде
 
   it('бот-rewrite стоїть ПЕРЕД catch-all (перший збіг у Vercel виграє)', () => {
     const all = rewrites();
-    const catchAllIdx = all.findIndex((r) => r.destination === '/index.html');
+    const catchAllIdx = all.findIndex((r) => r.destination === '/spa.html');
     for (const [source] of PAGES) {
       const idx = all.findIndex((r) => r.source === source && r.has);
       expect(idx, `${source}: бот-rewrite знайдено`).toBeGreaterThanOrEqual(0);
@@ -161,5 +161,43 @@ describe('vercel.json: боти прев\'ю отримують преренде
   it('prerender-bot-pages.tsx не імпортує Playwright — рендер без браузера', () => {
     const src = readFileSync(join(ROOT, 'scripts/prerender-bot-pages.tsx'), 'utf8');
     expect(src).not.toMatch(/from ['"]@?playwright/i);
+  });
+});
+
+// Пошукова база, крок 3 (знайдено живцем на проді після деплою кроку 2):
+// Vercel віддає статичний файл, що збігається зі шляхом запиту, РАНІШЕ, ніж
+// дивиться в rewrites. index.html у корені dist саме такий файл для «/» —
+// бот-UA правило нижче (веде на /prerendered/index.html) не встигало
+// спрацювати, curl -A Googlebot на / отримував SPA-shell. На /terms такого
+// файла нема, тож там rewrite уже працював. Ліки — dist без index.html
+// узагалі: vercel-build.sh перейменовує його на spa.html ПІСЛЯ збірки
+// (apps/web/index.html, вхід Vite, лишається index.html — перейменування
+// тільки в dist/, окремим кроком).
+describe('Пошукова база, крок 3: dist без index.html — Vercel не має що віддати напряму', () => {
+  it('vercel.json не веде жодного шляху на /index.html — лишається /prerendered/index.html (інший файл, бот-знімок)', () => {
+    const all = rewrites();
+    expect(all.some((r) => r.destination === '/index.html')).toBe(false);
+    const cfg = JSON.parse(readFileSync(join(ROOT, 'vercel.json'), 'utf8')) as { functions: Record<string, { includeFiles?: string }> };
+    expect(cfg.functions['api/index.ts']?.includeFiles).not.toContain('dist/index.html');
+    expect(cfg.functions['api/index.ts']?.includeFiles).toContain('dist/spa.html');
+  });
+
+  it('vercel-build.sh перейменовує dist/index.html → dist/spa.html ПІСЛЯ `pnpm --filter @kitchen/web build`, ДО пререндеру', () => {
+    const buildSh = readFileSync(join(ROOT, 'scripts/vercel-build.sh'), 'utf8');
+    const buildIdx = buildSh.indexOf('@kitchen/web build');
+    const renameIdx = buildSh.indexOf('mv apps/web/dist/index.html apps/web/dist/spa.html');
+    const prerenderIdx = buildSh.indexOf('prerender-bot-pages.tsx');
+    expect(buildIdx, 'рядок збірки фронта').toBeGreaterThanOrEqual(0);
+    expect(renameIdx, 'рядок перейменування').toBeGreaterThanOrEqual(0);
+    expect(prerenderIdx, 'рядок пререндеру').toBeGreaterThanOrEqual(0);
+    expect(renameIdx, 'перейменування ПІСЛЯ збірки').toBeGreaterThan(buildIdx);
+    expect(renameIdx, 'перейменування ДО пререндеру (той читає spa.html)').toBeLessThan(prerenderIdx);
+  });
+
+  it('живий dist/ (якщо зібраний) — немає index.html, є spa.html', () => {
+    const dist = join(WEB, 'dist');
+    if (!existsSync(dist)) return; // CI тут фронт не білдить — перевірка лише коли dist/ реально є
+    expect(existsSync(join(dist, 'index.html')), 'dist/index.html МАЄ бути відсутній').toBe(false);
+    expect(existsSync(join(dist, 'spa.html')), 'dist/spa.html МАЄ існувати').toBe(true);
   });
 });

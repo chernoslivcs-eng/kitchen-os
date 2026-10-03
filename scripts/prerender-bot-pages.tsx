@@ -54,7 +54,7 @@ const PROD_ORIGIN = 'https://kitchen-os.app';
 type Manifest = Record<string, { file: string; css?: string[]; imports?: string[] }>;
 
 /** css усіх чанків, які entry (і все, що він імпортує) тягне за собою —
- * саме так Landing/LegalDocPage лишаються без власного <link> в index.html
+ * саме так Landing/LegalDocPage лишаються без власного <link> в spa.html
  * (lazy route-чанк, App.tsx: lazyPage), а боту без JS інакше дістати нема як. */
 function collectCss(manifest: Manifest, key: string, seen = new Set<string>()): string[] {
   if (seen.has(key)) return [];
@@ -121,9 +121,13 @@ function assemble(head: string, bodyHtml: string): string {
 }
 
 async function main() {
-  const indexHtml = await readFile(join(DIST, 'index.html'), 'utf-8');
-  const headMatch = indexHtml.match(/<head>([\s\S]*?)<\/head>/i);
-  if (!headMatch) throw new Error('prerender-bot-pages: dist/index.html без <head> — білд фронта не пройшов?');
+  // Пошукова база, крок 3: dist/index.html перейменовано на dist/spa.html
+  // (vercel-build.sh, ДО цього кроку) — Vercel віддавав файл на збіг шляху
+  // РАНІШЕ, ніж дивився в rewrites, і бот-UA правило для «/» не встигало
+  // спрацювати.
+  const spaHtml = await readFile(join(DIST, 'spa.html'), 'utf-8');
+  const headMatch = spaHtml.match(/<head>([\s\S]*?)<\/head>/i);
+  if (!headMatch) throw new Error('prerender-bot-pages: dist/spa.html без <head> — білд фронта не пройшов?');
   const baseHead = stripScriptsAndPreloads(headMatch[1]!).trim();
 
   const manifest: Manifest = JSON.parse(await readFile(join(DIST, '.vite/manifest.json'), 'utf-8'));
@@ -160,8 +164,8 @@ async function main() {
 
     await mkdir(OUT_DIR, { recursive: true });
 
-    // / — head той самий, що в index.html (мета/og/canonical лендінгу вже
-    // там, Крок 1) + CSS lazy-чанку Landing, якого index.html не лінкує.
+    // / — head той самий, що в spa.html (мета/og/canonical лендінгу вже
+    // там, Крок 1) + CSS lazy-чанку Landing, якого spa.html не лінкує.
     const landingHead = `${baseHead}\n${cssLinks(landingCss)}`;
     await writeFile(join(OUT_DIR, 'index.html'), assemble(landingHead, rendered.landingHtml), 'utf-8');
     console.log('prerender-bot-pages: / → dist/prerendered/index.html');

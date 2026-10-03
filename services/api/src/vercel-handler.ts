@@ -19,7 +19,7 @@ async function getApp() {
 }
 
 // Один додатковий шар перед fastify — якщо URL починається з `/r/<uuid>`,
-// підмінюємо HTML index.html із заповненими OG-тегами (title, description).
+// підмінюємо HTML spa.html із заповненими OG-тегами (title, description).
 // Це потрібно, щоб прев'ю в Telegram/Twitter/Slack працювало. Решта проходить
 // через fastify без змін.
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
@@ -38,7 +38,7 @@ async function handleRecipeShare(req: IncomingMessage, res: ServerResponse, id: 
   if (inj.statusCode !== 200) {
     // 404 і т.п. — все одно повертаємо звичайний SPA, клієнтський роут відрендерить
     // "Рецепт не знайдено" екран.
-    const body = await readIndexHtml();
+    const body = await readSpaHtml();
     res.writeHead(inj.statusCode === 404 ? 404 : 200, { 'Content-Type': 'text/html; charset=utf-8' });
     return res.end(body);
   }
@@ -46,7 +46,7 @@ async function handleRecipeShare(req: IncomingMessage, res: ServerResponse, id: 
   const title = data.title ?? 'Рецепт';
   const descRaw = data.recipe?.d ?? '';
   const desc = (descRaw || `${data.recipe?.tm ?? ''} хв · ${data.recipe?.sv ?? ''} порції`).trim();
-  const html = await readIndexHtml();
+  const html = await readSpaHtml();
   const host = req.headers.host ?? '';
   const proto = (req.headers['x-forwarded-proto'] as string) ?? 'https';
   const canonical = `${proto}://${host}/r/${id}`;
@@ -55,16 +55,19 @@ async function handleRecipeShare(req: IncomingMessage, res: ServerResponse, id: 
   res.end(injected);
 }
 
-let indexHtmlCache: string | null = null;
-async function readIndexHtml(): Promise<string> {
-  if (indexHtmlCache) return indexHtmlCache;
+let spaHtmlCache: string | null = null;
+async function readSpaHtml(): Promise<string> {
+  if (spaHtmlCache) return spaHtmlCache;
   const { readFile } = await import('node:fs/promises');
   const { join } = await import('node:path');
-  // На Vercel фронтенд build попадає в /var/task/apps/web/dist/index.html;
-  // локально — apps/web/dist/index.html відносно process.cwd().
-  const path = join(process.cwd(), 'apps/web/dist/index.html');
-  indexHtmlCache = await readFile(path, 'utf-8');
-  return indexHtmlCache;
+  // Пошукова база, крок 3: файл перейменовано з index.html на spa.html —
+  // Vercel інакше віддавав його напряму на збіг шляху, ДО rewrites (бот-UA
+  // правило для «/» не встигало спрацювати). На Vercel фронтенд build
+  // попадає в /var/task/apps/web/dist/spa.html; локально — те саме
+  // відносно process.cwd().
+  const path = join(process.cwd(), 'apps/web/dist/spa.html');
+  spaHtmlCache = await readFile(path, 'utf-8');
+  return spaHtmlCache;
 }
 
 function escape(s: string): string {
