@@ -23,7 +23,7 @@ import { Card, ShoppingListCard, RecipeStreamCard, traceState, appliedToast, Liv
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, intakeSign } from './artifacts';
 import { movementLabel, movementSubtitle, visibleOps, type MoveOp } from './movement';
 import { BatchCard } from '../Pantry/BatchCard';
-import { greeting } from '../../lib/greeting';
+import { GREETING } from '../../lib/greeting';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
 import { useDropZone } from '../../components/DropZone/useDropZone';
@@ -1330,8 +1330,9 @@ export function Feed() {
     mq.addEventListener?.('change', on);
     return () => mq.removeEventListener?.('change', on);
   }, []);
-  // Імені в цьому реченні немає (рішення власника 03.10, див. lib/greeting).
-  const heroTitle = greeting();
+  // Заголовок — один на весь день і на обидві ширини (рішення власника 03.10,
+  // див. lib/greeting): ні імені, ні часу доби.
+  const heroTitle = GREETING;
   // Плейсхолдер «друкується» (Prototype HINTS): 1 символ / 55 мс, пауза ~1,1 с,
   // стирання по 4; лише поки розмова порожня, чернетка порожня, не слухає й не
   // надсилає. Reduced motion — статичний. Скрінрідеру — статичний aria-placeholder.
@@ -1466,7 +1467,7 @@ export function Feed() {
         {!historyOpen && heroShown && mobileEmpty && (
           // Пакет 4 №1 (Р123) — Screens «Чат · порожня розмова · 390»: лишається каноном на <768.
           <div className={`${styles['empty-hero-m']} ${heroOut ? styles['empty-out'] : ''}`} data-empty-hero data-empty-mobile>
-            <h2 className={styles['empty-title-m']}>Що готуємо — з того, що вже є?</h2>
+            <h2 className={styles['empty-title-m']}>{heroTitle}</h2>
             <div className={styles['empty-chips-m']}>
               {EMPTY_CHIPS.map((c) => (
                 <button key={c.key} type="button" className={styles['empty-chip-m']} data-tap onClick={() => sendScripted(c.key)} data-empty-chip={c.key}>
