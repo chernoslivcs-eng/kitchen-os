@@ -406,7 +406,12 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
       stage = 1;
     } else if (activeBatches >= 3) {
       const empty = (['no', 'ban', 'love'] as const).every((k) => profileText.fields[k].status === 'empty');
-      if (empty) stage = 2;
+      // Один раз на людину, а не щоходу, поки профіль порожній. Слід — у
+      // `profile_onboarding_at`: колонка вже є в схемі й саме це й означала
+      // (екран онбордингу її більше не виставляє, див. routes/session.ts).
+      // Надія на останні 20 повідомлень історії тут не працює: розмова довша
+      // за вікно, і приписка верталась би знову.
+      if (empty && !(await repo.getUser(user_id))?.profile_onboarding_at) stage = 2;
     }
 
     // Історія розмови ДО збереження поточної репліки — інакше вона задвоїться
@@ -1049,6 +1054,13 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     }
 
     let replyText = call.reply;
+    // Онбординг, етап 2: приписка про порожній профіль їде ПОРУЧ із відповіддю,
+    // окремим абзацом у кінці. Не питанням і не першим реченням: людина
+    // прийшла готувати, і ставити їй умови перед стравою — те, через що цей
+    // крок і переробляли (жива розмова 03.10: «скажи тільки одне, перш ніж
+    // почнемо…» у відповідь на «додав рис і собу»).
+    const nudge = stage === 2 && call.reply;
+    if (nudge) replyText = `${call.reply}\n\n${PROFILE_NUDGE}`;
     if (call.card?.type === 'shopping' && call.card.items?.some((i) => i.op === 'remove')) {
       const hadCart = (await repo.listMessages(session.id)).some((m) => (m.card as Card | null)?.type === 'cart');
       if (hadCart) replyText = `${replyText ?? ''} Зібрати кошик заново?`.trim();
@@ -1057,6 +1069,9 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
       id: card_id ?? randomUUID(), session_id: session.id, role: 'assistant',
       text: replyText ?? null, card: call.card, applied: 0, created_at: new Date().toISOString(),
     });
+    // Слід ставимо ПІСЛЯ збереження: якщо хід упав дорогою, приписка не
+    // вважається сказаною і дочекається наступного разу.
+    if (nudge) await repo.touchUser(user_id, 'profile_onboarding_at', new Date().toISOString());
     // Пул-8 №2: intake_diff застосовується ОДРАЗУ — підтвердження «Застосувати»
     // навантажувало кожен побутовий хід. Запобіжник переїхав у undo: картка в
     // стрічці лишається звітом зі «Скасувати».
@@ -1115,6 +1130,20 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
       usage: sumUsage(call.calls), meta: call.meta,
     };
 }
+
+/**
+ * Онбординг, етап 2: приписка про порожній профіль. Один раз на людину.
+ *
+ * Текст — ДОСЛІВНИЙ від власника (03.10). Не редагувати й не доповнювати:
+ * ні «алергія», ні «просто», ні пояснень. Попередня редакція починалась із
+ * «я не знаю твоїх обмежень» — власник це формулювання зняв.
+ *
+ * Що варто пам'ятати тому, хто сюди прийде: правило kitchen-policy «не
+ * пропонуй те, що в «Не можна»» при порожньому профілі не має з чим
+ * звірятись — списку немає. Ця приписка лишається єдиним, що людина про це
+ * почує, тож прибирати її звідси не можна, не вирішивши, чим замінити.
+ */
+export const PROFILE_NUDGE = 'Якщо в тебе є особливі вподобання, обмеження, а може якась техніка на кухні, додай це в свій профіль, я врахую це в майбутньому.';
 
 /** F (20.09): останнє завершене готування без фото, не старше 60 хв — лише тоді
  *  фото страви пропонує «прикріпити до журналу». Доба (як було) ловила гранолу
