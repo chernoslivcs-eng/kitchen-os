@@ -71,22 +71,34 @@ function escape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function injectOgTags(html: string, meta: { title: string; description: string; url: string }): string {
-  const tags = [
-    `<title>${escape(meta.title)} · Kitchen OS</title>`,
-    `<meta property="og:title" content="${escape(meta.title)}" />`,
-    `<meta property="og:description" content="${escape(meta.description)}" />`,
-    `<meta property="og:url" content="${escape(meta.url)}" />`,
-    `<meta property="og:type" content="article" />`,
-    `<meta property="og:site_name" content="Kitchen OS" />`,
-    `<meta name="twitter:card" content="summary" />`,
-    `<meta name="twitter:title" content="${escape(meta.title)}" />`,
-    `<meta name="twitter:description" content="${escape(meta.description)}" />`,
-  ].join('\n    ');
-  // Замінюємо існуючий <title>Kitchen OS</title>; якщо не знайдено —
-  // вставляємо перед </head>.
-  if (/<title>[^<]*<\/title>/i.test(html)) {
-    return html.replace(/<title>[^<]*<\/title>/i, tags);
-  }
-  return html.replace(/<\/head>/i, `    ${tags}\n  </head>`);
+// Підміна ЗНАЧЕНЬ на місці, не вставка нового блоку: index.html (Крок 1
+// пошукової бази, 03.10) уже несе статичні title/description/og:*/
+// twitter:*/canonical лендінгу в head — попередня версія вставляла СВОЇ
+// теги замість <title>, а статичні og:*/twitter:*/canonical/description
+// лишались поруч незмінними → на /r/:id у проді виходило по двоє
+// og:title/canonical й більше (Telegram/Facebook беруть ПЕРШИЙ, тож прев'ю
+// рецепта показувало назву застосунку, не страви). Кожен тег — рівно один
+// в index.html, тому заміна по регулярці, яка ловить САМЕ цей тег, безпечна:
+// дублів не з'явиться, бо нічого не додається, лише правиться наявне.
+// Рівно ДВІ групи в кожному tagPattern нижче (before, after) — третій
+// параметр callback'а .replace() це offset (число), не третя група; зайвий
+// параметр тут зсунув би after на offset і вставляв би число замість
+// закривної дужки тега (живцем пійманий баг, перший прогін теста).
+function replaceTagValue(html: string, tagPattern: RegExp, value: string): string {
+  return html.replace(tagPattern, (_match, before: string, after: string) => `${before}${escape(value)}${after}`);
+}
+
+export function injectOgTags(html: string, meta: { title: string; description: string; url: string }): string {
+  let out = html;
+  out = replaceTagValue(out, /(<title>)[^<]*(<\/title>)/i, `${meta.title} · Kitchen OS`);
+  out = replaceTagValue(out, /(<meta name="description" content=")[^"]*("\s*\/?>)/i, meta.description);
+  out = replaceTagValue(out, /(<meta property="og:title" content=")[^"]*("\s*\/?>)/i, meta.title);
+  out = replaceTagValue(out, /(<meta property="og:description" content=")[^"]*("\s*\/?>)/i, meta.description);
+  out = replaceTagValue(out, /(<meta property="og:url" content=")[^"]*("\s*\/?>)/i, meta.url);
+  out = replaceTagValue(out, /(<meta property="og:type" content=")[^"]*("\s*\/?>)/i, 'article');
+  out = replaceTagValue(out, /(<meta name="twitter:card" content=")[^"]*("\s*\/?>)/i, 'summary');
+  out = replaceTagValue(out, /(<meta name="twitter:title" content=")[^"]*("\s*\/?>)/i, meta.title);
+  out = replaceTagValue(out, /(<meta name="twitter:description" content=")[^"]*("\s*\/?>)/i, meta.description);
+  out = replaceTagValue(out, /(<link rel="canonical" href=")[^"]*(")/i, meta.url);
+  return out;
 }
