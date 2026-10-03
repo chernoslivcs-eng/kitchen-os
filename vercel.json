@@ -62,7 +62,62 @@
       "destination": "/api/index"
     },
     {
-      "source": "/((?!assets|fonts/|manifest.webmanifest|icon.svg|sw.js|robots.txt|sitemap.xml|api/).*)",
+      "source": "/",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(Googlebot|bingbot|DuckDuckBot|YandexBot|facebookexternalhit|Twitterbot|TelegramBot|Slackbot|LinkedInBot|WhatsApp|Discordbot).*"
+        }
+      ],
+      "destination": "/prerendered/index.html"
+    },
+    {
+      "source": "/terms",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(Googlebot|bingbot|DuckDuckBot|YandexBot|facebookexternalhit|Twitterbot|TelegramBot|Slackbot|LinkedInBot|WhatsApp|Discordbot).*"
+        }
+      ],
+      "destination": "/prerendered/terms.html"
+    },
+    {
+      "source": "/privacy",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(Googlebot|bingbot|DuckDuckBot|YandexBot|facebookexternalhit|Twitterbot|TelegramBot|Slackbot|LinkedInBot|WhatsApp|Discordbot).*"
+        }
+      ],
+      "destination": "/prerendered/privacy.html"
+    },
+    {
+      "source": "/refund",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(Googlebot|bingbot|DuckDuckBot|YandexBot|facebookexternalhit|Twitterbot|TelegramBot|Slackbot|LinkedInBot|WhatsApp|Discordbot).*"
+        }
+      ],
+      "destination": "/prerendered/refund.html"
+    },
+    {
+      "source": "/contacts",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(Googlebot|bingbot|DuckDuckBot|YandexBot|facebookexternalhit|Twitterbot|TelegramBot|Slackbot|LinkedInBot|WhatsApp|Discordbot).*"
+        }
+      ],
+      "destination": "/prerendered/contacts.html"
+    },
+    {
+      "source": "/((?!assets|fonts/|manifest.webmanifest|icon.svg|sw.js|robots.txt|sitemap.xml|prerendered/|api/).*)",
       "destination": "/index.html"
     }
   ],

@@ -35,6 +35,7 @@ const LinkConsumedPage = lazyPage(() => import('./pages/LinkGone/LinkGone').then
 // поточної сторінки, той самий чанк на всі чотири (LegalDocPage + Markdown +
 // legal/*.md невеликі разом).
 const LegalDocPage = lazyPage(() => import('./pages/Legal/LegalDocPage').then((m) => ({ default: m.LegalDocPage })));
+import { LEGAL_ROUTES } from './lib/legal-docs';
 import { useAuth } from './store/auth';
 import { captureIntentFromSearch } from './lib/billing-intent';
 import { GlobalCookAlarm } from './lib/cook-watch';
@@ -105,10 +106,16 @@ const Quiet = () => <div style={{ minHeight: '100dvh', background: 'var(--bg)' }
 // лінк, яким відкрили попап, передає `state.background` (сторінку, з якої
 // прийшли) — основний `<Routes>` рендерить ЇЇ, а не /terms, і сторінка
 // лишається видимою "під" попапом; сама адреса в браузері — справжня /terms.
-// Прямий перехід (лінк платіжного провайдера, оновлення сторінки) без
-// background — основний `<Routes>` не знаходить маршруту й тихо падає на
-// NotFoundPage за напівпрозорим тлом попапу; сам документ це не зачіпає.
-function RootRoutes() {
+//
+// Хотфікс 03.10 (справжній баг, не лише для ботів-пререндеру): прямий
+// перехід (лінк платіжного провайдера, оновлення сторінки, закладка) без
+// background раніше не знаходив маршруту в основному `<Routes>` і тихо падав
+// на NotFoundPage під попапом — людина бачила «Сторінку не знайдено» за
+// напівпрозорим тлом документа. Тепер чотири юр-адреси зареєстровані і тут,
+// з тим самим елементом, що «/»: немає живого background — то й виглядає,
+// наче лінк привів на лендінг (чи в застосунок, якщо вже залогінений) із
+// відкритим документом поверх, а не на 404.
+export function RootRoutes() {
   const location = useLocation();
   const background = (location.state as { background?: Location } | null)?.background;
   return (
@@ -116,6 +123,9 @@ function RootRoutes() {
       <Suspense fallback={<Quiet />}>
         <Routes location={background ?? location}>
           <Route path="/" element={<RedirectIfSignedIn><Landing /></RedirectIfSignedIn>} />
+          {Object.values(LEGAL_ROUTES).map((path) => (
+            <Route key={path} path={path} element={<RedirectIfSignedIn><Landing /></RedirectIfSignedIn>} />
+          ))}
           <Route path="/sent" element={<RedirectIfSignedIn><MagicLinkSent /></RedirectIfSignedIn>} />
           <Route element={<RequireAuth><Shell /></RequireAuth>}>
             <Route path="/app" element={<Feed />} />

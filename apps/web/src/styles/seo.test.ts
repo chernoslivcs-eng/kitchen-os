@@ -13,8 +13,13 @@ import { fileURLToPath } from 'node:url';
 const WEB = fileURLToPath(new URL('../..', import.meta.url));
 const ROOT = join(WEB, '..', '..');
 
-function rewrites(): { source: string; destination: string }[] {
-  const cfg = JSON.parse(readFileSync(join(ROOT, 'vercel.json'), 'utf8')) as { rewrites: { source: string; destination: string }[] };
+interface VercelRewrite {
+  source: string;
+  destination: string;
+  has?: Array<{ type: string; key?: string; value?: string }>;
+}
+function rewrites(): VercelRewrite[] {
+  const cfg = JSON.parse(readFileSync(join(ROOT, 'vercel.json'), 'utf8')) as { rewrites: VercelRewrite[] };
   return cfg.rewrites;
 }
 
@@ -90,5 +95,57 @@ describe('index.html: мета лендінгу — статично, без JS'
   it('Landing.tsx більше не дублює ці теги через usePageMeta — статика і є її тегами', () => {
     const landing = readFileSync(join(WEB, 'src/pages/Landing/Landing.tsx'), 'utf8');
     expect(landing).not.toContain('usePageMeta');
+  });
+});
+
+// Пошукова база, крок 2 (03.10): людям SPA лишається як є, гідратації нема
+// взагалі. Ботам (список нижче) на етапі збірки Playwright знімає HTML
+// пʼяти адрес проти prod-serve.ts (dist/prerendered/<шлях>.html,
+// scripts/prerender-bot-pages.mts), і vercel.json за User-Agent віддає цей
+// файл замість index.html. Перевірка тут — лише конфіг: сам пререндер
+// live-тестом не покрити без Chromium+prod-serve на кожному прогоні гейтів
+// (дорого, крихко локально — той самий компроміс, що з e2e-смоуком, який
+// теж поза звичайними гейтами).
+describe('vercel.json: боти прев\'ю отримують пререндер, не SPA-shell', () => {
+  const BOTS = ['Googlebot', 'bingbot', 'DuckDuckBot', 'YandexBot', 'facebookexternalhit', 'Twitterbot', 'TelegramBot', 'Slackbot', 'LinkedInBot', 'WhatsApp', 'Discordbot'];
+  const PAGES: Array<[string, string]> = [
+    ['/', 'index.html'],
+    ['/terms', 'terms.html'],
+    ['/privacy', 'privacy.html'],
+    ['/refund', 'refund.html'],
+    ['/contacts', 'contacts.html'],
+  ];
+
+  for (const [source, file] of PAGES) {
+    it(`${source}: rewrite за User-Agent бота на /prerendered/${file}`, () => {
+      const rule = rewrites().find((r) => r.source === source && r.destination === `/prerendered/${file}`);
+      expect(rule, `rewrite ${source} → /prerendered/${file}`).toBeTruthy();
+      const ua = rule!.has?.find((h) => h.type === 'header' && h.key === 'user-agent');
+      expect(ua, `${source}: has header user-agent`).toBeTruthy();
+      const re = new RegExp(ua!.value!);
+      for (const bot of BOTS) expect(re.test(`Mozilla/5.0 (compatible; ${bot}/1.0)`), bot).toBe(true);
+      expect(re.test('Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/120 Safari/537.36'), 'звичайний браузер').toBe(false);
+    });
+  }
+
+  it('бот-rewrite стоїть ПЕРЕД catch-all (перший збіг у Vercel виграє)', () => {
+    const all = rewrites();
+    const catchAllIdx = all.findIndex((r) => r.destination === '/index.html');
+    for (const [source] of PAGES) {
+      const idx = all.findIndex((r) => r.source === source && r.has);
+      expect(idx, `${source}: бот-rewrite знайдено`).toBeGreaterThanOrEqual(0);
+      expect(idx, `${source}: перед catch-all`).toBeLessThan(catchAllIdx);
+    }
+  });
+
+  it('catch-all не ловить /prerendered/* — інакше звичайний відвідувач отримав би статику замість SPA', () => {
+    expect(spaCatchAll().test('prerendered/terms.html')).toBe(false);
+  });
+
+  it('scripts/prerender-bot-pages.mts: вирізає <script> і data-reveal, переписує localhost на прод-домен', () => {
+    const src = readFileSync(join(ROOT, 'scripts/prerender-bot-pages.mts'), 'utf8');
+    expect(src).toMatch(/<script\\b/);
+    expect(src).toMatch(/data-reveal/);
+    expect(src).toContain('https://kitchen-os.app');
   });
 });

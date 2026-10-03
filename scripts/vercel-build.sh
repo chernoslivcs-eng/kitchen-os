@@ -67,3 +67,45 @@ pnpm --filter @kitchen/web build
 # але якщо він упаде до цього кроку, мапи лишаться в dist і поїдуть у світ —
 # а вони і є вихідний код. Тому ще раз, руками.
 find apps/web/dist -name '*.map' -delete 2>/dev/null || true
+
+# --- Пошукова база, крок 2: статичний HTML пʼяти публічних адрес для ботів
+# прев'ю (Googlebot і решта — vercel.json rewrite за User-Agent) -----------
+#
+# Playwright (prod-serve.ts, той самий локальний Vercel-емулятор, що й
+# e2e-смоук) знімає HTML ПІСЛЯ повного рендеру, без гідратації на людському
+# шляху — SPA людям не чіпаємо. Як і сорсмепи вище: помилка тут (немає
+# Chromium, мережа впала) не має валити весь деплой — продукт від цього й
+# так працює, просто боти бачитимуть SPA-shell, як і зараз.
+echo "vercel-build: пошукова база — пререндер пʼяти публічних адрес для ботів"
+(
+  set +e
+  pnpm exec playwright install chromium
+  pnpm exec tsx services/api/scripts/prod-serve.ts &
+  for i in $(seq 1 30); do
+    curl -sf http://localhost:4173/ > /dev/null 2>&1 && break
+    sleep 1
+  done
+  pnpm exec tsx scripts/prerender-bot-pages.mts
+  PRERENDER_STATUS=$?
+  # `kill "$SERVE_PID"` саму тільки верхню pnpm-обгортку лишало б живим
+  # усе дерево під нею (pnpm → tsx cli → node з preflight/loader) — живцем
+  # перевірено: сервер так лишався піднятим і тримав stdout відкритим.
+  pkill -f "services/api/scripts/prod-serve.ts" 2>/dev/null
+  exit $PRERENDER_STATUS
+) || echo "vercel-build: пререндер для ботів не вдався — деплой продовжуємо, боти бачать SPA-shell"
+
+# Дірка в запобіжнику вище (знайдено код-рев'ю 03.10): коментар обіцяє
+# «боти бачать SPA-shell», але vercel.json веде bot-UA на /prerendered/*.html
+# БЕЗУМОВНО — немає там файла, Googlebot отримає 404, не SPA-shell. Та сама
+# діра і при частковому падінні: скрипт пише пʼять файлів по черзі (for у
+# prerender-bot-pages.mts), і впасти може рівно на одній адресі, лишивши
+# решту готовими. Перевіряємо кожен файл окремо; відсутній чи порожній —
+# підставляємо index.html (саме той SPA-shell, що й обіцяно).
+mkdir -p apps/web/dist/prerendered
+for route in index terms privacy refund contacts; do
+  target="apps/web/dist/prerendered/$route.html"
+  if [ ! -s "$target" ]; then
+    cp apps/web/dist/index.html "$target"
+    echo "vercel-build: dist/prerendered/$route.html відсутній — підставлено SPA-shell (index.html)"
+  fi
+done
