@@ -15,6 +15,7 @@
 import type { Repo } from '@kitchen/domain';
 import type { Mailer } from './mailer.js';
 import { isUndeliverable } from './auth-flood.js';
+import type { TelegramNotify } from './telegram-notify.js';
 
 export interface NotifyTally {
   /** Скільком людям лист пішов насправді. */
@@ -29,10 +30,21 @@ export interface NotifyTally {
   failures: string[];
 }
 
+/**
+ * Що саме шлемо. `html` іде лише поштою, `button` — лише в бот (у листі
+ * кнопка вже всередині html).
+ */
+export interface Outgoing {
+  subject: string;
+  text: string;
+  html?: string;
+  button?: { label: string; url: string };
+}
+
 export interface NotifyDeps {
   repo: Repo;
   mailer: Mailer;
-  telegramNotify?: (user_id: string, text: string) => Promise<void>;
+  telegramNotify?: TelegramNotify;
   /** Куда писати про невдачу. Дефолт — console.error. */
   log?: (o: Record<string, unknown>, msg: string) => void;
 }
@@ -47,7 +59,7 @@ export function mergeTally(a: NotifyTally, b: NotifyTally): NotifyTally {
   };
 }
 
-export async function notifyHousehold(deps: NotifyDeps, household_id: string, subject: string, text: string): Promise<NotifyTally> {
+export async function notifyHousehold(deps: NotifyDeps, household_id: string, msg: Outgoing): Promise<NotifyTally> {
   const out = empty();
   const log = deps.log ?? ((o, msg) => console.error(msg, o));
   for (const m of await deps.repo.listMembersOfHousehold(household_id)) {
@@ -61,10 +73,10 @@ export async function notifyHousehold(deps: NotifyDeps, household_id: string, su
         // Фільтр тільки коли мейлер справді шле назовні: наші ж тести й стенд
         // живуть на @example.com і .test, і там шкоди від них немає.
         if (deps.mailer.delivers && isUndeliverable(u.email)) { out.skipped++; continue; }
-        await deps.mailer.sendPlain({ to: u.email, subject, text });
+        await deps.mailer.sendPlain({ to: u.email, subject: msg.subject, text: msg.text, ...(msg.html ? { html: msg.html } : {}) });
         out.mails++;
       } else if (deps.telegramNotify) {
-        await deps.telegramNotify(m.user_id, text);
+        await deps.telegramNotify(m.user_id, msg.text, msg.button);
         out.notes++;
       }
     } catch (err) {

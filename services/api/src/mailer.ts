@@ -16,11 +16,19 @@ export interface MagicLinkMail {
   expires_in_min: number;
 }
 
-/** Простий лист без розмітки: крон біллінгу, попередження про видалення. */
+/**
+ * Лист від продукту: крон біллінгу, завершення бети, попередження про
+ * видалення. `html` — зібраний шаблон (mail-template.ts); без нього лист
+ * піде самим текстом, як і раніше.
+ *
+ * Текстова частина обовʼязкова завжди, навіть коли є html: клієнт без
+ * розмітки й спам-фільтри мусять бачити те саме (спек EMAIL-SPEC-1003).
+ */
 export interface PlainMail {
   to: string;
   subject: string;
   text: string;
+  html?: string;
 }
 
 export interface Mailer {
@@ -103,7 +111,10 @@ export class SmtpMailer implements Mailer {
   async sendPlain(mail: PlainMail): Promise<void> {
     // Той самий `from`, що в магік-лінку: інакше листи від продукту приходять
     // з двох різних адрес і половина осідає в спамі.
-    await this.transporter.sendMail({ from: this.from, to: mail.to, subject: mail.subject, text: mail.text });
+    await this.transporter.sendMail({
+      from: this.from, to: mail.to, subject: mail.subject, text: mail.text,
+      ...(mail.html ? { html: mail.html } : {}),
+    });
   }
 
   async sendMagicLink(mail: MagicLinkMail): Promise<void> {

@@ -9,8 +9,8 @@ import { makeTelegramNotify } from '../src/telegram-notify.js';
 
 describe('makeTelegramNotify', () => {
   let repo: InMemoryRepo;
-  let sent: Array<{ chat_id: number; text: string }>;
-  const send = async (chat_id: number, text: string) => { sent.push({ chat_id, text }); };
+  let sent: Array<{ chat_id: number; text: string; button?: { label: string; url: string } }>;
+  const send = async (chat_id: number, text: string, button?: { label: string; url: string }) => { sent.push({ chat_id, text, button }); };
   beforeEach(() => { repo = new InMemoryRepo(); sent = []; });
 
   const user = async (telegram_user_id: number, chat_id: number | null) => {
@@ -26,7 +26,16 @@ describe('makeTelegramNotify', () => {
   it('привʼязаний акаунт отримує текст у свій чат', async () => {
     const user_id = await user(5001, 7001);
     await makeTelegramNotify(repo, 'tok', send)!(user_id, 'привіт');
-    expect(sent).toEqual([{ chat_id: 7001, text: 'привіт' }]);
+    expect(sent).toEqual([{ chat_id: 7001, text: 'привіт', button: undefined }]);
+  });
+
+  // Кнопка листа (спек EMAIL-SPEC-1003) доїжджає до каналу як є: далі
+  // makeTelegramNotify кладе її в inline_keyboard.
+  it('кнопка доїжджає разом із текстом', async () => {
+    const user_id = await user(5004, 7004);
+    const button = { label: 'Про підписку', url: 'https://kitchen-os.app/profile/subscription' };
+    await makeTelegramNotify(repo, 'tok', send)!(user_id, 'текст', button);
+    expect(sent).toEqual([{ chat_id: 7004, text: 'текст', button }]);
   });
 
   it('після /stop не пишемо: привʼязка відкликана', async () => {
