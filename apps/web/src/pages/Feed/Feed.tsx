@@ -23,7 +23,6 @@ import { Card, ShoppingListCard, RecipeStreamCard, traceState, appliedToast, Liv
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, intakeSign } from './artifacts';
 import { movementLabel, movementSubtitle, visibleOps, type MoveOp } from './movement';
 import { BatchCard } from '../Pantry/BatchCard';
-import { useAuth } from '../../store/auth';
 import { greeting } from '../../lib/greeting';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -1302,7 +1301,7 @@ export function Feed() {
     window.setTimeout(() => composerInputRef.current?.focus(), 0);
   }
   // Порожня розмова за Prototype (Р140, рішення власника 13.09; Р123 знято):
-  // вітання на імʼя в кличному відмінку за часом доби, під ним композитор,
+  // питання за часом доби (без імені — рішення 03.10), під ним композитор,
   // під композитором шість чіпів-довідок (14.09) і рядок «факт дому». Група стоїть по
   // центру стрічки (стрічка ≥ вмісту, .composer-wrap росте). При першому
   // надсиланні hero гасне (opacity 0, −6 px, --dur-fast), композитор зʼїжджає
@@ -1321,7 +1320,7 @@ export function Feed() {
   }, [emptyChat]);
   // <768 (Screens «Чат · порожня розмова» 390, власник 13.09): спрощений блок #86 —
   // заголовок, пʼять чіпів, підказка по центру стрічки, композитор унизу. Prototype
-  // (кличний, композитор під h1, чіпи, факт, плейсхолдер) — лише ≥768. Поріг — вʼюпорт,
+  // (композитор під h1, чіпи, факт, плейсхолдер) — лише ≥768. Поріг — вʼюпорт,
   // як у нижнього бара; при переході через 768 перемальовується один блок, без двох hero.
   const [mobileEmpty, setMobileEmpty] = useState(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)').matches);
   useEffect(() => {
@@ -1331,8 +1330,8 @@ export function Feed() {
     mq.addEventListener?.('change', on);
     return () => mq.removeEventListener?.('change', on);
   }, []);
-  const meName = useAuth((s) => s.me?.user.name ?? null);
-  const heroTitle = greeting(meName);
+  // Імені в цьому реченні немає (рішення власника 03.10, див. lib/greeting).
+  const heroTitle = greeting();
   // Плейсхолдер «друкується» (Prototype HINTS): 1 символ / 55 мс, пауза ~1,1 с,
   // стирання по 4; лише поки розмова порожня, чернетка порожня, не слухає й не
   // надсилає. Reduced motion — статичний. Скрінрідеру — статичний aria-placeholder.

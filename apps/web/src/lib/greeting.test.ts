@@ -1,28 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { vocative, greeting } from './greeting';
+import { greeting, GREETING, EVENING_FROM } from './greeting';
 
-describe('кличний відмінок за правилами Prototype', () => {
-  it('-я → -ю, -а → -о, -й/-і → -ю, приголосна → +е', () => {
-    expect(vocative('Ілля')).toBe('Іллю');
-    expect(vocative('Марина')).toBe('Марино');
-    expect(vocative('Андрій')).toBe('Андрію');
-    expect(vocative('Пилип')).toBe('Пилипе');
-  });
-  it('решта — як є; порожнє — порожнє', () => {
-    expect(vocative('Іво')).toBe('Іво');
-    expect(vocative('  ')).toBe('');
-  });
-});
-
-describe('вітання за часом доби', () => {
+// Текст тут навмисно не повторюється: він тимчасовий (03.10, власник добирає
+// остаточний), і тест, який знає слова, перетворив би заміну рядка на правку
+// двох місць. Прибита поведінка, не копірайт.
+describe('вітання на порожньому екрані', () => {
   const at = (h: number) => new Date(2026, 8, 13, h, 0, 0);
-  it('до 16:00 — «що готуємо?», після — «що на вечерю?»', () => {
-    expect(greeting('Пилип', at(10))).toBe('Пилипе, що готуємо?');
-    expect(greeting('Пилип', at(16))).toBe('Пилипе, що на вечерю?');
-    expect(greeting('Пилип', at(15))).toBe('Пилипе, що готуємо?');
+
+  it('межа — 16:00: до неї денний рядок, з неї вечірній', () => {
+    expect(greeting(at(0))).toBe(GREETING.day);
+    expect(greeting(at(EVENING_FROM - 1))).toBe(GREETING.day);
+    expect(greeting(at(EVENING_FROM))).toBe(GREETING.evening);
+    expect(greeting(at(23))).toBe(GREETING.evening);
   });
-  it('без імені — без звертання, з великої', () => {
-    expect(greeting(null, at(19))).toBe('Що на вечерю?');
-    expect(greeting('', at(9))).toBe('Що готуємо?');
+
+  it('рядки різні й непорожні — інакше межа ні про що', () => {
+    expect(GREETING.day.trim()).not.toBe('');
+    expect(GREETING.evening.trim()).not.toBe('');
+    expect(GREETING.day).not.toBe(GREETING.evening);
   });
 });
