@@ -106,7 +106,7 @@ function useCompact(): boolean {
 // що був у Р159 для редирект-гілки Telegram.
 let googleNoAccountConsumed = false;
 function consumeGoogleNoAccountError(): boolean {
-  if (googleNoAccountConsumed) return false;
+  if (typeof window === 'undefined' || googleNoAccountConsumed) return false;
   const params = new URLSearchParams(window.location.search);
   if (params.get('err') !== 'no_account' || params.get('via') !== 'google') return false;
   googleNoAccountConsumed = true;
@@ -122,7 +122,7 @@ function consumeGoogleNoAccountError(): boolean {
 // вище; якір веде саме в hero-інстанс, а він монтується першим.
 let oauthStateConsumed = false;
 function consumeOauthStateError(): boolean {
-  if (oauthStateConsumed) return false;
+  if (typeof window === 'undefined' || oauthStateConsumed) return false;
   const params = new URLSearchParams(window.location.search);
   if (params.get('err') !== 'oauth_state') return false;
   oauthStateConsumed = true;
@@ -139,6 +139,7 @@ function consumeOauthStateError(): boolean {
 // адресу, другий читає вже його звідти — самокоригується без спільного
 // прапорця, той самий порядок ефектів, що й consumeGoogleNoAccountError).
 function readIntent(): string | null {
+  if (typeof window === 'undefined') return null;
   const params = new URLSearchParams(window.location.search);
   const fromUrl = params.get('intent');
   if (fromUrl) {

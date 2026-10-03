@@ -14,6 +14,11 @@
 // зі статики), міняємо лише content і повертаємо старий на unmount; якщо
 // тега нема (сторінка, якої цей index.html не передбачав), створюємо й
 // прибираємо повністю.
+//
+// Крок 2 (03.10): computeMeta() винесено чистою функцією — той самий набір
+// і порядок тегів рахує й DOM-хук тут (на клієнті), і
+// scripts/prerender-bot-pages.tsx (SSR для ботів, рядком у HTML), щоб вони
+// не розходились у двох місцях.
 import { useEffect } from 'react';
 
 export interface PageMeta {
@@ -24,8 +29,33 @@ export interface PageMeta {
   type?: 'website' | 'article';
 }
 
+export interface MetaTag { attr: 'name' | 'property'; key: string; content: string }
+export interface ComputedMeta { title: string; canonical: string; tags: MetaTag[] }
+
 const DEFAULT_IMAGE = '/landing/og-cover.jpg';
 const SITE_NAME = 'Kitchen OS';
+
+export function computeMeta({ title, description, image = DEFAULT_IMAGE, type = 'website' }: PageMeta, origin: string, pathname: string): ComputedMeta {
+  const url = origin + pathname;
+  const absoluteImage = /^https?:\/\//.test(image) ? image : origin + image;
+  return {
+    title,
+    canonical: url,
+    tags: [
+      { attr: 'name', key: 'description', content: description },
+      { attr: 'property', key: 'og:title', content: title },
+      { attr: 'property', key: 'og:description', content: description },
+      { attr: 'property', key: 'og:url', content: url },
+      { attr: 'property', key: 'og:type', content: type },
+      { attr: 'property', key: 'og:image', content: absoluteImage },
+      { attr: 'property', key: 'og:site_name', content: SITE_NAME },
+      { attr: 'name', key: 'twitter:card', content: 'summary_large_image' },
+      { attr: 'name', key: 'twitter:title', content: title },
+      { attr: 'name', key: 'twitter:description', content: description },
+      { attr: 'name', key: 'twitter:image', content: absoluteImage },
+    ],
+  };
+}
 
 function upsertMeta(attr: 'name' | 'property', key: string, content: string): () => void {
   const existing = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
@@ -55,30 +85,15 @@ function upsertCanonical(href: string): () => void {
   return () => el.remove();
 }
 
-export function usePageMeta({ title, description, image = DEFAULT_IMAGE, type = 'website' }: PageMeta): void {
+export function usePageMeta(meta: PageMeta): void {
+  const { title, description, image, type } = meta;
   useEffect(() => {
+    const computed = computeMeta({ title, description, image, type }, window.location.origin, window.location.pathname);
     const prevTitle = document.title;
-    document.title = title;
+    document.title = computed.title;
 
-    const url = window.location.origin + window.location.pathname;
-    const absoluteImage = /^https?:\/\//.test(image) ? image : window.location.origin + image;
-
-    const metas: Array<[attr: 'name' | 'property', key: string, content: string]> = [
-      ['name', 'description', description],
-      ['property', 'og:title', title],
-      ['property', 'og:description', description],
-      ['property', 'og:url', url],
-      ['property', 'og:type', type],
-      ['property', 'og:image', absoluteImage],
-      ['property', 'og:site_name', SITE_NAME],
-      ['name', 'twitter:card', 'summary_large_image'],
-      ['name', 'twitter:title', title],
-      ['name', 'twitter:description', description],
-      ['name', 'twitter:image', absoluteImage],
-    ];
-
-    const restorers = metas.map(([attr, key, content]) => upsertMeta(attr, key, content));
-    restorers.push(upsertCanonical(url));
+    const restorers = computed.tags.map(({ attr, key, content }) => upsertMeta(attr, key, content));
+    restorers.push(upsertCanonical(computed.canonical));
 
     return () => {
       document.title = prevTitle;

@@ -66,6 +66,8 @@ export function VideoBubble({ onOpen, onDismiss, footerRef }: BubbleProps) {
   // на вужчих ширинах) — zoom, на відміну від transform, масштабує й
   // position:fixed нащадків, тож бульбашка й плеєр мусять жити ПОЗА цим
   // деревом, інакше 240px на 1440 рендериться як 240×(1440/1920)=180px.
+  // На сервері (SSR для ботів) document нема — портал нема куди вставляти.
+  if (typeof document === 'undefined') return null;
   return createPortal(
     <div className={styles.bubbleWrap} data-hide={nearFooter || undefined}>
       <span className={styles.bubbleCaption}>{VIDEO.caption} · {VIDEO.duration}</span>

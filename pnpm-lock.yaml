@@ -38,6 +38,9 @@ importers:
       typescript-eslint:
         specifier: ^8
         version: 8.70.0(eslint@9.39.5)(typescript@5.9.3)
+      vite:
+        specifier: ^6.0.5
+        version: 6.4.3(@types/node@22.20.1)(tsx@4.23.12)(yaml@2.9.0)
       vitest:
         specifier: ^2.1.4
         version: 2.1.9(@types/node@22.20.1)(jsdom@30.0.1)

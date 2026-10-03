@@ -23,17 +23,26 @@ const RELEASE = process.env.SENTRY_RELEASE || process.env.VERCEL_GIT_COMMIT_SHA 
 // не мають ні падати, ні мовчки лізти в чужу організацію.
 const SENTRY_UPLOAD = Boolean(process.env.SENTRY_AUTH_TOKEN);
 
-export default defineConfig({
+export default defineConfig(({ isSsrBuild }) => ({
   build: {
     // Сорсмепи потрібні, щоб стек у Sentry був про наш код, а не про
     // `chunk-A1B2.js:1:48210`. Плагін нижче вивантажує їх і ВИДАЛЯЄ з dist —
     // публікувати сорсмепи разом зі збіркою ми не хочемо.
     sourcemap: SENTRY_UPLOAD ? true : false,
+    // Пошукова база, крок 2: Landing/LegalDocPage лежать у власних lazy-
+    // чанках (route-splitting), тому index.html не лінкує їхній CSS — боту
+    // без JS його взагалі не дістати. scripts/prerender-bot-pages.tsx читає
+    // dist/.vite/manifest.json, щоб підставити в head точний хешований шлях
+    // до CSS конкретного маршруту; саму збірку маніфест не змінює.
+    manifest: true,
     rollupOptions: {
       output: {
         // П.8 pre-deploy: react-рантайм окремим чанком — кешується між
-        // деплоями, бо міняється рідше за код продукту.
-        manualChunks: {
+        // деплоями, бо міняється рідше за код продукту. Лише для клієнтської
+        // збірки: у SSR-білді (scripts/prerender-bot-pages.tsx) react
+        // зовнішній (Node-модуль), і rollup падає на спробі покласти
+        // зовнішній модуль у manualChunks.
+        manualChunks: isSsrBuild ? undefined : {
           // 0912 A: react-dom/client — окремий вхід пакета, без нього ядро react-dom
           // лягало в index (536 kB джерел), а «вендорний» чанк мав 52 kB.
           'react-vendor': ['react', 'react-dom', 'react-dom/client', 'react-router-dom'],
@@ -84,4 +93,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
