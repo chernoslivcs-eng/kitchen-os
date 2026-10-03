@@ -65,6 +65,11 @@ describe('/ — Landing без браузера', () => {
     const slots = html.match(/class="_fragSlot_[^"]*"/g) ?? [];
     expect(slots.length).toBeGreaterThan(1);
   });
+
+  it('лінк Instagram у футері — _blank, noopener noreferrer, на реальний акаунт', () => {
+    expect(html).toContain('href="https://www.instagram.com/kitchen.os.app/"');
+    expect(html).toMatch(/<a href="https:\/\/www\.instagram\.com\/kitchen\.os\.app\/" target="_blank" rel="noopener noreferrer"[^>]*>Instagram<\/a>/);
+  });
 });
 
 describe('Landing.module.css — правило, що лишає [data-reveal]/fragSlot видимими на сервері', () => {
