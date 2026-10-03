@@ -10,6 +10,7 @@ import { useLocation, useNavigate, type Location } from 'react-router-dom';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { Markdown } from '../../components/Markdown/Markdown';
 import { LEGAL_DOCS, resolveLegalHref, type LegalDocKey } from '../../lib/legal-docs';
+import { usePageMeta } from '../../lib/usePageMeta';
 
 interface Props {
   doc: LegalDocKey;
@@ -25,7 +26,8 @@ export function LegalDocPage({ doc }: Props) {
     else void navigate('/', { replace: true });
   }
 
-  const { title, md } = LEGAL_DOCS[doc];
+  const { title, description, md } = LEGAL_DOCS[doc];
+  usePageMeta({ title: `${title} · Kitchen OS`, description });
   return (
     <Sheet onClose={onClose} ariaLabel={title} title={title}>
       <Markdown text={md} resolveHref={resolveLegalHref} linkState={{ background: location }} />
