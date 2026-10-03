@@ -282,6 +282,7 @@ export function Landing() {
             {FOOTER.legalLinks.map((l) => (
               <Link key={l.to} to={l.to} state={{ background: location }} className={s.footerLink}>{l.label}</Link>
             ))}
+            <a href={FOOTER.instagramHref} target="_blank" rel="noopener noreferrer" className={s.footerLink}>{FOOTER.instagram}</a>
             <span>{FOOTER.contact}</span>
             <span>{FOOTER.copyright}</span>
           </span>

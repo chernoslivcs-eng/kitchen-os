@@ -247,6 +247,10 @@ export const FOOTER = {
   // Скринька заведена 24.09 — hello@kitchen.os такої адреси не існує.
   contact: 'hello@kitchen-os.app',
   copyright: '© 2026',
+  // Акаунт заведено 01.10 (instagram-launch) — лінк на лендінгу тим самим
+  // рядком футера, що юрдоки й контакти.
+  instagram: 'Instagram',
+  instagramHref: 'https://www.instagram.com/kitchen.os.app/',
 };
 
 // Жива сесія в лептопі (1920 · 1024) і в телефоні (390 · фінал 1920).
