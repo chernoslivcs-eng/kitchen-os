@@ -10,10 +10,10 @@ import type { Repo } from './repo.js';
 import type { HouseholdInvite, HouseholdRole, AuthSession } from './types.js';
 import { randomToken, hashToken, openSession, recordSignupSource } from './auth.js';
 import type { SignupMarks } from './signup-source.js';
+import { INVITE_TTL_MS } from './invite-ttl.js';
 
 // QA8-18: макет обіцяє «ПОСИЛАННЯ ДІЄ 72 ГОД», код давав тиждень.
-const INVITE_TTL_HOURS = 72;
-export const INVITE_TTL_MS = INVITE_TTL_HOURS * 3_600_000;
+export { INVITE_TTL_HOURS, INVITE_TTL_MS } from './invite-ttl.js';
 
 export interface CreateInviteInput {
   household_id: string;

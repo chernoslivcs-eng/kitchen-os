@@ -28,6 +28,8 @@ const shots = [
   ['ring-sage.png', ring('#93b48b'), 320],
   ['ring-amber.png', ring('#d2ad6b'), 320],
   ['ring-plum.png', ring('#c99ab4'), 320],
+  // Заливка: кільце на шавлієвій картці — світле, як у макеті (.em.b).
+  ['ring-light.png', ring('#f4f3ef'), 320],
 ];
 
 for (const [name, svg, size] of shots) {

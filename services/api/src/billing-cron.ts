@@ -16,6 +16,7 @@ import { ingestProviderEvent } from './billing/ingest.js';
 import { BillingNotConfiguredError } from './billing/pick-provider.js';
 import { notifyHousehold, type Outgoing } from './notify-household.js';
 import { renderLetter } from './mail-template.js';
+import type { Letter } from '@kitchen/domain/letter';
 
 const DAY = 86_400_000;
 /** Пів року тиші — і дім отримує попередження (спек §5). */
@@ -72,6 +73,12 @@ export interface BillingCronSummary {
  * Невдачі й пропуски складаємо в підсумок проходу, щоб вони не загубились
  * між станами.
  */
+/** Лист → що саме шлемо: html для пошти, текст для обох, кнопка для бота. */
+function letter(l: Letter, deps: BillingCronDeps): Outgoing {
+  const { html, text } = renderLetter(l, { assetsBase: deps.appUrl });
+  return { subject: l.subject, text, html, button: l.button };
+}
+
 async function notify(deps: BillingCronDeps, out: BillingCronSummary, household_id: string, msg: Outgoing): Promise<void> {
   const t = await notifyHousehold({ repo: deps.repo, mailer: deps.mailer, telegramNotify: deps.telegramNotify }, household_id, msg);
   out.notifySkipped += t.skipped;
@@ -91,7 +98,9 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     await deps.repo.saveSubscription(next);
     out.transitions++;
     if (next.state === 'lapsed') {
-      await notify(deps, out, sub.household_id, { subject: MAIL.lapsed.subject, text: MAIL.lapsed.text });
+      // Лист 5а чи 5б — за ПОПЕРЕДНІМ станом: після демо й після скасування
+      // це для людини дві різні події (спек EMAIL-SPEC-1003).
+      await notify(deps, out, sub.household_id, letter(MAIL.lapsed(sub.state, `${deps.appUrl}${SUBSCRIPTION_PATH}`), deps));
       out.lapsedMails++;
     }
   }
@@ -103,7 +112,7 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     // Маску віддаємо як є: якщо її немає, лист сам прибере згадку про картку,
     // а не намалює «•• ····».
     const m = MAIL.trialEnds(fmt(sub.trial_ends_at), sub.card_mask, PLAN_PRICE_UAH[sub.plan], `${deps.appUrl}${SUBSCRIPTION_PATH}`);
-    await notify(deps, out, sub.household_id, { subject: m.subject, text: m.text });
+    await notify(deps, out, sub.household_id, letter(m, deps));
     await deps.repo.saveSubscription({ ...sub, trial_mail_sent_at: now.toISOString() });
     out.trialMails++;
   }
@@ -122,11 +131,9 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
     // порівняння з 2 × DAY відсікало б лист у домів, створених пізніше за
     // третю ранку, — тобто майже в усіх.
     if (Math.floor((new Date(sub.demo_ends_at).getTime() - now.getTime()) / DAY) > 2) continue;
-    // Лист 4 зі спека EMAIL-SPEC-1003: оформлений шаблон «темна кухня»,
-    // кнопка веде на сторінку підписки — суми в листі немає, вона там.
-    const letter = MAIL.demoEnding(fmt(sub.demo_ends_at), `${deps.appUrl}${SUBSCRIPTION_PATH}`);
-    const { html, text } = renderLetter(letter, { assetsBase: deps.appUrl });
-    await notify(deps, out, sub.household_id, { subject: letter.subject, text, html, button: letter.button });
+    // Лист 4 зі спека EMAIL-SPEC-1003: кнопка веде на сторінку підписки —
+    // суми в листі немає, вона там.
+    await notify(deps, out, sub.household_id, letter(MAIL.demoEnding(fmt(sub.demo_ends_at), `${deps.appUrl}${SUBSCRIPTION_PATH}`), deps));
     await deps.repo.saveSubscription({ ...sub, demo_mail_sent_at: now.toISOString() });
     out.demoMails++;
   }
@@ -167,8 +174,7 @@ export async function runBillingCron(deps: BillingCronDeps): Promise<BillingCron
       sub.demo_ends_at ? new Date(sub.demo_ends_at).getTime() : 0,
     );
     if ((now.getTime() - since) / DAY < QUIET_DAYS) continue;
-    const m = MAIL.deletionWarning(`${deps.appUrl}/app`);
-    await notify(deps, out, sub.household_id, { subject: m.subject, text: m.text });
+    await notify(deps, out, sub.household_id, letter(MAIL.deletionWarning(`${deps.appUrl}/app`), deps));
     await deps.repo.saveSubscription({ ...sub, deletion_warned_at: now.toISOString() });
     out.warnings++;
   }

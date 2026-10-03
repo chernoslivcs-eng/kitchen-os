@@ -19,7 +19,8 @@
     "./paywall": "./paywall.ts",
     "./letter": "./letter.ts",
     "./tap-water": "./tap-water.ts",
-    "./signup-source": "./signup-source.ts"
+    "./signup-source": "./signup-source.ts",
+    "./invite-ttl": "./invite-ttl.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

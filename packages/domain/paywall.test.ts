@@ -11,7 +11,7 @@ describe('paywall copy', () => {
   // нічого, картка лише перевіряється. Обіцянка «за 1 ₴» жила в плані до
   // цього рішення й одного разу вже протекла в лист — хай тепер падає тест.
   it('жоден текст не обіцяє списання 1 ₴', () => {
-    expect(JSON.stringify({ PAYWALL, MAIL: { ...MAIL, demoStarted: MAIL.demoStarted('1 січня'), demoEnding: MAIL.demoEnding('1 січня', 'l'), trialEnds: MAIL.trialEnds('1 січня', '4242', 210, 'l'), deletionWarning: MAIL.deletionWarning('l') } })).not.toMatch(/1\s*₴/);
+    expect(JSON.stringify({ PAYWALL, MAIL: { ...MAIL, demoStarted: MAIL.demoStarted('1 січня', 'l'), demoEnding: MAIL.demoEnding('1 січня', 'l'), trialEnds: MAIL.trialEnds('1 січня', '4242', 210, 'l'), deletionWarning: MAIL.deletionWarning('l') } })).not.toMatch(/1\s*₴/);
   });
   it('тіло 402 має kind, текст і двері', () => {
     expect(paywallBody('lapsed')).toEqual({ kind: 'paywall', state: 'lapsed', text: PAYWALL.chat.text, cta: { label: 'Продовжити', to: '/profile/subscription' } });
@@ -31,7 +31,7 @@ describe('paywall copy', () => {
   // Спек §5 забороняє підганяти: ні «встигни», ні лічильників «лишилось N».
   it('тексти демо нікого не підганяють', () => {
     const texts = [
-      MAIL.demoStarted('8 жовтня').text,
+      letterText(MAIL.demoStarted('8 жовтня', 'https://x.test/a')),
       letterText(MAIL.demoEnding('8 жовтня', 'https://x.test/s')),
       PAYWALL.banner.demo('8 жовтня').text,
     ].join(' ');

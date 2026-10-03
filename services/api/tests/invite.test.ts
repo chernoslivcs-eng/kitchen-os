@@ -346,7 +346,8 @@ describe('DELETE /v1/households/:hid/members/:uid', () => {
 
   it('мейлер упав → 201 з mail_sent:false, лінк живий', async () => {
     const A = await signIn(app, mailer, 'a@example.com');
-    mailer.sendMagicLink = async () => { throw new Error('smtp 403: unverified domain'); };
+    // Запрошення йде окремим листом (спек EMAIL-SPEC-1003, лист 2).
+    mailer.sendInvite = async () => { throw new Error('smtp 403: unverified domain'); };
     const inv = await app.inject({
       method: 'POST',
       url: `/v1/households/${A.household_id}/invite`,

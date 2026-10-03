@@ -8,6 +8,9 @@
 // створити акаунт, взяти SMTP-креденшли, покласти в env — код не змінюється.
 
 import { createTransport, type Transporter } from 'nodemailer';
+import { MAIL } from '@kitchen/domain/paywall';
+import { INVITE_TTL_MS } from '@kitchen/domain';
+import { renderLetter } from './mail-template.js';
 import { fileURLToPath } from 'node:url';
 
 export interface MagicLinkMail {
@@ -31,8 +34,21 @@ export interface PlainMail {
   html?: string;
 }
 
+/**
+ * Запрошення в дім. Окремо від магік-лінка, бо людина мусить бачити, ХТО її
+ * кличе: доти запрошення йшло тим самим листом «Твій вхід у Кухню», і той,
+ * кого покликали, отримував двері без жодної згадки, чиї вони.
+ */
+export interface InviteMail {
+  to: string;
+  link: string;
+  /** Імʼя того, хто запросив, або його пошта. */
+  who: string;
+}
+
 export interface Mailer {
   sendMagicLink(mail: MagicLinkMail): Promise<void>;
+  sendInvite(mail: InviteMail): Promise<void>;
   sendPlain(mail: PlainMail): Promise<void>;
   /**
    * Чи йдуть листи назовні насправді. Від цього залежить, чи відсікати
@@ -52,6 +68,16 @@ export class ConsoleMailer implements Mailer {
   async sendPlain(mail: PlainMail): Promise<void> {
     this.plain.push(mail);
     console.log(`[mail] ${mail.subject} → ${mail.to}\n  ${mail.text}`);
+  }
+
+  /**
+   * Лінк запрошення падає в той самий `sent`, що й магік-лінк: на ньому
+   * тримається і QA-процедура входу, і півтора десятка тестів, які дістають
+   * токен через `last()`. Для них це той самий одноразовий лінк у листі.
+   */
+  async sendInvite(mail: InviteMail): Promise<void> {
+    this.sent.push({ to: mail.to, link: mail.link, expires_in_min: INVITE_TTL_MS / 60_000 });
+    console.log(`[mail] запрошення від ${mail.who} → ${mail.to}\n  ${mail.link}`);
   }
 
   async sendMagicLink(mail: MagicLinkMail): Promise<void> {
@@ -91,12 +117,15 @@ export interface SmtpConfig {
   pass: string;
   from: string;                    // «Кухня <no-reply@kos.app>»
   secure?: boolean;                // TLS: true на 465, false на 587 (STARTTLS вмикається сам)
+  /** Звідки лист бере PNG знака й кільця. У пошті відносних шляхів не буває. */
+  appUrl: string;
 }
 
 export class SmtpMailer implements Mailer {
   readonly delivers = true;
   private transporter: Transporter;
   private from: string;
+  private appUrl: string;
 
   constructor(cfg: SmtpConfig) {
     this.transporter = createTransport({
@@ -106,6 +135,7 @@ export class SmtpMailer implements Mailer {
       auth: { user: cfg.user, pass: cfg.pass },
     });
     this.from = cfg.from;
+    this.appUrl = cfg.appUrl;
   }
 
   async sendPlain(mail: PlainMail): Promise<void> {
@@ -117,36 +147,22 @@ export class SmtpMailer implements Mailer {
     });
   }
 
+  async sendInvite(mail: InviteMail): Promise<void> {
+    const letter = MAIL.invite(mail.who, mail.link);
+    const { html, text } = renderLetter(letter, { assetsBase: this.appUrl });
+    await this.transporter.sendMail({ from: this.from, to: mail.to, subject: letter.subject, text, html });
+  }
+
   async sendMagicLink(mail: MagicLinkMail): Promise<void> {
-    const subject = 'Твій вхід у Кухню';
-    // Свідомо тонкий текст: одне речення, лінк, ще одне речення. Не HTML-простирадло.
-    // Причина — mail-клієнти по-різному ламають форматування, і чим менше форматування,
-    // тим менше шансів, що лінк спрацює як «просто текст» без клікабельності.
-    const text = [
-      'Клікни, щоб зайти в Кухню:',
-      '',
-      mail.link,
-      '',
-      `Лінк діє ${mail.expires_in_min} хв. Якщо ти не запитував — просто ігноруй.`,
-    ].join('\n');
-    const html = [
-      '<p>Клікни, щоб зайти в Кухню:</p>',
-      `<p><a href="${escapeHtml(mail.link)}">${escapeHtml(mail.link)}</a></p>`,
-      `<p style="color:#666">Лінк діє ${mail.expires_in_min} хв. Якщо ти не запитував — просто ігноруй.</p>`,
-    ].join('');
-    await this.transporter.sendMail({
-      from: this.from,
-      to: mail.to,
-      subject,
-      text,
-      html,
-    });
+    // Лист 1 зі спека EMAIL-SPEC-1003 — той самий шаблон, що в решти листів.
+    // Доти тут був свій тонкий html із голим посиланням: він пережив рік і
+    // чотири редакції текстів, бо жив окремо від усього іншого.
+    const letter = MAIL.login(mail.expires_in_min, mail.link);
+    const { html, text } = renderLetter(letter, { assetsBase: this.appUrl });
+    await this.transporter.sendMail({ from: this.from, to: mail.to, subject: letter.subject, text, html });
   }
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 // Вибір мейлера за env — одне місце, куди дивиться server.ts.
 export function pickMailer(): Mailer {
@@ -156,5 +172,5 @@ export function pickMailer(): Mailer {
   const user = process.env.SMTP_USER ?? '';
   const pass = process.env.SMTP_PASS ?? '';
   const from = process.env.MAIL_FROM ?? `no-reply@${host}`;
-  return new SmtpMailer({ host, port, user, pass, from });
+  return new SmtpMailer({ host, port, user, pass, from, appUrl: process.env.APP_URL ?? 'https://kitchen-os.app' });
 }
