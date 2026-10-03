@@ -5,7 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#181c21" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#eef0f1" media="(prefers-color-scheme: light)" />
-    <title>Kitchen OS</title>
+    <!-- Пошукова база, крок 1, правка власника 03.10: боти прев'ю
+         (TelegramBot, facebookexternalhit, Twitterbot, Slack, Google) JS не
+         виконують — ці теги мусять бути в сирому HTML, не підставлені клієнтом.
+         Це єдиний index.html на весь SPA (catch-all rewrite), тож значення тут
+         — лендінгу; усі інші публічні сторінки (/terms і т.д.) перебивають їх
+         через usePageMeta() на mount і повертають як було на unmount. -->
+    <title>Kitchen OS — асистент для домашньої кухні</title>
+    <meta name="description" content="Асистент для домашньої кухні: знає, що у тебе вдома, пропонує, що приготувати, веде по кроках і сам веде список покупок. 7 днів безкоштовно, без картки." />
+    <meta property="og:title" content="Kitchen OS — асистент для домашньої кухні" />
+    <meta property="og:description" content="Асистент для домашньої кухні: знає, що у тебе вдома, пропонує, що приготувати, веде по кроках і сам веде список покупок. 7 днів безкоштовно, без картки." />
+    <meta property="og:url" content="https://kitchen-os.app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://kitchen-os.app/landing/og-cover.jpg" />
+    <meta property="og:site_name" content="Kitchen OS" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Kitchen OS — асистент для домашньої кухні" />
+    <meta name="twitter:description" content="Асистент для домашньої кухні: знає, що у тебе вдома, пропонує, що приготувати, веде по кроках і сам веде список покупок. 7 днів безкоштовно, без картки." />
+    <meta name="twitter:image" content="https://kitchen-os.app/landing/og-cover.jpg" />
+    <link rel="canonical" href="https://kitchen-os.app/" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/icon.svg" />

@@ -1,13 +1,19 @@
-// Пошукова база лендінгу, крок 1 (рішення власника 03.10): публічні сторінки
-// (/, /terms, /privacy, /refund, /contacts) ділили один <title>Kitchen OS</title>
-// з index.html і не мали ні <meta description>, ні OG/Twitter-тегів. /r/:id —
-// окремий випадок: там теги вже підставляє сервер (vercel-handler.ts) до того,
-// як HTML іде в браузер, бо прев'ю в Telegram/Slack читають <head> без JS.
+// Пошукова база лендінгу, крок 1 (рішення власника 03.10, правка того ж дня):
+// боти прев'ю (TelegramBot, facebookexternalhit, Twitterbot, Slack, Google)
+// JS не виконують — title/description/OG/canonical лендінгу тепер стоять
+// СТАТИЧНО в apps/web/index.html (той самий файл на весь SPA, catch-all
+// rewrite). Landing.tsx більше НЕ кличе цей хук: їй нічого підставляти,
+// статичні теги вже її власні.
 //
-// Тут — клієнтський варіант для решти: document.title і <head>-теги на
-// mount, без react-helmet (єдина залежність заради шести рядків DOM-коду).
-// Кожен керований тег позначений data-page-meta, щоб unmount прибирав рівно
-// свої, не чіпаючи theme-color/manifest/preload-шрифти з index.html.
+// Хук лишається для решти публічних сторінок (/terms, /privacy, /refund,
+// /contacts) — їм потрібно перебити лендінгові теги з index.html на клієнті
+// (title у вкладці, OG на випадок прямого шерингу посилання з уже
+// відкритою сторінкою) і повернути як було при закритті. Тому — не
+// «створити й прибрати», а «підмінити і відновити значення»: якщо тег уже є
+// (а для title/description/OG на landing-маршруті він завжди є — прийшов
+// зі статики), міняємо лише content і повертаємо старий на unmount; якщо
+// тега нема (сторінка, якої цей index.html не передбачав), створюємо й
+// прибираємо повністю.
 import { useEffect } from 'react';
 
 export interface PageMeta {
@@ -20,6 +26,34 @@ export interface PageMeta {
 
 const DEFAULT_IMAGE = '/landing/og-cover.jpg';
 const SITE_NAME = 'Kitchen OS';
+
+function upsertMeta(attr: 'name' | 'property', key: string, content: string): () => void {
+  const existing = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
+  if (existing) {
+    const prev = existing.getAttribute('content');
+    existing.setAttribute('content', content);
+    return () => { if (prev != null) existing.setAttribute('content', prev); };
+  }
+  const el = document.createElement('meta');
+  el.setAttribute(attr, key);
+  el.setAttribute('content', content);
+  document.head.appendChild(el);
+  return () => el.remove();
+}
+
+function upsertCanonical(href: string): () => void {
+  const existing = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (existing) {
+    const prev = existing.getAttribute('href');
+    existing.setAttribute('href', href);
+    return () => { if (prev != null) existing.setAttribute('href', prev); };
+  }
+  const el = document.createElement('link');
+  el.setAttribute('rel', 'canonical');
+  el.setAttribute('href', href);
+  document.head.appendChild(el);
+  return () => el.remove();
+}
 
 export function usePageMeta({ title, description, image = DEFAULT_IMAGE, type = 'website' }: PageMeta): void {
   useEffect(() => {
@@ -43,25 +77,12 @@ export function usePageMeta({ title, description, image = DEFAULT_IMAGE, type = 
       ['name', 'twitter:image', absoluteImage],
     ];
 
-    const created: HTMLElement[] = [];
-    for (const [attr, key, content] of metas) {
-      const el = document.createElement('meta');
-      el.setAttribute(attr, key);
-      el.setAttribute('content', content);
-      el.setAttribute('data-page-meta', '1');
-      document.head.appendChild(el);
-      created.push(el);
-    }
-    const canonical = document.createElement('link');
-    canonical.setAttribute('rel', 'canonical');
-    canonical.setAttribute('href', url);
-    canonical.setAttribute('data-page-meta', '1');
-    document.head.appendChild(canonical);
-    created.push(canonical);
+    const restorers = metas.map(([attr, key, content]) => upsertMeta(attr, key, content));
+    restorers.push(upsertCanonical(url));
 
     return () => {
       document.title = prevTitle;
-      for (const el of created) el.remove();
+      for (const restore of restorers) restore();
     };
   }, [title, description, image, type]);
 }

@@ -60,3 +60,35 @@ describe('robots.txt і sitemap.xml — реальні файли, не SPA-за
     expect(() => statSync(join(WEB, 'public/sitemap.xml'))).not.toThrow();
   });
 });
+
+// Правка власника 03.10 (крок 1): боти прев'ю (TelegramBot,
+// facebookexternalhit, Twitterbot, Slack, Google) JS не виконують — title/
+// description/OG/canonical лендінгу мусять бути в СИРОМУ index.html, не
+// підставлені usePageMeta() на mount (той самий HTML іде всім SPA-шляхам
+// без curl -A Googlebot — живий доказ у PR, тут лише статична перевірка
+// самого файлу).
+describe('index.html: мета лендінгу — статично, без JS', () => {
+  const html = readFileSync(join(WEB, 'index.html'), 'utf8');
+
+  it('title і description — текст власника, дослівно', () => {
+    expect(html).toContain('<title>Kitchen OS — асистент для домашньої кухні</title>');
+    expect(html).toContain('<meta name="description" content="Асистент для домашньої кухні: знає, що у тебе вдома, пропонує, що приготувати, веде по кроках і сам веде список покупок. 7 днів безкоштовно, без картки." />');
+  });
+
+  it('заборонені фрази з брифу копі («памʼятає», «з того, що є») відсутні', () => {
+    expect(html).not.toMatch(/памʼята/i);
+    expect(html).not.toMatch(/з того,? що (вже )?є/i);
+  });
+
+  it('OG/Twitter: type=website, картинка й canonical — абсолютні https://kitchen-os.app', () => {
+    expect(html).toContain('<meta property="og:type" content="website" />');
+    expect(html).toContain('<meta property="og:image" content="https://kitchen-os.app/landing/og-cover.jpg" />');
+    expect(html).toContain('<meta name="twitter:card" content="summary_large_image" />');
+    expect(html).toContain('<link rel="canonical" href="https://kitchen-os.app/" />');
+  });
+
+  it('Landing.tsx більше не дублює ці теги через usePageMeta — статика і є її тегами', () => {
+    const landing = readFileSync(join(WEB, 'src/pages/Landing/Landing.tsx'), 'utf8');
+    expect(landing).not.toContain('usePageMeta');
+  });
+});
