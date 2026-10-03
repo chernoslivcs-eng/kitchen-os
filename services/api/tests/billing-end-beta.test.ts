@@ -55,7 +55,7 @@ describe('applyEndBeta', () => {
         trial_used_at: NOW.toISOString(),
       });
     }
-    expect(mailer.plain.map((m) => m.subject)).toEqual(['Демо до 8 листопада', 'Демо до 8 листопада']);
+    expect(mailer.plain.map((m) => m.subject)).toEqual(['Можна починати з кухні', 'Можна починати з кухні']);
   });
 
   it('повторний запуск нічого не міняє й нікому не пише', async () => {
@@ -93,7 +93,7 @@ describe('applyEndBeta', () => {
     const notes: string[] = [];
     const r = await applyEndBeta({ repo, mailer, appUrl: 'http://app.test', now: () => NOW, telegramNotify: async (_u, text) => { notes.push(text); } });
     expect(r).toMatchObject({ households: 1, mails: 0, notes: 1 });
-    expect(notes[0]).toContain('8 листопада');
+    expect(notes[0]).toContain('До 8 листопада можна спокійно користуватись');
   });
 });
 

@@ -15,8 +15,16 @@ const out = resolve(process.argv[2] ?? 'out/mail');
 mkdirSync(out, { recursive: true });
 const assets = `file://${resolve('apps/web/public')}`;
 
+const APP = 'https://kitchen-os.app';
+const SUB = `${APP}${SUBSCRIPTION_PATH}`;
 const letters = [
-  ['04-demo-ending', MAIL.demoEnding('9 жовтня', `https://kitchen-os.app${SUBSCRIPTION_PATH}`)],
+  ['01-login', MAIL.login(15, `${APP}/v1/auth/verify?token=demo`)],
+  ['03-demo-started', MAIL.demoStarted('10 жовтня', `${APP}/app`)],
+  ['04-demo-ending', MAIL.demoEnding('9 жовтня', SUB)],
+  ['05a-paused', MAIL.lapsed('demo', SUB)],
+  ['05b-cancelled', MAIL.lapsed('cancelled', SUB)],
+  ['06-trial-ends', MAIL.trialEnds('12 жовтня', '12', 290, SUB)],
+  ['07-quiet', MAIL.deletionWarning(`${APP}/app`)],
 ] as const;
 
 const browser = await chromium.launch();

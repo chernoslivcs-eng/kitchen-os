@@ -4,6 +4,7 @@ import { InMemoryRepo } from '@kitchen/domain';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { MAIL } from '@kitchen/domain/paywall';
+import { letterText } from '@kitchen/domain/letter';
 import { handleTelegramText, resetSeenUpdates, COPY } from '../src/telegram.js';
 import { resetBotUsernameCache } from '../src/telegram.js';
 
@@ -45,10 +46,10 @@ describe('PR 2-бот · вхід із Telegram', () => {
     const sub = await repo.getSubscription((await repo.firstHouseholdOf((await repo.getUserByTelegramId(905))!.id))!);
     expect(sub?.state).toBe('demo');
     const date = new Date(sub!.demo_ends_at!).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
-    expect(r1?.messages).toContain(MAIL.demoStarted(date).text);
+    expect(r1?.messages).toContain(letterText(MAIL.demoStarted(date, `${APP}/app`), { signature: false }));
     // Повторний /start — це не новий дім, і про демо вдруге не розповідаємо.
     const r2 = await handleTelegramText(deps(), upd(905, '/start'));
-    expect(r2?.messages.some((m) => m.startsWith('Демо до'))).toBe(false);
+    expect(r2?.messages.some((m) => m.includes('Радий, що ти тут'))).toBe(false);
   });
 
   it('/start із битим токеном з профілю — не плодить акаунт, каже натиснути «Підключити» ще раз', async () => {

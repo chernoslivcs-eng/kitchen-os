@@ -27,6 +27,7 @@ import type { AttachmentStore } from './attachment-store.js';
 import { runChatTurn, ChatTurnHttpError, type ChatRouteOpts, type ChatTurnInput, type ChatTurnOutput } from './chat-turn.js';
 import { entitlementOf } from '@kitchen/domain/subscription';
 import { MAIL, PAYWALL, SUBSCRIPTION_PATH } from '@kitchen/domain/paywall';
+import { letterText } from '@kitchen/domain/letter';
 import { settleTelemetry, type TelemetryHost } from './telemetry.js';
 import { flushSentry } from './sentry.js';
 import { makeRateLimiter } from './rate-limit.js';
@@ -701,7 +702,13 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
     // не новий дім, і другий раз розповідати про демо нема про що.
     if (r.created) {
       const sub = await deps.repo.getSubscription(r.household_id);
-      if (sub?.demo_ends_at) messages.push(MAIL.demoStarted(new Date(sub.demo_ends_at).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })).text);
+      if (sub?.demo_ends_at) {
+        // Те саме тіло, що в листі 3, простим текстом і без теми (спек
+        // EMAIL-SPEC-1003 §Уточнення). Підпис тут зайвий: людина й так у нашому
+        // чаті, а «Kitchen OS · hello@» під кожним привітанням — шум.
+        const l = MAIL.demoStarted(new Date(sub.demo_ends_at).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' }), `${deps.appUrl}/app`);
+        messages.push(letterText(l, { signature: false }));
+      }
     }
     return { messages, html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD };
   }

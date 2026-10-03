@@ -64,8 +64,8 @@ describe('демо (спек 2026-10-01 §5)', () => {
     expect(r).toMatchObject({ transitions: 1, lapsedMails: 1, demoMails: 0 });
     expect((await repo.getSubscription(household_id))?.state).toBe('lapsed');
     // Один лист за день, не два: «закінчується» і «закінчилось» разом звучали б
-    // як збій, а не як дві події.
-    expect(mailer.plain.map((m) => m.subject)).toEqual(['Підписка закінчилась — усе на місці']);
+    // як збій, а не як дві події. І саме 5а — дім прийшов із демо.
+    expect(mailer.plain.map((m) => m.subject)).toEqual(['Я все лишив як було']);
   });
 
   it('демо без дати крон не чіпає й листів не шле', async () => {
@@ -86,7 +86,8 @@ describe('runBillingCron', () => {
     const deps = at(repo, mailer, '2026-10-01T03:30:00.000Z');
     expect((await runBillingCron(deps)).transitions).toBe(1);
     expect((await repo.getSubscription(household_id))?.state).toBe('lapsed');
-    expect(mailer.plain.map((m) => m.subject)).toEqual(['Підписка закінчилась — усе на місці']);
+    // 5б: дім прийшов зі скасування, не з демо.
+    expect(mailer.plain.map((m) => m.subject)).toEqual(['Нехай поки все побуде тут']);
     await runBillingCron(deps);
     expect(mailer.plain).toHaveLength(1);
   });
@@ -99,7 +100,8 @@ describe('runBillingCron', () => {
     await runBillingCron(deps);
     await runBillingCron(deps);
     expect(mailer.plain).toHaveLength(1);
-    expect(mailer.plain[0]!.text).toContain('спишеться 290 ₴');
+    // Єдиний лист, де сума є й мусить бути (оферта §4).
+    expect(mailer.plain[0]!.text).toContain('Вартість — 290 ₴');
   });
 
   it('тиша пів року → попередження; вхід скидає відлік; далі знову попередження і видалення', async () => {

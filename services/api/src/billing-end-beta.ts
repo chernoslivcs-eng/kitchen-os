@@ -19,6 +19,7 @@ import { DEMO_DAYS, startDemo, type SubscriptionState } from '@kitchen/domain/su
 import { MAIL } from '@kitchen/domain/paywall';
 import type { Mailer } from './mailer.js';
 import { notifyHousehold } from './notify-household.js';
+import { renderLetter } from './mail-template.js';
 
 const DAY = 86_400_000;
 const fmt = (iso: string) => new Date(iso).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
@@ -84,14 +85,15 @@ export async function applyEndBeta(deps: EndBetaDeps): Promise<EndBetaSummary> {
       paid_by_user_id: prev?.paid_by_user_id ?? null,
     });
     out.households++;
-    const m = MAIL.demoStarted(fmt(a.demo_ends_at));
+    const m = MAIL.demoStarted(fmt(a.demo_ends_at), `${deps.appUrl}/app`);
+    const rendered = renderLetter(m, { assetsBase: deps.appUrl });
     // Стан уже збережено вище, і це навмисний порядок: дім мусить отримати
     // демо навіть тоді, коли сказати про це нікуди. Інцидент 01.10 показав
     // зворотний бік — тоді необроблений виняток із листа зупиняв весь прохід,
     // і доми після нього не отримували навіть стану.
     const t = await notifyHousehold(
       { repo: deps.repo, mailer: deps.mailer, telegramNotify: deps.telegramNotify },
-      a.household_id, { subject: m.subject, text: m.text },
+      a.household_id, { subject: m.subject, text: rendered.text, html: rendered.html, button: m.button },
     );
     out.mails += t.mails; out.notes += t.notes;
     out.skipped += t.skipped; out.failed += t.failed;

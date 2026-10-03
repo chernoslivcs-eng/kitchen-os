@@ -13,17 +13,37 @@
 import type { Letter, LetterAccent } from '@kitchen/domain/letter';
 import { MAIL_SIGNATURE, letterText } from '@kitchen/domain/letter';
 
-/** Кольори з макета (.em.c). Міняти — лише разом із макетом. */
-const BG = '#0c0d0f';
-const CARD = '#1f2226';
-const BORDER = '#33383e';
-const TEXT = '#d9d8d3';
-const HEAD = '#ffffff';
-const FOOT = '#a3a7ac';
+/**
+ * Кольори з макета EMAIL-DESIGN-1003: `.em.c` — темна кухня, `.em.b` —
+ * шавлієва заливка. Міняти — лише разом із макетом.
+ */
 const ACCENT: Record<LetterAccent, { fill: string; on: string }> = {
   sage: { fill: '#93b48b', on: '#141a12' },
   amber: { fill: '#d2ad6b', on: '#141a12' },
   plum: { fill: '#c99ab4', on: '#141a12' },
+};
+
+interface Palette {
+  bg: string; card: string; border: string | null;
+  text: string; head: string; foot: string; brand: string;
+  button: { fill: string; on: string };
+  /** Яке кільце брати: у заливці воно світле, у темному — за акцентом. */
+  ring: string;
+}
+
+const DARK = (accent: LetterAccent): Palette => ({
+  bg: '#0c0d0f', card: '#1f2226', border: '#33383e',
+  text: '#d9d8d3', head: '#ffffff', foot: '#a3a7ac', brand: '#ecebe7',
+  button: ACCENT[accent], ring: accent,
+});
+
+// Заливка: тло сторінки світле, картка — шавлієва, і на ній усе навпаки —
+// світлий текст, світла кнопка з темним написом. Підпис під карткою стоїть на
+// світлому тлі, тому він темний, а не сірий.
+const FILLED: Palette = {
+  bg: '#e8efe3', card: '#55724a', border: null,
+  text: '#f4f3ef', head: '#ffffff', foot: '#2f4428', brand: '#f4f3ef',
+  button: { fill: '#f4f3ef', on: '#2f4428' }, ring: 'light',
 };
 /**
  * Лапки в стеку шрифтів — ОДИНАРНІ навмисно. Стилі в листі інлайнові, тобто
@@ -48,12 +68,13 @@ export interface RenderOpts {
  * текстової частини, мусять бачити те саме.
  */
 export function renderLetter(letter: Letter, opts: RenderOpts): { html: string; text: string } {
-  const a = ACCENT[letter.accent];
+  const pal = letter.look === 'filled' ? FILLED : DARK(letter.accent);
+  const a = pal.button;
   const base = opts.assetsBase.replace(/\/$/, '');
   const esc = escapeHtml;
 
   const paragraphs = letter.paragraphs
-    .map((p) => `<p style="margin:0 0 14px;font-size:16px;line-height:1.6;color:${TEXT};">${esc(p)}</p>`)
+    .map((p) => `<p style="margin:0 0 14px;font-size:16px;line-height:1.6;color:${pal.text};">${esc(p)}</p>`)
     .join('');
 
   // Куленепробивна кнопка: таблиця з однією клітинкою. padding — на клітинці,
@@ -69,7 +90,7 @@ export function renderLetter(letter: Letter, opts: RenderOpts): { html: string; 
 
   // Запасний рядок — лише там, де кнопка і є вся дія.
   const fallback = letter.button && letter.fallbackLink ? `
-          <p style="margin:14px 0 0;font-size:13px;line-height:1.5;color:${FOOT};">Якщо кнопка не працює, відкрий посилання:<br><a href="${esc(letter.button.url)}" style="color:${a.fill};">${esc(letter.button.url)}</a></p>` : '';
+          <p style="margin:14px 0 0;font-size:13px;line-height:1.5;color:${pal.foot === '#2f4428' ? pal.text : pal.foot};">Якщо кнопка не працює, відкрий посилання:<br><a href="${esc(letter.button.url)}" style="color:${a.fill};">${esc(letter.button.url)}</a></p>` : '';
 
   const html = `<!doctype html>
 <html lang="uk">
@@ -80,36 +101,36 @@ export function renderLetter(letter: Letter, opts: RenderOpts): { html: string; 
 <meta name="supported-color-schemes" content="light dark">
 <title>${esc(letter.subject)}</title>
 </head>
-<body style="margin:0;padding:0;background:${BG};">
+<body style="margin:0;padding:0;background:${pal.bg};">
 <!-- Прихований рядок прев'ю: інакше клієнт підтягує в список перший видимий текст. -->
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(letter.paragraphs[0] ?? '')}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${BG}" style="background:${BG};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${pal.bg}" style="background:${pal.bg};">
   <tr>
     <td align="center" style="padding:24px 16px;">
-      <table role="presentation" width="440" cellpadding="0" cellspacing="0" border="0" bgcolor="${CARD}" style="width:100%;max-width:440px;background:${CARD};border:1px solid ${BORDER};border-radius:20px;">
+      <table role="presentation" width="440" cellpadding="0" cellspacing="0" border="0" bgcolor="${pal.card}" style="width:100%;max-width:440px;background:${pal.card};${pal.border ? `border:1px solid ${pal.border};` : ''}border-radius:20px;">
         <tr>
           <td style="padding:26px;font-family:${FONT};">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td align="left" valign="top" style="font-family:${FONT};font-size:15px;font-weight:600;color:#ecebe7;">
+                <td align="left" valign="top" style="font-family:${FONT};font-size:15px;font-weight:600;color:${pal.brand};">
                   <!-- alt порожній навмисно: назва стоїть текстом поруч, і з
                        вимкненими картинками «Kitchen OS» читалося б двічі. -->
                   <img src="${base}/email/logo.png" width="26" height="26" alt="" style="vertical-align:middle;border:0;border-radius:7px;">
                   <span style="vertical-align:middle;padding-left:9px;">Kitchen OS</span>
                 </td>
                 <td align="right" valign="top" width="80">
-                  <img src="${base}/email/ring-${letter.accent}.png" width="80" height="80" alt="" style="display:block;border:0;">
+                  <img src="${base}/email/ring-${pal.ring}.png" width="80" height="80" alt="" style="display:block;border:0;">
                 </td>
               </tr>
             </table>
-            <h1 style="margin:10px 0 14px;font-size:24px;line-height:1.2;font-weight:700;color:${HEAD};">${esc(letter.subject)}</h1>
+            <h1 style="margin:10px 0 14px;font-size:24px;line-height:1.2;font-weight:700;color:${pal.head};">${esc(letter.subject)}</h1>
             ${paragraphs}${button}${fallback}
           </td>
         </tr>
       </table>
       <table role="presentation" width="440" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:440px;">
         <tr>
-          <td style="padding:16px 6px 0;font-family:${FONT};font-size:13px;line-height:1.5;color:${FOOT};">
+          <td style="padding:16px 6px 0;font-family:${FONT};font-size:13px;line-height:1.5;color:${pal.foot};">
             ${esc(MAIL_SIGNATURE)}<br>${esc(letter.reason)}
           </td>
         </tr>
