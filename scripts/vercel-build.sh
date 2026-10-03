@@ -68,6 +68,16 @@ pnpm --filter @kitchen/web build
 # а вони і є вихідний код. Тому ще раз, руками.
 find apps/web/dist -name '*.map' -delete 2>/dev/null || true
 
+# --- Пошукова база, крок 3 (знайдено живцем на проді після кроку 2): Vercel
+# віддає статичний файл, що збігається зі шляхом запиту, ДО того, як дивиться
+# в rewrites. На «/» у корені dist лежав index.html — Vercel віддавав його
+# напряму, і правило bot-UA (нижче, веде на /prerendered/index.html) не
+# встигало спрацювати: curl -A Googlebot на / отримував SPA-shell, хоча на
+# /terms (там index.html нема — файл лежав лише в корені) той самий бот-UA
+# rewrite працював. Файла з назвою index.html у dist більше нема: людям і
+# catch-all rewrite (vercel.json, нижче) веде на spa.html.
+mv apps/web/dist/index.html apps/web/dist/spa.html
+
 # --- Пошукова база, крок 2: статичний HTML пʼяти публічних адрес для ботів
 # прев'ю (Googlebot і решта — vercel.json rewrite за User-Agent) -----------
 #
@@ -86,12 +96,12 @@ pnpm exec tsx scripts/prerender-bot-pages.tsx || echo "vercel-build: прере�
 # діра і при частковому падінні: скрипт пише пʼять файлів по черзі (for у
 # prerender-bot-pages.tsx), і впасти може рівно на одній адресі, лишивши
 # решту готовими. Перевіряємо кожен файл окремо; відсутній чи порожній —
-# підставляємо index.html (саме той SPA-shell, що й обіцяно).
+# підставляємо spa.html (саме той SPA-shell, що й обіцяно).
 mkdir -p apps/web/dist/prerendered
 for route in index terms privacy refund contacts; do
   target="apps/web/dist/prerendered/$route.html"
   if [ ! -s "$target" ]; then
-    cp apps/web/dist/index.html "$target"
-    echo "vercel-build: dist/prerendered/$route.html відсутній — підставлено SPA-shell (index.html)"
+    cp apps/web/dist/spa.html "$target"
+    echo "vercel-build: dist/prerendered/$route.html відсутній — підставлено SPA-shell (spa.html)"
   fi
 done

@@ -1,8 +1,13 @@
 // П.2 pre-deploy: локальний Vercel-емулятор для прод-збірки. Ті самі
 // rewrites, що у vercel.json: /v1|/health|/r/:id → api/index.ts handler;
-// /assets, sw.js, manifest, icon → статика з dist; решта → index.html (SPA).
+// /assets, sw.js, manifest, icon → статика з dist; решта → spa.html (SPA).
 // Це прод-бандл без StrictMode і з живим service worker — середовище,
 // в якому жив таймер-баг QA8-03.
+//
+// НЕ емулює: bot-UA rewrite на /prerendered/*.html і порядок обробки
+// Vercel (статичний файл на збіг шляху — ДО rewrites, пошукова база крок
+// 3). Для цих двох — тільки прод; тут усі неспівпадні шляхи йдуть на
+// spa.html безумовно, як і завжди.
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -39,7 +44,7 @@ const server = createServer(async (req, res) => {
       return res.end(body);
     } catch { res.writeHead(404); return res.end(); }
   }
-  const html = await readFile(join(DIST, 'index.html'));
+  const html = await readFile(join(DIST, 'spa.html'));
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(html);
 });
