@@ -98,14 +98,15 @@ describe('index.html: мета лендінгу — статично, без JS'
   });
 });
 
-// Пошукова база, крок 2 (03.10): людям SPA лишається як є, гідратації нема
-// взагалі. Ботам (список нижче) на етапі збірки Playwright знімає HTML
-// пʼяти адрес проти prod-serve.ts (dist/prerendered/<шлях>.html,
-// scripts/prerender-bot-pages.mts), і vercel.json за User-Agent віддає цей
-// файл замість index.html. Перевірка тут — лише конфіг: сам пререндер
-// live-тестом не покрити без Chromium+prod-serve на кожному прогоні гейтів
-// (дорого, крихко локально — той самий компроміс, що з e2e-смоуком, який
-// теж поза звичайними гейтами).
+// Пошукова база, крок 2 (03.10, рішення «в»): людям SPA лишається як є,
+// гідратації нема взагалі. Ботам (список нижче) на етапі збірки
+// react-dom/server.renderToStaticMarkup рендерить HTML пʼяти адрес БЕЗ
+// браузера (dist/prerendered/<шлях>.html, scripts/prerender-bot-pages.tsx —
+// крок 1 на Playwright+prod-serve.ts падав на Vercel: libnspr4.so нема в
+// build-образі), і vercel.json за User-Agent віддає цей файл замість
+// index.html. Перевірка тут — конфіг і сам скрипт статично; сам рендер і
+// вміст знімків — apps/web/src/entry-server.test.tsx (react-dom/server
+// напряму, без Vite SSR build, той самий компонентний код).
 describe('vercel.json: боти прев\'ю отримують пререндер, не SPA-shell', () => {
   const BOTS = ['Googlebot', 'bingbot', 'DuckDuckBot', 'YandexBot', 'facebookexternalhit', 'Twitterbot', 'TelegramBot', 'Slackbot', 'LinkedInBot', 'WhatsApp', 'Discordbot'];
   const PAGES: Array<[string, string]> = [
@@ -142,10 +143,23 @@ describe('vercel.json: боти прев\'ю отримують преренде
     expect(spaCatchAll().test('prerendered/terms.html')).toBe(false);
   });
 
-  it('scripts/prerender-bot-pages.mts: вирізає <script> і data-reveal, переписує localhost на прод-домен', () => {
-    const src = readFileSync(join(ROOT, 'scripts/prerender-bot-pages.mts'), 'utf8');
+  it('scripts/prerender-bot-pages.tsx: вирізає <script>, рендерить без браузера, знає прод-домен', () => {
+    const src = readFileSync(join(ROOT, 'scripts/prerender-bot-pages.tsx'), 'utf8');
     expect(src).toMatch(/<script\\b/);
-    expect(src).toMatch(/data-reveal/);
+    expect(src).toContain('renderLandingHtml');
+    expect(src).toContain('renderLegalHtml');
     expect(src).toContain('https://kitchen-os.app');
+  });
+
+  it('Playwright прибрано з кроку білду: не встановлюється й не запускає prod-serve.ts', () => {
+    const buildSh = readFileSync(join(ROOT, 'scripts/vercel-build.sh'), 'utf8');
+    expect(buildSh).not.toContain('playwright install');
+    expect(buildSh).not.toContain('exec tsx services/api/scripts/prod-serve.ts');
+    expect(buildSh).toContain('prerender-bot-pages.tsx');
+  });
+
+  it('prerender-bot-pages.tsx не імпортує Playwright — рендер без браузера', () => {
+    const src = readFileSync(join(ROOT, 'scripts/prerender-bot-pages.tsx'), 'utf8');
+    expect(src).not.toMatch(/from ['"]@?playwright/i);
   });
 });

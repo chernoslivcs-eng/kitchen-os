@@ -42,6 +42,13 @@ function GuessChip({ className }: { className?: string }) {
   return <span className={`${s.chipGuess} ${className ?? ''}`}>{GUESS_CHIP.a}<span className={s.chipGuessB}>{GUESS_CHIP.b}</span></span>;
 }
 
+// SSR для ботів (scripts/prerender-bot-pages.tsx): на сервері ефекти (reveal,
+// фрагменти «Що вміє») не запускаються — базові правила Landing.module.css
+// ховають [data-reveal] і показують лише один fragSlot за замовчуванням.
+// Прапорець на корені змушує CSS тримати все одразу видимим, щоб у знімку
+// був повний текст.
+const STATIC = typeof window === 'undefined';
+
 export function Landing() {
   // №2: лендінг завжди світлий, на всіх ширинах — темна лише в застосунку.
   useLightOnly();
@@ -100,7 +107,7 @@ export function Landing() {
   );
 
   return (
-    <div ref={root} id="top" className={`${s.page} ${s[bp]}`}>
+    <div ref={root} id="top" className={`${s.page} ${s[bp]}`} data-static={STATIC ? '' : undefined}>
       <div className={s.top}>
         <header ref={headerRef} className={s.header}>
           <a href="#top" className={s.logo} data-tap onClick={go}><Mark /><span className={s.logoText}>{FOOTER.brand}</span></a>

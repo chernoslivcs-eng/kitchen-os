@@ -61,6 +61,11 @@
 .page [data-reveal][data-reveal-x] { transform: translateX(24px); }
 .page [data-reveal][data-in] { opacity: 1; transform: none; }
 
+/* SSR для ботів (Landing.tsx: STATIC): на сервері IntersectionObserver не
+   ставить [data-in] ніколи — без цього правила текст лишався б opacity:0
+   у знімку. Вища специфічність за базове правило вище, без !important. */
+.page[data-static] [data-reveal] { opacity: 1; transform: none; }
+
 /* ── верх: градієнт бурштину ─────────────────────────────────────────────── */
 .top { background: linear-gradient(to bottom, color-mix(in srgb, var(--amber-bg) 45%, var(--bg)) 0, var(--bg) 720px); display: flex; flex-direction: column; position: relative; }
 .tab .top { background: linear-gradient(to bottom, color-mix(in srgb, var(--amber-bg) 45%, var(--bg)) 0, var(--bg) 600px); }
@@ -418,6 +423,10 @@
 .fragOn { opacity: 1; transform: none; }
 .fragBefore { transform: translateY(-24px) scale(.96); }
 .fragAfter { transform: translateY(24px) scale(.96); }
+/* SSR для ботів: усі приклади ротації одразу в тексті знімку, не лише
+   активний (sticky-сцена і таймер цикл на сервері не йдуть). Специфічність
+   (.page[data-static] .fragSlot) вища за .fragBefore/.fragAfter вище. */
+.page[data-static] .fragSlot { opacity: 1; transform: none; }
 .fragTilt { transform-style: preserve-3d; transform: perspective(1400px) rotateX(calc(6deg + var(--rx))) rotateY(calc(-12deg + var(--ry))) translate3d(var(--px), var(--py), 0); transition: transform 600ms var(--e); zoom: 1.15; }
 /* 1024: рядки текст / фрагмент з чергуванням, фрагмент ≤440; 390: стек */
 .featsM { padding: 120px 48px 0; display: flex; flex-direction: column; gap: 96px; }
