@@ -11,6 +11,8 @@
 // чисел. Недійсне запрошення — AuthShell з кікером danger (етап 10).
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { INVITE_TTL_HOURS } from '@kitchen/domain/invite-ttl';
+import { plural } from '../../lib/plural';
 import { api } from '../../api';
 import { useAuth } from '../../store/auth';
 import { Icon } from '../../components/Icon/Icon';
@@ -24,7 +26,10 @@ type State =
   | { kind: 'accepting'; household: string; email: string };
 
 const KICK = { tone: 'plum' as const, kickIcon: 'auth.household' as const, kick: 'Запрошення в дім · без пароля', h1a: 'Одна комора на весь дім.' };
-const FOOT = 'Не просив запрошення — просто закрий сторінку, нічого не станеться. Лінк одноразовий · діє 72 год.';
+// Строк беремо з константи, а не словами: до 03.10 тут стояло «діє 72 год», і
+// коли власник подовжив лінк до семи днів, цей рядок лишився б брехати.
+const TTL_DAYS = Math.round(INVITE_TTL_HOURS / 24);
+const FOOT = `Не просив запрошення — просто закрий сторінку, нічого не станеться. Лінк одноразовий · діє ${TTL_DAYS} ${plural(TTL_DAYS, ['день', 'дні', 'днів'])}.`;
 
 export function InvitePage() {
   const [params] = useSearchParams();
