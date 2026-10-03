@@ -93,3 +93,19 @@ echo "vercel-build: пошукова база — пререндер пʼяти 
   pkill -f "services/api/scripts/prod-serve.ts" 2>/dev/null
   exit $PRERENDER_STATUS
 ) || echo "vercel-build: пререндер для ботів не вдався — деплой продовжуємо, боти бачать SPA-shell"
+
+# Дірка в запобіжнику вище (знайдено код-рев'ю 03.10): коментар обіцяє
+# «боти бачать SPA-shell», але vercel.json веде bot-UA на /prerendered/*.html
+# БЕЗУМОВНО — немає там файла, Googlebot отримає 404, не SPA-shell. Та сама
+# діра і при частковому падінні: скрипт пише пʼять файлів по черзі (for у
+# prerender-bot-pages.mts), і впасти може рівно на одній адресі, лишивши
+# решту готовими. Перевіряємо кожен файл окремо; відсутній чи порожній —
+# підставляємо index.html (саме той SPA-shell, що й обіцяно).
+mkdir -p apps/web/dist/prerendered
+for route in index terms privacy refund contacts; do
+  target="apps/web/dist/prerendered/$route.html"
+  if [ ! -s "$target" ]; then
+    cp apps/web/dist/index.html "$target"
+    echo "vercel-build: dist/prerendered/$route.html відсутній — підставлено SPA-shell (index.html)"
+  fi
+done
