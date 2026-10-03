@@ -22,7 +22,7 @@ import { Feed } from './Feed';
 import { usePanelStore } from '../../store/panel';
 import { ArtifactPanel } from '../../components/ArtifactPanel/ArtifactPanel';
 import { useAuth } from '../../store/auth';
-import { greeting } from '../../lib/greeting';
+import { GREETING } from '../../lib/greeting';
 import { HELP_TOPICS } from '@kitchen/domain/help-topics';
 import type { ShoppingItem } from '../../api';
 
@@ -401,7 +401,9 @@ describe('Р123 · порожня розмова <768 (Screens 390)', () => {
   it('порожньо: блок є, шість чіпів-довідок; тап → довідка без моделі; блоку Prototype нема', async () => {
     await mount();
     expect(q('[data-empty-hero][data-empty-mobile]')).toBeTruthy();
-    expect(q('[data-empty-hero] h2')!.textContent).toBe('Що готуємо — з того, що вже є?');
+    // Той самий рядок, що й на ≥768 (рішення власника 03.10): свого заголовка
+    // мобільний блок більше не має.
+    expect(q('[data-empty-hero] h2')!.textContent).toBe(GREETING);
     // UI-NOTES-0914 п. 6: шість чіпів-довідок замість чотирьох/пʼяти старих.
     expect([...host!.querySelectorAll('[data-empty-chip]')].map((c) => c.getAttribute('data-empty-chip'))).toEqual(['start', 'telegram', 'app', 'list', 'pantry', 'calendar']);
     expect(q('[data-empty-below]')).toBeNull();
@@ -440,7 +442,7 @@ describe('Р140 · порожня розмова ≥768 за Prototype', () => {
     await mount();
     expect(q('[data-empty-mobile]')).toBeNull();
     expect(host!.querySelectorAll('[data-empty-hero]').length).toBe(1);
-    expect(q('[data-empty-hero] h1')!.textContent).toBe(greeting());
+    expect(q('[data-empty-hero] h1')!.textContent).toBe(GREETING);
     // Рішення власника 03.10: імені в реченні немає, хоч воно й відоме —
     // у стор вище воно покладене навмисно, щоб тест ловив його повернення.
     expect(q('[data-empty-hero] h1')!.textContent).not.toContain('Пилип');
@@ -455,13 +457,14 @@ describe('Р140 · порожня розмова ≥768 за Prototype', () => {
     // Розмова вже не порожня — стан порожнього чату знято.
     expect(q('[data-chat-empty]')).toBeNull();
   });
-  it('без імені — без звертання', async () => {
+  // Заголовок не залежить від того, чи знаємо ми людину: ні імені, ні
+  // звертання в ньому немає взагалі (рішення власника 03.10).
+  it('без акаунта — той самий заголовок, що й з ним', async () => {
     desktopMedia(true);
     useAuth.setState({ me: null });
     await mount();
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    const h1 = q('[data-empty-hero] h1')!.textContent!;
-    expect(['Що на вечерю?', 'Що готуємо?']).toContain(h1);
+    expect(q('[data-empty-hero] h1')!.textContent).toBe(GREETING);
   });
   it('reduced motion — плейсхолдер статичний', async () => {
     desktopMedia(true);
