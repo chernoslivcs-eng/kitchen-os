@@ -19,6 +19,7 @@ class PickyMailer implements Mailer {
     this.out.push(m.to);
   }
   async sendMagicLink(): Promise<void> { throw new Error('не для цього тесту'); }
+  async sendInvite(): Promise<void> { throw new Error('не для цього тесту'); }
 }
 
 describe('notifyHousehold', () => {

@@ -9,6 +9,7 @@
 
 import { createTransport, type Transporter } from 'nodemailer';
 import { MAIL } from '@kitchen/domain/paywall';
+import { INVITE_TTL_MS } from '@kitchen/domain';
 import { renderLetter } from './mail-template.js';
 import { fileURLToPath } from 'node:url';
 
@@ -33,8 +34,21 @@ export interface PlainMail {
   html?: string;
 }
 
+/**
+ * Запрошення в дім. Окремо від магік-лінка, бо людина мусить бачити, ХТО її
+ * кличе: доти запрошення йшло тим самим листом «Твій вхід у Кухню», і той,
+ * кого покликали, отримував двері без жодної згадки, чиї вони.
+ */
+export interface InviteMail {
+  to: string;
+  link: string;
+  /** Імʼя того, хто запросив, або його пошта. */
+  who: string;
+}
+
 export interface Mailer {
   sendMagicLink(mail: MagicLinkMail): Promise<void>;
+  sendInvite(mail: InviteMail): Promise<void>;
   sendPlain(mail: PlainMail): Promise<void>;
   /**
    * Чи йдуть листи назовні насправді. Від цього залежить, чи відсікати
@@ -54,6 +68,16 @@ export class ConsoleMailer implements Mailer {
   async sendPlain(mail: PlainMail): Promise<void> {
     this.plain.push(mail);
     console.log(`[mail] ${mail.subject} → ${mail.to}\n  ${mail.text}`);
+  }
+
+  /**
+   * Лінк запрошення падає в той самий `sent`, що й магік-лінк: на ньому
+   * тримається і QA-процедура входу, і півтора десятка тестів, які дістають
+   * токен через `last()`. Для них це той самий одноразовий лінк у листі.
+   */
+  async sendInvite(mail: InviteMail): Promise<void> {
+    this.sent.push({ to: mail.to, link: mail.link, expires_in_min: INVITE_TTL_MS / 60_000 });
+    console.log(`[mail] запрошення від ${mail.who} → ${mail.to}\n  ${mail.link}`);
   }
 
   async sendMagicLink(mail: MagicLinkMail): Promise<void> {
@@ -121,6 +145,12 @@ export class SmtpMailer implements Mailer {
       from: this.from, to: mail.to, subject: mail.subject, text: mail.text,
       ...(mail.html ? { html: mail.html } : {}),
     });
+  }
+
+  async sendInvite(mail: InviteMail): Promise<void> {
+    const letter = MAIL.invite(mail.who, mail.link);
+    const { html, text } = renderLetter(letter, { assetsBase: this.appUrl });
+    await this.transporter.sendMail({ from: this.from, to: mail.to, subject: letter.subject, text, html });
   }
 
   async sendMagicLink(mail: MagicLinkMail): Promise<void> {

@@ -109,6 +109,7 @@ describe('applyEndBeta · одна адреса не валить прохід',
       this.out.push(m.to);
     }
     async sendMagicLink(): Promise<void> { throw new Error('не для цього тесту'); }
+  async sendInvite(): Promise<void> { throw new Error('не для цього тесту'); }
   }
 
   it('дім із мертвою адресою не спиняє решти: усі отримують demo, невдача в підсумку', async () => {

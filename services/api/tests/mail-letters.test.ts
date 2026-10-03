@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { MAIL, SUBSCRIPTION_PATH } from '@kitchen/domain/paywall';
 import type { Letter } from '@kitchen/domain/letter';
 import { PLAN_PRICE_UAH } from '@kitchen/domain/plans';
+import { INVITE_TTL_MS } from '@kitchen/domain';
 import { renderLetter } from '../src/mail-template.js';
 
 const APP = 'https://kitchen-os.app';
@@ -48,6 +49,46 @@ describe('лист 1 · вхід', () => {
     expect(l.reason).toBe('Цей лист прийшов, бо хтось увів твою адресу на kitchen-os.app.');
   });
   it('без суми', () => noMoney(l));
+});
+
+describe('лист 2 · запрошення в дім', () => {
+  const url = `${APP}/invite?token=abc`;
+  it('тема, тіло дослівно, кнопка «Зайти в дім» на лінк запрошення', () => {
+    const l = MAIL.invite('Оля', url);
+    expect(l.subject).toBe('На кухні чекає місце');
+    expect(l.paragraphs[0]).toBe('Оля кличе тебе до спільного дому в Kitchen OS. Тут кілька людей можуть вести одну домашню кухню — бачити ті самі продукти, покупки й те, що готують.');
+    expect(l.paragraphs[1]).toBe('Лінк працює 7 днів, холодильник нікуди не поспішає.');
+    expect(l.button).toEqual({ label: 'Зайти в дім', url });
+    expect(l.look).toBe('filled');
+  });
+
+  // Спек §Уточнення: імʼя того, хто запросив; якщо імені нема — його пошта.
+  it('{хто} — імʼя, а без імені пошта; і в тілі, і в причині внизу', () => {
+    for (const who of ['Оля', 'olya@mail.ua']) {
+      const l = MAIL.invite(who, url);
+      expect(l.paragraphs[0]!.startsWith(`${who} кличе тебе`)).toBe(true);
+      expect(l.reason).toBe(`Цей лист прийшов, бо ${who} кличе тебе в Kitchen OS. Якщо це помилка, нічого робити не треба.`);
+    }
+  });
+
+  // «Кличе» не залежить від роду: ми не знаємо, хто пише, і не вгадуємо.
+  it('дієслово без роду — ні «запросила», ні «запросив»', () => {
+    const body = MAIL.invite('Оля', url).paragraphs.join(' ');
+    expect(body).not.toMatch(/запросил|вписал|покликал/i);
+  });
+
+  it('запасний рядок із лінком — кнопка тут і є вся дія', () => {
+    const l = MAIL.invite('Оля', url);
+    const { seen, text } = render(l);
+    expect(seen).toContain('Якщо кнопка не працює');
+    expect(text).toContain(`Зайти в дім: ${url}`);
+  });
+
+  it('строк у тексті збігається зі строком у коді', () => {
+    expect(INVITE_TTL_MS).toBe(7 * 24 * 3_600_000);
+  });
+
+  it('без суми', () => noMoney(MAIL.invite('Оля', url)));
 });
 
 describe('лист 3 · демо почалось', () => {
@@ -124,6 +165,7 @@ describe('лист 7 · тихий дім', () => {
 describe('спільне для всіх листів', () => {
   const all: Array<[string, Letter]> = [
     ['1 вхід', MAIL.login(15, `${APP}/v`)],
+    ['2 запрошення', MAIL.invite('Оля', `${APP}/invite?token=abc`)],
     ['3 демо почалось', MAIL.demoStarted('10 жовтня', `${APP}/app`)],
     ['4 демо закінчується', MAIL.demoEnding('9 жовтня', SUB)],
     ['5а', MAIL.lapsed('demo', SUB)],

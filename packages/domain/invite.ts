@@ -12,7 +12,12 @@ import { randomToken, hashToken, openSession, recordSignupSource } from './auth.
 import type { SignupMarks } from './signup-source.js';
 
 // QA8-18: макет обіцяє «ПОСИЛАННЯ ДІЄ 72 ГОД», код давав тиждень.
-const INVITE_TTL_HOURS = 72;
+// Сім днів (рішення власника 03.10). Доти було 72 години, і лист 2 зі спека
+// EMAIL-SPEC-1003 обіцяв би вдвічі з гаком більше, ніж живе лінк: той, хто
+// відкриє запрошення на п'ятий день, упирався б у «не діє» після прямої
+// обіцянки. Токен одноразовий і відкликається з профілю, тож довший строк
+// нічого не відкриває — лише дає людині дожити до вихідних.
+const INVITE_TTL_HOURS = 24 * 7;
 export const INVITE_TTL_MS = INVITE_TTL_HOURS * 3_600_000;
 
 export interface CreateInviteInput {

@@ -19,6 +19,7 @@ const APP = 'https://kitchen-os.app';
 const SUB = `${APP}${SUBSCRIPTION_PATH}`;
 const letters = [
   ['01-login', MAIL.login(15, `${APP}/v1/auth/verify?token=demo`)],
+  ['02-invite', MAIL.invite('Оля', `${APP}/invite?token=demo`)],
   ['03-demo-started', MAIL.demoStarted('10 жовтня', `${APP}/app`)],
   ['04-demo-ending', MAIL.demoEnding('9 жовтня', SUB)],
   ['05a-paused', MAIL.lapsed('demo', SUB)],

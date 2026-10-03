@@ -10,7 +10,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { incident } from '../incident.js';
 import type { Repo, HouseholdRole } from '@kitchen/domain';
-import { createInvite, acceptInvite, inviteInfo, cleanSignupMarks, INVITE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
+import { createInvite, acceptInvite, inviteInfo, cleanSignupMarks, SESSION_TTL_MS } from '@kitchen/domain';
 import type { Mailer } from '../mailer.js';
 import { COOKIE_NAME } from './auth.js';
 import { authenticated, requireUser } from '../middleware/session.js';
@@ -77,13 +77,14 @@ export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, 
       // запрошення створене, лінк повертаємо власнику, він передасть сам.
       // Сирий токен живе тільки в цій відповіді (у БД — хеш), тому лінк
       // віддається рівно раз — у момент створення.
+      // Хто кличе: імʼя, а без нього — пошта. Лист 2 зі спека
+      // EMAIL-SPEC-1003 ставить це і в тіло, і в причину внизу: людина, якій
+      // прийшли двері в чужий дім, мусить бачити, чиї вони.
+      const host = await repo.getUser(user_id);
+      const who = host?.name?.trim() || host?.email || 'Хтось';
       let mail_sent = true;
       try {
-        await mailer.sendMagicLink({
-          to: email,
-          link,
-          expires_in_min: Math.round(INVITE_TTL_MS / 60_000),
-        });
+        await mailer.sendInvite({ to: email, link, who });
       } catch (err) {
         mail_sent = false;
         incident({ repo, req }, 'broke', 'invite-mail-failed', { user_id, household_id: invite.household_id, err: String(err) });
