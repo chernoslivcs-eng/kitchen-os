@@ -16,6 +16,7 @@
 // в дев-режимі це нормальний стан.
 
 import * as Sentry from '@sentry/react';
+import { isForeignEvent } from './sentry-foreign';
 
 let on = false;
 
@@ -52,6 +53,10 @@ export function initSentry(dsn = import.meta.env.VITE_SENTRY_DSN as string | und
         'ResizeObserver loop limit exceeded',
         'ResizeObserver loop completed with undelivered notifications',
       ],
+      // Чужі скрипти, вставлені в нашу сторінку браузером усередині
+      // застосунку (див. sentry-foreign.ts). Фільтр тут, а не в allowUrls:
+      // питання не в тому, який кадр винен, а чи є в стеку наш код узагалі.
+      beforeSend: (event) => (isForeignEvent(event) ? null : event),
       beforeBreadcrumb: (crumb) => {
         // Хлібні крихти з DOM несуть текст елемента — а це назви продуктів у
         // коморі й репліки в чаті. Лишаємо тільки те, НА ЩО натиснули.
